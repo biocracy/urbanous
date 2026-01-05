@@ -3,8 +3,10 @@ from typing import Optional
 from jose import jwt
 from passlib.context import CryptContext
 
+import os
+
 # Secret key (In prod, use env variable)
-SECRET_KEY = "CHANGE_THIS_TO_A_SUPER_SECRET_KEY_FOR_URBANOUS"
+SECRET_KEY = os.getenv("SECRET_KEY", "CHANGE_THIS_TO_A_SUPER_SECRET_KEY_FOR_URBANOUS")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30 * 24 * 60 # 30 Days
 
