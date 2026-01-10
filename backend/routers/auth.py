@@ -60,25 +60,36 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
-class APIKeyUpdate(BaseModel):
-    api_key: str
+class UserSettingsUpdate(BaseModel):
+    api_key: str | None = None
+    preferred_language: str | None = None
 
 @router.get("/users/me")
 async def read_users_me(current_user: User = Depends(get_current_user)):
     return {
         "email": current_user.email,
-        "gemini_api_key": current_user.gemini_api_key, # In prod, mask this? For now, nice for UX to see it.
+        "gemini_api_key": current_user.gemini_api_key, 
+        "preferred_language": current_user.preferred_language, # New Field
         "created_at": current_user.created_at
     }
 
-@router.put("/users/me/api-key")
-async def update_api_key(valid_body: APIKeyUpdate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    # Re-fetch user in the current session to ensure it's attached and tracked
+@router.put("/users/me/settings")
+async def update_user_settings(settings: UserSettingsUpdate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    # Re-fetch user
     result = await db.execute(select(User).where(User.id == current_user.id))
     user_in_db = result.scalars().first()
     
     if user_in_db:
-        user_in_db.gemini_api_key = valid_body.api_key
+        if settings.api_key is not None:
+            user_in_db.gemini_api_key = settings.api_key
+        if settings.preferred_language is not None:
+            user_in_db.preferred_language = settings.preferred_language
+            
         await db.commit()
-        return {"status": "Updated API Key"}
+        return {"status": "Updated Settings"}
     raise HTTPException(status_code=404, detail="User not found")
+
+# Backward compatibility alias (Optional, but safer for split-second deployment)
+@router.put("/users/me/api-key")
+async def update_api_key_legacy(body: UserSettingsUpdate, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return await update_user_settings(body, current_user, db)

@@ -13,25 +13,49 @@ interface SettingsModalProps {
 export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     const [apiKey, setApiKey] = useState('');
     const [email, setEmail] = useState('');
+    const [preferredLanguage, setPreferredLanguage] = useState('English');
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
-    const { logout } = useAuthStore();
+    const { isAuthenticated, logout } = useAuthStore();
 
     useEffect(() => {
         if (isOpen) {
+            if (!isAuthenticated) return; // Skip fetch for guests
+
             setIsLoading(true);
             setMessage(null);
-            api.get('/users/me')
+
+            // AbortController for cleanup ONLY (not timeout)
+            const controller = new AbortController();
+
+            api.get('/users/me', {
+                signal: controller.signal,
+                timeout: 8000 // Use Axios timeout for actual server timeout
+            })
                 .then(res => {
                     setEmail(res.data.email);
                     setApiKey(res.data.gemini_api_key || '');
+                    setPreferredLanguage(res.data.preferred_language || 'English');
+                    setIsLoading(false);
                 })
                 .catch(err => {
+                    // Ignore component unmount cleanup
+                    if (err.name === 'Canceled') return;
+
                     console.error("Failed to fetch user settings", err);
-                    setMessage({ type: 'error', text: 'Failed to load settings' });
-                })
-                .finally(() => setIsLoading(false));
+
+                    if (err.code === 'ECONNABORTED') {
+                        setMessage({ type: 'error', text: 'Server timed out. Please try again.' });
+                    } else {
+                        setMessage({ type: 'error', text: 'Failed to load settings' });
+                    }
+                    setIsLoading(false);
+                });
+
+            return () => {
+                controller.abort();
+            };
         }
     }, [isOpen]);
 
@@ -39,18 +63,24 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         setIsSaving(true);
         setMessage(null);
         try {
-            await api.put('/users/me/api-key', { api_key: apiKey });
-            setMessage({ type: 'success', text: 'API Key saved successfully!' });
+            // Using new unified endpoint
+            await api.put('/users/me/settings', {
+                api_key: apiKey,
+                preferred_language: preferredLanguage
+            });
+            setMessage({ type: 'success', text: 'Settings saved successfully!' });
             // Close after short delay
             setTimeout(() => {
                 onClose();
             }, 1000);
         } catch (err: any) {
-            setMessage({ type: 'error', text: 'Failed to save API Key' });
+            setMessage({ type: 'error', text: 'Failed to save settings' });
         } finally {
             setIsSaving(false);
         }
     };
+
+    const LANGUAGES = ["English", "Romanian", "Russian", "German", "French", "Spanish", "Italian"];
 
     if (!isOpen) return null;
 
@@ -76,52 +106,83 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                         </div>
                     ) : (
                         <>
-                            <div>
-                                <label className="block text-xs uppercase text-slate-500 font-bold mb-1">Authenticated As</label>
-                                <div className="text-slate-300 font-mono text-sm">{email}</div>
-                            </div>
-
-                            <div>
-                                <label className="block text-xs uppercase text-slate-500 font-bold mb-2">Gemini API Key</label>
-                                <input
-                                    type="text"
-                                    value={apiKey}
-                                    onChange={(e) => setApiKey(e.target.value)}
-                                    className="w-full bg-slate-950 border border-slate-700 rounded p-3 text-white font-mono text-xs focus:ring-1 focus:ring-blue-500 outline-none transition-all placeholder:text-slate-700"
-                                    placeholder="Enter your Google Gemini API Key"
-                                />
-                                <p className="mt-2 text-[10px] text-slate-500">
-                                    This key is used for all AI agents (Discovery, Digest, Sentiment).
-                                    It is stored securely.
-                                </p>
-                            </div>
-
-                            {message && (
-                                <div className={`p-3 rounded text-xs border ${message.type === 'success' ? 'bg-green-900/20 border-green-800 text-green-400' : 'bg-red-900/20 border-red-800 text-red-400'}`}>
-                                    {message.text}
+                            {/* Guest View */}
+                            {!email && !isLoading ? (
+                                <div className="text-center py-8 space-y-4">
+                                    <p className="text-slate-400 text-sm">You are currently browsing as a guest.</p>
+                                    <p className="text-slate-500 text-xs">Log in to access AI features and save your preferences.</p>
+                                    <button
+                                        onClick={() => { window.location.href = "/login"; }}
+                                        className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded font-bold text-sm transition-colors"
+                                    >
+                                        Log In
+                                    </button>
                                 </div>
+                            ) : (
+                                <>
+                                    <div>
+                                        <label className="block text-xs uppercase text-slate-500 font-bold mb-1">Authenticated As</label>
+                                        <div className="text-slate-300 font-mono text-sm">{email}</div>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-xs uppercase text-slate-500 font-bold mb-2">Gemini API Key</label>
+                                        <input
+                                            type="text"
+                                            value={apiKey}
+                                            onChange={(e) => setApiKey(e.target.value)}
+                                            className="w-full bg-slate-950 border border-slate-700 rounded p-3 text-white font-mono text-xs focus:ring-1 focus:ring-blue-500 outline-none transition-all placeholder:text-slate-700"
+                                            placeholder="Enter your Google Gemini API Key"
+                                        />
+                                        <p className="mt-2 text-[10px] text-slate-500">
+                                            This key is used for all AI agents (Discovery, Digest, Sentiment).
+                                        </p>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-xs uppercase text-slate-500 font-bold mb-2">Translation Language</label>
+                                        <select
+                                            value={preferredLanguage}
+                                            onChange={(e) => setPreferredLanguage(e.target.value)}
+                                            className="w-full bg-slate-950 border border-slate-700 rounded p-3 text-white text-sm focus:ring-1 focus:ring-blue-500 outline-none transition-all"
+                                        >
+                                            {LANGUAGES.map(lang => (
+                                                <option key={lang} value={lang}>{lang}</option>
+                                            ))}
+                                        </select>
+                                        <p className="mt-2 text-[10px] text-slate-500">
+                                            Target language for title translation in digests.
+                                        </p>
+                                    </div>
+
+                                    {message && (
+                                        <div className={`p-3 rounded text-xs border ${message.type === 'success' ? 'bg-green-900/20 border-green-800 text-green-400' : 'bg-red-900/20 border-red-800 text-red-400'}`}>
+                                            {message.text}
+                                        </div>
+                                    )}
+
+                                    <div className="pt-4 flex gap-3">
+                                        <button
+                                            onClick={handleSave}
+                                            disabled={isSaving}
+                                            className="flex-1 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded font-bold text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                                        >
+                                            {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                                            Save Changes
+                                        </button>
+                                    </div>
+
+                                    <div className="border-t border-slate-800 pt-4 mt-2">
+                                        <button
+                                            onClick={() => { logout(); onClose(); }}
+                                            className="w-full py-2 bg-red-900/20 hover:bg-red-900/40 text-red-400 border border-red-900/50 rounded font-bold text-sm flex items-center justify-center gap-2 transition-colors"
+                                        >
+                                            <LogOut className="w-4 h-4" />
+                                            Logout
+                                        </button>
+                                    </div>
+                                </>
                             )}
-
-                            <div className="pt-4 flex gap-3">
-                                <button
-                                    onClick={handleSave}
-                                    disabled={isSaving}
-                                    className="flex-1 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded font-bold text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
-                                >
-                                    {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                                    Save Changes
-                                </button>
-                            </div>
-
-                            <div className="border-t border-slate-800 pt-4 mt-2">
-                                <button
-                                    onClick={() => { logout(); onClose(); }}
-                                    className="w-full py-2 bg-red-900/20 hover:bg-red-900/40 text-red-400 border border-red-900/50 rounded font-bold text-sm flex items-center justify-center gap-2 transition-colors"
-                                >
-                                    <LogOut className="w-4 h-4" />
-                                    Logout
-                                </button>
-                            </div>
                         </>
                     )}
                 </div>

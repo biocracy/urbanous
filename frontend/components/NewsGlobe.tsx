@@ -1,12 +1,16 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import * as turf from '@turf/turf';
 import api from '@/lib/api'; // Use the axios instance with Auth interceptor
-import { Sliders, X, Wrench, Search, Map, Calendar, Settings, ChevronDown, ChevronRight, List, Info, Loader2, FileText } from 'lucide-react';
+import { useAuthStore } from '@/lib/store';
+import { Sliders, X, Save, Key, Loader2, LogOut, StopCircle, Languages, Wrench, Search, Map, Calendar, Settings, ChevronDown, ChevronRight, List, Info, FileText } from 'lucide-react';
 import ScraperDebugger from './ScraperDebugger';
 import ReactMarkdown from 'react-markdown';
+import { CAPITALS } from '../data/capitals';
+import DigestReportRenderer from './DigestReportRenderer';
+import UIMarquee from './UIMarquee';
 
 // Dynamically import Globe to avoid SSR issues
 const Globe = dynamic(() => import('react-globe.gl'), {
@@ -47,9 +51,16 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
     const [cities, setCities] = useState<any[]>([]);
     const [hoverPoint, setHoverPoint] = useState<any | null>(null);
     const [digestData, setDigestData] = useState<any>(null);
+    const [isTranslateActive, setIsTranslateActive] = useState(false);
+    const [debuggerConfig, setDebuggerConfig] = useState<{ isOpen: boolean; url: string; domain: string }>({
+        isOpen: false,
+        url: '',
+        domain: ''
+    });
 
     // Discovery Features
     const [discoveredCities, setDiscoveredCities] = useState<string[]>([]);
+    const [allOutlets, setAllOutlets] = useState<any[]>([]);
     const [selectedCityOutlets, setSelectedCityOutlets] = useState<any[]>([]);
     const [selectedCityName, setSelectedCityName] = useState<string | null>(null);
     const [selectedCityData, setSelectedCityData] = useState<any>(null);
@@ -99,12 +110,13 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
     const [savedDigests, setSavedDigests] = useState<any[]>([]);
     const [activeSideTab, setActiveSideTab] = useState<'sources' | 'digests'>('sources');
     const [activeModalTab, setActiveModalTab] = useState<'report' | 'analytics'>('report');
+    const { isAuthenticated } = useAuthStore();
 
     useEffect(() => {
-        if (activeSideTab === 'digests') {
+        if (activeSideTab === 'digests' && isAuthenticated) {
             fetchSavedDigests();
         }
-    }, [activeSideTab]);
+    }, [activeSideTab, isAuthenticated]);
 
     const fetchSavedDigests = async () => {
         try {
@@ -201,11 +213,34 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                                 const tempDiv = document.createElement('div');
                                 tempDiv.innerHTML = newDigestHtml;
                                 const trigger = tempDiv.querySelector(`.scraper-debug-trigger[data-url="${CSS.escape(art.url)}"]`);
+
                                 if (trigger && trigger.previousElementSibling) {
                                     trigger.previousElementSibling.textContent = newDate;
                                     trigger.previousElementSibling.className = ""; // remove spin
                                     // Color logic
-                                    (trigger.previousElementSibling as HTMLElement).style.color = isFresh ? "#4ade80" : "#7f1d1d";
+                                    const dateEl = trigger.previousElementSibling as HTMLElement;
+                                    dateEl.style.color = isFresh ? "#4ade80" : "#7f1d1d";
+
+                                    // PROMOTION LOGIC: Move to top table if fresh
+                                    if (isFresh) {
+                                        const row = trigger.closest('tr');
+                                        if (row) {
+                                            const currentTable = row.closest('table');
+                                            // Assume first table is "Relevant"/Fresh
+                                            const mainTable = tempDiv.querySelector('table');
+
+                                            if (currentTable && mainTable && currentTable !== mainTable) {
+                                                // It's in a secondary table (Older?), move it!
+                                                const tbody = mainTable.querySelector('tbody') || mainTable;
+                                                // Insert at top or bottom? User said "promoted", maybe bottom of fresh is fine.
+                                                // Or top? Let's append for now.
+                                                tbody.appendChild(row);
+
+                                                // Optional: Add a highlight effect class effectively?
+                                                // Can't easily animate via string injection, but the move is enough.
+                                            }
+                                        }
+                                    }
                                 }
                                 newDigestHtml = tempDiv.innerHTML;
                             } catch (e) { console.warn("HTML Patch failed", e); }
@@ -238,6 +273,8 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             await api.post('/digests', {
                 title: title,
                 category: selectedCategory,
+                city: selectedCityName || "Global", // Pass city name
+                timeframe: selectedTimeframe,
                 summary_markdown: digestData.digest,
                 articles: digestData.articles,
                 analysis_source: digestData.analysis_source
@@ -252,7 +289,80 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
         }
     };
 
+    const handleDownloadDigest = () => {
+        if (!digestData) return;
+
+        const titleMatch = digestData.digest.match(/^# (.*)$/m);
+        const title = titleMatch ? titleMatch[1] : `${selectedCategory} Digest`;
+        const filename = `${title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.html`;
+
+        const htmlContent = `
+            <!DOCTYPE html>
+            <html class="dark">
+            <head>
+                <meta charset="utf-8">
+                <title>${title}</title>
+                <script src="https://cdn.tailwindcss.com"></script>
+                <style>
+                    body { background-color: #020617; color: #e2e8f0; font-family: system-ui, sans-serif; padding: 2rem; max-width: 800px; margin: 0 auto; }
+                    .prose { max-width: none; }
+                    
+                    /* Fallback Styles */
+                    h1 { font-size: 2.25rem; font-weight: 800; margin-bottom: 1rem; color: #f8fafc; }
+                    h2 { font-size: 1.5rem; font-weight: 700; margin-top: 2rem; margin-bottom: 1rem; color: #f1f5f9; border-bottom: 1px solid #1e293b; padding-bottom: 0.5rem; }
+                    h3 { font-size: 1.25rem; font-weight: 600; margin-top: 1.5rem; margin-bottom: 0.75rem; color: #e2e8f0; }
+                    a { color: #60a5fa; text-decoration: none; }
+                    a:hover { text-decoration: underline; }
+                    table { width: 100%; border-collapse: collapse; margin: 1.5rem 0; font-size: 0.875rem; }
+                    th, td { border: 1px solid #1e293b; padding: 0.75rem; text-align: left; }
+                    th { background-color: #0f172a; font-weight: 600; color: #94a3b8; }
+                    tr:nth-child(even) { background-color: #0f172a; }
+                    blockquote { border-left: 4px solid #3b82f6; padding-left: 1rem; color: #94a3b8; font-style: italic; }
+                    ul { list-style-type: disc; padding-left: 1.5rem; margin: 1rem 0; }
+                    
+                    .politics-assess-trigger { display: none; } /* Hide interactive buttons */
+                    .scraper-debug-trigger { pointer-events: none; opacity: 0.7; }
+                </style>
+            </head>
+            <body>
+                <article class="prose prose-invert">
+                    ${digestData.digest}
+                </article>
+                <footer style="margin-top: 4rem; padding-top: 2rem; border-top: 1px solid #1e293b; color: #64748b; font-size: 0.875rem; text-align: center;">
+                    Generated by OpenNews • ${new Date().toLocaleString()}
+                </footer>
+            </body>
+            </html>
+        `;
+
+        const blob = new Blob([htmlContent], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    };
+
+    const abortControllerRef = useRef<AbortController | null>(null);
+
+    const handleStopDigest = () => {
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+            abortControllerRef.current = null;
+            setProgressLog("🛑 Stopped by user.");
+            setIsGeneratingDigest(false);
+        }
+    };
+
     const handleGenerateDigest = async () => {
+        if (!isAuthenticated) {
+            setErrorMessage("Please log in to use AI features.");
+            return;
+        }
+
         if (selectedOutletIds.length === 0) {
             setErrorMessage("Please select at least one outlet.");
             return;
@@ -266,6 +376,9 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             // Retrieve token from storage/api helper if needed
             const token = localStorage.getItem('token');
 
+            // Init AbortController
+            abortControllerRef.current = new AbortController();
+
             const response = await fetch(`${api.defaults.baseURL}/outlets/digest/stream`, {
                 method: 'POST',
                 headers: {
@@ -276,7 +389,8 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                     outlet_ids: selectedOutletIds,
                     category: selectedCategory,
                     timeframe: selectedTimeframe
-                })
+                }),
+                signal: abortControllerRef.current.signal
             });
 
             if (!response.body) throw new Error("No stream body");
@@ -285,6 +399,10 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             const decoder = new TextDecoder();
             let done = false;
             let buffer = '';
+            let lastLogUpdate = 0;
+            let lastDataUpdate = 0;
+            // Accumulator for throttled updates
+            let currentDigestState: any = { articles: [], digest: '', analysis_source: [] };
 
             while (!done) {
                 const { value, done: doneReading } = await reader.read();
@@ -302,21 +420,74 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                     if (line.trim() === '') continue;
                     try {
                         const msg = JSON.parse(line);
+
                         if (msg.type === 'log') {
-                            setProgressLog(`> ${msg.message}`);
-                        } else if (msg.type === 'result') {
-                            const data = msg.payload;
-                            console.log("Received Digest Result:", data); // Debug
-                            setDigestData(data);
+                            // Throttle log updates to prevent UI/WebGL thrashing (max 5fps)
+                            const now = Date.now();
+                            if (now - lastLogUpdate > 200 || msg.message.includes("Done") || msg.message.includes("Error")) {
+                                setProgressLog(`> ${msg.message}`);
+                                lastLogUpdate = now;
+                            }
+                        }
+                        // --- New Partial Handlers ---
+                        else if (msg.type === 'partial_digest') {
+                            // console.log("Received Partial Digest HTML");
+                            currentDigestState.digest = msg.html;
+
+                            const now = Date.now();
+                            if (now - lastDataUpdate > 200) {
+                                setDigestData({ ...currentDigestState });
+                                lastDataUpdate = now;
+                            }
+                        }
+                        else if (msg.type === 'partial_articles') {
+                            // console.log(`Received Partial Articles List (${msg.articles.length})`);
+                            if (currentDigestState.articles) {
+                                currentDigestState.articles.push(...msg.articles);
+                            } else {
+                                currentDigestState.articles = [...msg.articles];
+                            }
+                            currentDigestState.category = msg.category;
+
+                            const now = Date.now();
+                            if (now - lastDataUpdate > 200) {
+                                setDigestData({ ...currentDigestState });
+                                lastDataUpdate = now;
+                            }
+                        }
+                        else if (msg.type === 'partial_analysis') {
+                            // console.log("Received Partial Analysis");
+                            currentDigestState.analysis_source = msg.source;
+
+                            const now = Date.now();
+                            if (now - lastDataUpdate > 200) {
+                                setDigestData({ ...currentDigestState });
+                                lastDataUpdate = now;
+                            }
+                        }
+                        else if (msg.type === 'done') {
+                            console.log("Digest Stream Complete.");
+                            // Final Update
+                            setDigestData({ ...currentDigestState });
                             setActiveModalTab('report');
                             setShowOutletPanel(true);
 
-                            if (data.analysis_source) {
-                                const hasRateLimit = data.analysis_source.some((k: any) => k.type === "System:RateLimit");
+                            // Check for rate limits in the accumulated data
+                            if (currentDigestState.analysis_source) {
+                                const hasRateLimit = currentDigestState.analysis_source.some((k: any) => k.type === "System:RateLimit");
                                 if (hasRateLimit) {
-                                    alert("⚠️ Rate Limit Warning: Some articles could not be fully analyzed because the AI quota was exceeded. The digest is partial.");
+                                    alert("⚠️ Rate Limit Warning: Some articles could not be fully analyzed.");
                                 }
                             }
+                        }
+                        // --- Legacy Fallback ---
+                        else if (msg.type === 'result') {
+                            const data = msg.payload;
+                            console.log("Received Digest Result:", data); // Debug
+                            currentDigestState = data; // Update local
+                            setDigestData(data);
+                            setActiveModalTab('report');
+                            setShowOutletPanel(true);
                         } else if (msg.type === 'error') {
                             setErrorMessage(msg.message);
                         }
@@ -327,8 +498,16 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             }
 
         } catch (err: any) {
+            if (err.name === 'AbortError') {
+                console.log("Digest generation aborted by user.");
+                return; // Clean exit
+            }
             console.error("Digest generation failed", err);
-            setErrorMessage(err.message || 'Failed to generate digest');
+            if (err.message && err.message.includes("network")) {
+                setErrorMessage("Network Timeout. Please try fewer outlets or a smaller timeframe.");
+            } else {
+                setErrorMessage(err.message || 'Failed to generate digest');
+            }
         } finally {
             setIsGeneratingDigest(false);
         }
@@ -359,6 +538,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
     const countryMap = useRef<Record<string, string>>({});
 
     useEffect(() => {
+        console.log("NewsGlobe Mounted. Fetching initial data...");
         // Load countries polygons
         fetch('https://raw.githubusercontent.com/vasturiano/react-globe.gl/master/example/datasets/ne_110m_admin_0_countries.geojson')
             .then(res => res.json())
@@ -386,8 +566,19 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
         // Load initially discovered cities (Auth required)
         api.get('/outlets/cities/list')
-            .then(res => setDiscoveredCities(res.data))
+            .then(res => {
+                console.log("Discovered Cities Loaded:", res.data?.length);
+                setDiscoveredCities(res.data);
+            })
             .catch(err => console.error("Failed to load discovered cities", err));
+
+        // Load all outlets for mapping
+        api.get('/outlets/')
+            .then(res => {
+                console.log("All Outlets Loaded:", res.data?.length);
+                setAllOutlets(res.data);
+            })
+            .catch(err => console.error("Failed to load outlets map", err));
     }, []);
 
     // Search Logic
@@ -411,6 +602,26 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
         setSearchResults(results);
     }, [searchQuery, cities]);
+
+    const handleDebugArticle = (article: any) => {
+        let domain = article.source;
+        // CRITICAL: Backend matches rules by DOMAIN (e.g. "g4media.ro"), not Outlet Name (e.g. "G4Media").
+        // We must extract the actual hostname from the URL for the rule to be effective.
+        try {
+            if (article.url) {
+                const urlObj = new URL(article.url);
+                domain = urlObj.hostname.replace('www.', '');
+            }
+        } catch (e) {
+            console.error("Failed to parse URL for debugger", e);
+        }
+
+        setDebuggerConfig({
+            isOpen: true,
+            url: article.url,
+            domain: domain
+        });
+    };
 
     const handleSearchSelect = (city: any) => {
         setSearchQuery('');
@@ -535,6 +746,32 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
         // 1. Sort by pop desc
         const sorted = [...cities].sort((a, b) => parseInt(b.pop || 0) - parseInt(a.pop || 0));
+
+        // 1.5 Calculate Active Cities from Digest (Live Mode)
+        const activeDigestCities = new Set<string>();
+        if (digestData?.articles && allOutlets.length > 0) {
+            console.log(`[NewsGlobe] Mapping ${digestData.articles.length} articles against ${allOutlets.length} outlets.`);
+            digestData.articles.forEach((art: any) => {
+                try {
+                    let outlet = null;
+                    if (art.url) {
+                        const artDomain = new URL(art.url).hostname.replace('www.', '');
+                        outlet = allOutlets.find((o: any) => {
+                            try { return new URL(o.url).hostname.replace('www.', '') === artDomain; } catch { return false; }
+                        });
+                    }
+                    if (!outlet && art.source) {
+                        // Loose match on source name
+                        outlet = allOutlets.find((o: any) => o.name === art.source);
+                    }
+                    if (outlet && outlet.city) {
+                        activeDigestCities.add(outlet.city);
+                    }
+                } catch (e) { }
+            });
+            console.log(`[NewsGlobe] Found ${activeDigestCities.size} active cities.`);
+        }
+
         const newClusters: any[] = [];
 
         sorted.forEach(city => {
@@ -546,9 +783,18 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             city.isCluster = false;
 
             const isDiscovered = discoveredCities.includes(city.name);
-            const isCapital = pop === countryMaxPop[city.country || 'XX'];
+
+            // const isCapital = pop === countryMaxPop[city.country || 'XX']; // Old heuristic
+            // Exact match check. Note: city.country is ISO2, same as CAPITALS keys.
+            const isCapital = CAPITALS[city.country] === city.name;
 
             let color = isDiscovered ? '#34d399' : (isCapital ? '#db2777' : '#64748b');
+
+            // LIVE OVERRIDE
+            if (activeDigestCities.has(city.name)) {
+                color = '#4ade80'; // Bright Green for Active News
+            }
+
             city.color = color;
             city.isCapital = isCapital;
 
@@ -560,13 +806,69 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             });
 
             if (existing) {
-                existing.subPoints.push(city);
-                existing.pop += pop;
-                existing.radius = getPopScale(existing.pop) * 1.2;
-                existing.isCluster = true;
-                if (!existing.isCapital) {
-                    existing.color = '#7c3aed';
+                // If the new city is a Capital and the Cluster is NOT yet a Capital,
+                // we SWAP them. The Capital becomes the Head of the cluster.
+                // The old Head (e.g. Johannesburg) becomes a sub-point.
+                if (city.isCapital && !existing.isCapital) {
+                    // 1. Save Old Head as a Subpoint
+                    const oldHead = {
+                        ...existing,
+                        // Important: Restore original identity data we might want
+                        // But wait, 'existing' is the accumulator object. 
+                        // We need to construct a "Point" object for the Old Head.
+                        // We rely on 'ownPop' which we must add to initialization.
+                        pop: existing.ownPop,
+                        subPoints: [], // Subpoint is a leaf
+                        isCluster: false,
+                        radius: getPopScale(existing.ownPop),
+                        color: discoveredCities.includes(existing.name) ? '#34d399' : '#64748b'
+                        // Note: Re-calculating color is safer. 
+                        // We don't have 'isDiscovered' on existing easily unless we updated it. 
+                        // But existing.color is currently set. Let's use it? 
+                        // existing.color might be purple (Cluster color).
+                        // Better to use default gray usually, or check discovered.
+                        // Let's assume generic gray for simplicity or re-derive if needed.
+                        // Actually, let's just make it a standard point.
+                    };
+                    delete oldHead.subPoints; // Ensure it's clean
+                    delete oldHead.points; // logic safety
+
+                    existing.subPoints.push(oldHead);
+
+                    // 2. Update Head Identity to New Capital
+                    existing.name = city.name;
+                    existing.lat = lat;
+                    existing.lng = lng;
+                    existing.lon = lng;
+                    existing.country = city.country;
+                    existing.ownPop = pop;
+                    existing.isCapital = true;
+                    existing.color = '#db2777'; // Capital Red
+
+                    // 3. Update Totals
+                    existing.pop += pop; // Add Capital Pop to Total
+                    existing.radius = getPopScale(existing.pop) * 1.2;
+
+                } else {
+                    // Standard Merge: New city becomes a subpoint
+                    existing.subPoints.push(city);
+                    existing.pop += pop;
+                    existing.radius = getPopScale(existing.pop) * 1.2;
+
+                    if (existing.isCapital) {
+                        // Head is already capital, maintain color
+                    } else if (city.isCapital) {
+                        // Edge case: Multiple capitals? 
+                        // Should not happen if we did the swap above (since !existing.isCapital).
+                        // But if existing IS capital AND city IS capital (2 capitals close?),
+                        // We just swallow the smaller capital.
+                    } else {
+                        // No capitals involved
+                        existing.color = '#7c3aed';
+                    }
                 }
+                existing.isCluster = true;
+
             } else {
                 newClusters.push({
                     ...city,
@@ -576,12 +878,13 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                     subPoints: [],
                     id: `c-${lat}-${lng}`,
                     pop: pop,
+                    ownPop: pop, // Save personal population for swapping
                     isCapital: isCapital
                 });
             }
         });
         return newClusters;
-    }, [cities, discoveredCities, clusterThreshold, markerScale]);
+    }, [cities, discoveredCities, clusterThreshold, markerScale, digestData, allOutlets]); // Updated deps
 
     // 2. Generate Render Objects based on Expanded State (Fast)
     useEffect(() => {
@@ -600,24 +903,88 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                     const goldenAngle = Math.PI * (3 - Math.sqrt(5));
                     const spreadFactor = clusterThreshold * 0.5;
 
-                    items.forEach((item: any, idx: number) => {
+                    // 1. Prepare Items with Parsed Coordinates
+                    const preparedItems = items.map((item: any) => ({
+                        ...item,
+                        pLat: parseFloat(item.lat || item.latitude),
+                        pLng: parseFloat(item.lng || item.lon || item.longitude),
+                        pRadius: getPopScale(item.pop)
+                    }));
+
+                    // 2. Iterative Relaxation (Force-Directed Packing)
+                    // Instead of a single global scalar, we simulate "pushing" overlapping circles apart.
+
+                    const ITERATIONS = 50; // increased for dense clusters (e.g. Tokyo)
+                    const padding = 0.035; // increased clearance
+                    console.log("Using Force Packing for Cluster:", c.name);
+
+                    // Clone for simulation
+                    const simItems = preparedItems.map((p: any) => ({
+                        ...p,
+                        x: p.pLng, // Longitude ~ X
+                        y: p.pLat, // Latitude ~ Y
+                        r: p.pRadius,
+                        vx: 0,
+                        vy: 0
+                    }));
+
+                    for (let iter = 0; iter < ITERATIONS; iter++) {
+                        let moved = false;
+                        for (let i = 0; i < simItems.length; i++) {
+                            for (let j = i + 1; j < simItems.length; j++) {
+                                const p1 = simItems[i];
+                                const p2 = simItems[j];
+
+                                const dx = p2.x - p1.x;
+                                const dy = p2.y - p1.y;
+                                const distSq = dx * dx + dy * dy;
+                                const dist = Math.sqrt(distSq);
+
+                                const minDist = p1.r + p2.r + padding;
+
+                                if (dist < minDist) {
+                                    // Overlap!
+                                    const overlap = minDist - dist;
+                                    const nx = dist > 0 ? dx / dist : 1; // Normalize vector
+                                    const ny = dist > 0 ? dy / dist : 0;
+
+                                    // Push apart
+                                    const moveX = nx * (overlap * 0.51);
+                                    const moveY = ny * (overlap * 0.51);
+
+                                    if (i !== 0) {
+                                        p1.x -= moveX;
+                                        p1.y -= moveY;
+                                    }
+
+                                    if (j !== 0) {
+                                        p2.x += moveX;
+                                        p2.y += moveY;
+                                    }
+
+                                    moved = true;
+                                }
+                            }
+                        }
+                        if (!moved) break;
+                    }
+
+                    simItems.forEach((item: any, idx: number) => {
                         const isCenter = idx === 0;
-                        const r = isCenter ? 0 : spreadFactor * Math.sqrt(idx);
-                        const theta = idx * goldenAngle;
-                        const exLat = c.lat + (isCenter ? 0 : Math.sin(theta) * r);
-                        const exLng = c.lng + (isCenter ? 0 : Math.cos(theta) * r);
+                        const exLat = item.y;
+                        const exLng = item.x;
 
                         let itemColor = '#a78bfa';
                         if (discoveredCities.includes(item.name)) itemColor = '#34d399';
                         else if (item.isCapital) itemColor = '#db2777';
 
                         renderPoints.push({
-                            ...item,
+                            ...item, // include original props
                             lat: exLat,
                             lng: exLng,
                             lon: exLng,
                             color: itemColor,
-                            radius: getPopScale(item.pop),
+                            radius: item.pRadius, // use parsed radius
                             opacity: 1.0,
                             isSpider: true
                         });
@@ -632,7 +999,8 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                             });
                         }
                     });
-                    renderRings.push({ lat: c.lat, lng: c.lng, maxR: spreadFactor * Math.sqrt(count) * 1.1, color: 'rgba(255,255,255,0.05)' });
+                    // Adjust ring to cover the area?
+                    renderRings.push({ lat: c.lat, lng: c.lng, maxR: spreadFactor * 2.0, color: 'rgba(255,255,255,0.05)' });
                 }
                 // ELSE: Do nothing. Hide node.
             } else {
@@ -663,7 +1031,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
         return () => window.removeEventListener('keydown', handleEsc);
     }, []);
 
-    const getTooltip = (d: any) => {
+    const getTooltip = useCallback((d: any) => {
         if (d.isCluster && !d.isSpider) {
             return `
             <div class="px-2 py-1 bg-amber-500/90 text-black font-bold rounded text-xs border border-amber-300 z-50">
@@ -678,36 +1046,9 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                 ${d.name} <span style="opacity:0.7">(${parseInt(d.pop || 0).toLocaleString()})</span>
             </div>
             `;
-    };
+    }, []);
 
-    const handleMapClick = (d: any) => {
-        // If Spider Point (previously grouped), treat as city click
-        if (d.isSpider || !d.isCluster) {
-            handleCityClick(d);
-            return;
-        }
-
-        // If Cluster, Expand
-        if (d.isCluster) {
-            if (expandedCluster && expandedCluster.id === d.id) {
-                setExpandedCluster(null); // Collapse
-                // Reset zoom? optional
-            } else {
-                const center = turf.point([parseFloat(d.lon), parseFloat(d.lat)]);
-                // Adaptive Zoom: Closer! (User Req: "more zoom in")
-                const count = d.subPoints.length + 1;
-                // Min altitude 0.025 for extremely close view
-                const adaptiveAlt = Math.max(0.025, 0.25 - (count * 0.008));
-
-                if (globeEl.current) {
-                    globeEl.current.pointOfView({ lat: d.lat, lng: d.lng, altitude: adaptiveAlt }, 800);
-                }
-                setExpandedCluster(d);
-            }
-        }
-    };
-
-    const handleCityClick = (d: any) => {
+    const handleCityClick = useCallback((d: any) => {
         setSelectedCityName(d.name);
         setSelectedCityData(d);
         setShowOutletPanel(true);
@@ -754,7 +1095,35 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
         api.get(`/outlets/city_info?city=${d.name}&country=${countryName}`)
             .then(res => setCityInfo(res.data))
             .catch(err => console.error("City Info failed", err));
-    };
+    }, [discoveredCities]);
+
+    const handleMapClick = useCallback((d: any) => {
+        // If Spider Point (previously grouped), treat as city click
+        if (d.isSpider || !d.isCluster) {
+            handleCityClick(d);
+            return;
+        }
+
+        // If Cluster, Expand
+        if (d.isCluster) {
+            if (expandedCluster && expandedCluster.id === d.id) {
+                setExpandedCluster(null); // Collapse
+                // Reset zoom? optional
+            } else {
+                const center = turf.point([parseFloat(d.lon), parseFloat(d.lat)]);
+                // Adaptive Zoom: Closer! (User Req: "more zoom in")
+                const count = d.subPoints.length + 1;
+                // Min altitude 0.025 for extremely close view
+                const adaptiveAlt = Math.max(0.025, 0.25 - (count * 0.008));
+
+                if (globeEl.current) {
+                    globeEl.current.pointOfView({ lat: d.lat, lng: d.lng, altitude: adaptiveAlt }, 800);
+                }
+                setExpandedCluster(d);
+            }
+        }
+    }, [expandedCluster, handleCityClick]);
+
 
     const handleRediscoverCity = () => {
         if (!selectedCityData) return;
@@ -860,41 +1229,266 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             .finally(() => setIsImporting(false));
     };
 
-    const handleAssessArticle = (url: string, title: string, btnElement: HTMLElement) => {
-        // Optimistic UI
-        btnElement.textContent = "⏳ Analyzing...";
-        btnElement.style.color = "#fbbf24"; // Amber
-        // Disable
-        btnElement.style.pointerEvents = "none";
+    // Helper to update a single article's date in state
+    const updateLocalArticleDate = (targetUrl: string, dateStr: string) => {
+        setDigestData((prev: any) => {
+            if (!prev) return prev;
 
-        api.post('/outlets/assess_article', { url, title })
-            .then(res => {
-                const data = res.data;
-                const isPolitics = data.is_politics;
-                const color = isPolitics ? '#4ade80' : '#f87171'; // Green : Red
-                const icon = isPolitics ? '✅' : '❌';
+            // Calculate cutoff based on active configuration
+            const timeframe = selectedTimeframe || "24h";
+            const now = new Date();
+            const cutoff = new Date();
+            if (timeframe === "3days") cutoff.setDate(now.getDate() - 3);
+            else if (timeframe === "1week") cutoff.setDate(now.getDate() - 7);
+            else if (timeframe === "1month") cutoff.setDate(now.getDate() - 30);
+            else cutoff.setDate(now.getDate() - 1); // 24h default
 
-                // Update Button to Result
-                btnElement.innerHTML = `${icon} ${data.confidence}%`;
-                btnElement.style.borderColor = color;
-                btnElement.style.color = color;
+            const newDate = new Date(dateStr);
+            const isFresh = newDate >= cutoff;
 
-                // Show Verdict Div
-                const verdictDiv = btnElement.nextElementSibling as HTMLElement;
-                if (verdictDiv) {
-                    verdictDiv.style.display = 'block';
-                    verdictDiv.style.color = color;
-                    verdictDiv.innerHTML = `<b>${isPolitics ? "POLITICS" : "IGNORED"}</b>: ${data.reasoning} <br/> <span style="opacity:0.7; font-size:0.6rem;">[${data.labels.join(', ')}]</span>`;
+            const updatedArticles = prev.articles.map((art: any) => {
+                if (art.url === targetUrl) {
+                    return {
+                        ...art,
+                        date_str: dateStr,
+                        // Update scores based on freshness logic (mimic backend)
+                        relevance_score: isFresh ? Math.max(art.relevance_score, 50) : 0,
+                        scores: {
+                            ...art.scores,
+                            date: isFresh ? 30 : 0,
+                            is_fresh: isFresh,
+                            is_old: !isFresh
+                        }
+                    };
                 }
-            })
-            .catch(err => {
-                btnElement.textContent = "Error";
-                btnElement.style.pointerEvents = "auto";
-                console.error(err);
+                return art;
             });
+            return { ...prev, articles: updatedArticles };
+        });
     };
 
+    const handleDateExtracted = (dateStr: string) => {
+        if (debuggerConfig.url) {
+            updateLocalArticleDate(debuggerConfig.url, dateStr);
+        }
+    };
+
+    const handleRulesUpdated = async (domain: string) => {
+        if (!digestData?.articles) return;
+
+        // Find all articles from this domain
+        const candidates = digestData.articles.filter((art: any) => {
+            try {
+                return new URL(art.url).hostname.replace('www.', '') === domain;
+            } catch { return false; }
+        });
+
+        console.log(`Starting batch update for ${candidates.length} sources from ${domain}...`);
+        let successCount = 0;
+        let failCount = 0;
+
+        // Trigger updates in background
+        const batchSize = 3;
+        for (let i = 0; i < candidates.length; i += batchSize) {
+            const batch = candidates.slice(i, i + batchSize);
+            await Promise.all(batch.map(async (art: any) => {
+                try {
+                    // Use the Test endpoint to apply the newly saved rule
+                    const res = await api.post('/scraper/test', { url: art.url });
+                    if (res.data.status === 'success' && res.data.extracted_date) {
+                        updateLocalArticleDate(art.url, res.data.extracted_date);
+                        successCount++;
+                    } else {
+                        // Success but no date found (or null)
+                        failCount++; // Technically not a failure, but no update.
+                    }
+                } catch (e: any) {
+                    // Expected for dead links or blocked sites (400 Bad Request)
+                    const msg = e.response?.data?.detail || e.message;
+                    console.warn(`Skipping date update for ${art.url}: ${msg}`);
+                    failCount++;
+                }
+            }));
+        }
+        console.log(`Batch update complete. Updated: ${successCount}, Skipped/Failed: ${failCount}`);
+    };
+
+    const handleAssessArticle = async (article: any) => {
+        if (!article.url || !article.title) return null;
+
+        try {
+            const res = await api.post('/outlets/assess_article', {
+                url: article.url,
+                title: article.title,
+                content: null // force fetch
+            });
+            const data = res.data;
+            return {
+                is_politics: data.is_politics,
+                confidence: data.confidence,
+                reasoning: data.reasoning,
+                labels: data.labels
+            };
+        } catch (err: any) {
+            console.error(err);
+            alert(`Assessment process failed: ${err.response?.data?.detail || err.message}`);
+            return null;
+        }
+    };
+
+
     // ... (Add manual outlet implementation similar to above using api.post)
+
+    const globeComponent = useMemo(() => (
+        <Globe
+            ref={globeEl}
+            globeImageUrl={mapStyle}
+            bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
+            backgroundImageUrl="//unpkg.com/three-globe/example/img/night-sky.png"
+
+            // Polygons (Borders)
+            polygonsData={countries.features}
+            polygonAltitude={0.005}
+            polygonCapColor={() => 'rgba(0, 0, 0, 0)'}
+            polygonSideColor={() => 'rgba(0, 0, 0, 0)'}
+            polygonStrokeColor={() => mapStyle.includes('day') ? '#000000' : '#888'}
+            // @ts-ignore
+            polygonStrokeWidth={mapStyle.includes('day') ? 2 : 0.6}
+            onPolygonClick={(d: any) => {
+                setExpandedCluster(null); // Click background to close cluster
+                setSelectedCountry(d);
+                if (globeEl.current) {
+                    const centroid = turf.centroid(d);
+                    const [lng, lat] = centroid.geometry.coordinates;
+                    globeEl.current.pointOfView({ lat, lng, altitude: 0.5 }, 1000);
+                }
+                if (onCountrySelect) onCountrySelect(d.properties.NAME, d.properties.ISO_A2);
+            }}
+
+            // Labels (Initials on Marker)
+            labelsData={processedData.points}
+            labelLat={(d: any) => d.lat}
+            labelLng={(d: any) => d.lng}
+            labelText={(d: any) => {
+                if (!d.name) return '?';
+                // Normalize to base char (e.g. Ș -> S) to ensure rendering support
+                const char = d.name.charAt(0).normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                return char.toUpperCase();
+            }}
+            labelLabel={getTooltip} // Show same tooltip when hovering letter
+            onLabelClick={handleMapClick} // Allow clicking the letter
+            onLabelHover={(d: any) => {
+                // Ensure cursor consistency
+                document.body.style.cursor = d ? 'pointer' : 'default';
+            }}
+
+            // Use default system font for max compatibility
+            labelTypeFace={undefined}
+            labelFont={undefined}
+
+            // Radius is "radius", Diameter is 2x. Text height needs to fill diameter.
+            // User req: "a tid smaller" -> 1.3
+            labelSize={(d: any) => d.radius * 1.3}
+            labelColor={(d: any) => d.opacity && d.opacity < 1 ? 'transparent' : 'black'}
+            labelDotRadius={0} // Hide the auxiliary dot
+            labelAltitude={0.0051} // Micro-offset from pointAltitude (0.005) to avoid Z-fighting but minimize gap
+            labelResolution={4} // Sharper rendering
+            labelIncludeDot={false}
+
+            // Points (Cities & Clusters)
+            pointsData={processedData.points}
+            pointLat={(d: any) => d.lat}
+            pointLng={(d: any) => d.lng}
+            pointColor={(d: any) => {
+                // Dynamic Highlight Logic:
+                // If a city is selected, dim everything else unless it's the selected one or part of the active cluster?
+                // The user mentioned "faint colors" issues. 
+                // Let's rely on opacity mostly, but ensure Selected City is Bright.
+
+                if (selectedCityData && d.name === selectedCityData.name) {
+                    return '#00FFFF'; // Force Cyan for selected
+                }
+
+                // Inject opacity if present
+                if (d.opacity !== undefined && d.opacity < 1) {
+                    // Simple hex to rgba approximation
+                    const c = d.color;
+                    if (c.startsWith('#')) {
+                        const r = parseInt(c.slice(1, 3), 16);
+                        const g = parseInt(c.slice(3, 5), 16);
+                        const b = parseInt(c.slice(5, 7), 16);
+                        return `rgba(${r},${g},${b},${d.opacity})`;
+                    }
+                    return d.color;
+                }
+                return d.color;
+            }}
+            pointRadius={(d: any) => d.radius}
+            pointAltitude={0.005} // Raised slightly to fix generic Raycasting/Click interactions
+            pointResolution={32}
+            onPointHover={(d: any) => {
+                // Optimization: Removed setHoverPoint(d) to prevent expensive re-renders
+                // This makes the tooltip "snappy"
+                document.body.style.cursor = d ? 'pointer' : 'default';
+            }}
+            onPointClick={(d: any) => {
+                if (d) handleMapClick(d);
+            }}
+            pointLabel={getTooltip}
+
+            // Rings (Visual cues for clusters & Selection Halo)
+            ringsData={[
+                ...processedData.rings,
+                // 1. Temporary Halo for Search Highlight
+                ...(highlightedCityId ? (() => {
+                    const c = cities.find(x => x.name === highlightedCityId);
+                    if (!c) return [];
+                    return [{
+                        lat: parseFloat(c.lat),
+                        lng: parseFloat(c.lng),
+                        maxR: 2.5, // Large Halo
+                        color: 'rgba(50, 255, 255, 0.8)',
+                        propagationSpeed: 5,
+                        repeatPeriod: 800
+                    }];
+                })() : []),
+                // 2. Persistent Halo for Selected City
+                ...(selectedCityData ? (() => {
+                    // Use selectedCityData coordinates directly
+                    // Ensure lat/lng are numbers
+                    const lat = parseFloat(selectedCityData.lat);
+                    const lng = parseFloat(selectedCityData.lng || selectedCityData.lon);
+                    if (isNaN(lat) || isNaN(lng)) return [];
+
+                    return [{
+                        lat: lat,
+                        lng: lng,
+                        maxR: 1.5, // Tighter Halo
+                        color: 'rgba(50, 200, 255, 0.6)',
+                        propagationSpeed: 2,
+                        repeatPeriod: 1500
+                    }];
+                })() : [])
+            ]}
+            ringLat={(d: any) => d.lat}
+            ringLng={(d: any) => d.lng}
+            ringMaxRadius={(d: any) => d.maxR}
+            ringColor={(d: any) => d.color || 'rgba(255,255,255,0.1)'}
+            ringPropagationSpeed={2}
+            ringRepeatPeriod={1000}
+
+            // Paths (Spider Legs)
+            pathsData={processedData.links}
+            // @ts-ignore
+            pathPoints={(d: any) => [[d.startLng, d.startLat], [d.endLng, d.endLat]]} // Globe expects [lng, lat]
+            pathPointLat={(p: any) => p[1]}
+            pathPointLng={(p: any) => p[0]}
+            pathColor={(d: any) => d.color}
+            pathDashLength={0.1}
+            pathDashGap={0.05}
+            pathDashAnimateTime={2000}
+        />
+    ), [mapStyle, countries, processedData, selectedCityData, highlightedCityId, handleMapClick, getTooltip]);
 
     return (
         <div className="relative w-full h-full bg-slate-950">
@@ -977,9 +1571,19 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                 )}
             </div>
 
+            {/* Debugger Modal */}
+            <ScraperDebugger
+                isOpen={debuggerConfig.isOpen}
+                initialUrl={debuggerConfig.url}
+                domain={debuggerConfig.domain}
+                onClose={() => setDebuggerConfig(prev => ({ ...prev, isOpen: false }))}
+                onDateExtracted={handleDateExtracted}
+                onSave={handleRulesUpdated}
+            />
+
             {/* Digest Modal / Full Screen View */}
             {
-                digestData && (
+                digestData && !isGeneratingDigest && (
                     <div className="absolute inset-0 z-50 bg-slate-950/95 backdrop-blur-sm flex items-center justify-center p-8 animate-in fade-in duration-200">
                         <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-4xl h-[90vh] flex flex-col overflow-hidden">
                             <div className="p-6 border-b border-slate-700 flex justify-between items-center bg-slate-800/50">
@@ -1002,7 +1606,24 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                                         </button>
                                     </div>
                                 </div>
+
+
                                 <div className="flex gap-2">
+                                    <button
+                                        onClick={() => setIsTranslateActive(!isTranslateActive)}
+                                        className={`flex items-center gap-2 px-3 py-1.5 rounded-full font-bold text-xs transition-colors ${isTranslateActive ? 'bg-amber-500/20 text-amber-400 border border-amber-500/50' : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'}`}
+                                        title="Toggle Translation"
+                                    >
+                                        <Languages size={14} />
+                                        {isTranslateActive ? 'Original' : 'Translate'}
+                                    </button>
+                                    <button
+                                        onClick={handleDownloadDigest}
+                                        className="text-white hover:text-blue-200 bg-slate-700 hover:bg-slate-600 px-4 py-1.5 rounded-full font-bold text-xs transition-colors border border-slate-600"
+                                        title="Download as standalone HTML file"
+                                    >
+                                        📥 Download
+                                    </button>
                                     <button
                                         onClick={handleSaveDigest}
                                         disabled={isSaving}
@@ -1021,7 +1642,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
                             <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
                                 {activeModalTab === 'report' ? (
-                                    <div className="flex flex-col gap-8">
+                                    <div className={`flex flex-col gap-8 ${isTranslateActive ? 'translate-active' : ''}`}>
                                         <div className="border-b border-white/10 pb-4 mb-2">
                                             <h2 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-indigo-400">
                                                 News Digest: {selectedCategory}
@@ -1042,36 +1663,13 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                                             </p>
                                         </div>
 
-                                        {/* HTML Digest Table (Generated by Backend) */}
-                                        <div
-                                            className="prose prose-invert max-w-none prose-sm prose-headings:text-blue-300 prose-a:text-blue-400 hover:prose-a:text-blue-300 prose-td:align-top"
-                                            dangerouslySetInnerHTML={{ __html: digestData.digest }}
-                                            onClick={(e) => {
-                                                // Event Delegation for Scraper Debugger Triggers injected in HTML
-                                                const target = e.target as HTMLElement;
-
-                                                // Scraper Debugger
-                                                const trigger = target.closest('.scraper-debug-trigger');
-                                                if (trigger) {
-                                                    e.preventDefault();
-                                                    e.stopPropagation();
-                                                    const url = trigger.getAttribute('data-url');
-                                                    if (url) handleOpenDebugger(url);
-                                                }
-
-                                                // Politics Assessment
-                                                const assessTrigger = target.closest('.politics-assess-trigger');
-                                                if (assessTrigger) {
-                                                    e.preventDefault();
-                                                    e.stopPropagation();
-                                                    const url = assessTrigger.getAttribute('data-url');
-                                                    const title = assessTrigger.getAttribute('data-title');
-                                                    if (url && title) {
-                                                        const btn = assessTrigger as HTMLElement;
-                                                        handleAssessArticle(url, title, btn);
-                                                    }
-                                                }
-                                            }}
+                                        {/* React Renderer (Virtualization Friendly) */}
+                                        <DigestReportRenderer
+                                            articles={digestData.articles || []}
+                                            category={selectedCategory}
+                                            isTranslated={isTranslateActive}
+                                            onAssess={handleAssessArticle}
+                                            onDebug={handleDebugArticle}
                                         />
                                     </div>
                                 ) : (
@@ -1213,156 +1811,13 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                     </div>
                 )
             }
-            <Globe
-                ref={globeEl}
-                globeImageUrl={mapStyle}
-                bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
-                backgroundImageUrl="//unpkg.com/three-globe/example/img/night-sky.png"
-
-                // Polygons (Borders)
-                polygonsData={countries.features}
-                polygonAltitude={0.005}
-                polygonCapColor={() => 'rgba(0, 0, 0, 0)'}
-                polygonSideColor={() => 'rgba(0, 0, 0, 0)'}
-                polygonStrokeColor={() => mapStyle.includes('day') ? '#000000' : '#888'}
-                // @ts-ignore
-                polygonStrokeWidth={mapStyle.includes('day') ? 2 : 0.6}
-                onPolygonClick={(d: any) => {
-                    setExpandedCluster(null); // Click background to close cluster
-                    setSelectedCountry(d);
-                    if (globeEl.current) {
-                        const centroid = turf.centroid(d);
-                        const [lng, lat] = centroid.geometry.coordinates;
-                        globeEl.current.pointOfView({ lat, lng, altitude: 0.5 }, 1000);
-                    }
-                    if (onCountrySelect) onCountrySelect(d.properties.NAME, d.properties.ISO_A2);
-                }}
-
-                // Labels (Initials on Marker)
-                labelsData={processedData.points}
-                labelLat={(d: any) => d.lat}
-                labelLng={(d: any) => d.lng}
-                labelText={(d: any) => d.name ? d.name.charAt(0).toUpperCase() : '?'}
-                labelLabel={getTooltip} // Show same tooltip when hovering letter
-                onLabelClick={handleMapClick} // Allow clicking the letter
-                onLabelHover={(d: any) => {
-                    // Ensure cursor consistency
-                    document.body.style.cursor = d ? 'pointer' : 'default';
-                }}
-
-                // Font: Cinzel (Romanic/Ancient look)
-                labelTypeFace={undefined} // Clear default JSON if any (not strictly needed if labelFont is used)
-                labelFont="//fonts.gstatic.com/s/cinzel/v11/8vIJ7wvpGWzpsvmICx0.woff"
-
-                // Radius is "radius", Diameter is 2x. Text height needs to fill diameter.
-                // User req: "a tid smaller" -> 1.3
-                labelSize={(d: any) => d.radius * 1.3}
-                labelColor={(d: any) => d.opacity && d.opacity < 1 ? 'transparent' : 'black'}
-                labelDotRadius={0} // Hide the auxiliary dot
-                labelAltitude={0.0051} // Micro-offset from pointAltitude (0.005) to avoid Z-fighting but minimize gap
-                labelResolution={4} // Sharper rendering
-                labelIncludeDot={false}
-
-                // Points (Cities & Clusters)
-                pointsData={processedData.points}
-                pointLat={(d: any) => d.lat}
-                pointLng={(d: any) => d.lng}
-                pointColor={(d: any) => {
-                    // Dynamic Highlight Logic:
-                    // If a city is selected, dim everything else unless it's the selected one or part of the active cluster?
-                    // The user mentioned "faint colors" issues. 
-                    // Let's rely on opacity mostly, but ensure Selected City is Bright.
-
-                    if (selectedCityData && d.name === selectedCityData.name) {
-                        return '#00FFFF'; // Force Cyan for selected
-                    }
-
-                    // Inject opacity if present
-                    if (d.opacity !== undefined && d.opacity < 1) {
-                        // Simple hex to rgba approximation
-                        const c = d.color;
-                        if (c.startsWith('#')) {
-                            const r = parseInt(c.slice(1, 3), 16);
-                            const g = parseInt(c.slice(3, 5), 16);
-                            const b = parseInt(c.slice(5, 7), 16);
-                            return `rgba(${r},${g},${b},${d.opacity})`;
-                        }
-                        return d.color;
-                    }
-                    return d.color;
-                }}
-                pointRadius={(d: any) => d.radius}
-                pointAltitude={0.005} // Raised slightly to fix generic Raycasting/Click interactions
-                pointResolution={32}
-                onPointHover={(d: any) => {
-                    // Optimization: Removed setHoverPoint(d) to prevent expensive re-renders
-                    // This makes the tooltip "snappy"
-                    document.body.style.cursor = d ? 'pointer' : 'default';
-                }}
-                onPointClick={(d: any) => {
-                    if (d) handleMapClick(d);
-                }}
-                pointLabel={getTooltip}
-
-                // Rings (Visual cues for clusters & Selection Halo)
-                ringsData={[
-                    ...processedData.rings,
-                    // 1. Temporary Halo for Search Highlight
-                    ...(highlightedCityId ? (() => {
-                        const c = cities.find(x => x.name === highlightedCityId);
-                        if (!c) return [];
-                        return [{
-                            lat: parseFloat(c.lat),
-                            lng: parseFloat(c.lng),
-                            maxR: 2.5, // Large Halo
-                            color: 'rgba(50, 255, 255, 0.8)',
-                            propagationSpeed: 5,
-                            repeatPeriod: 800
-                        }];
-                    })() : []),
-                    // 2. Persistent Halo for Selected City
-                    ...(selectedCityData ? (() => {
-                        // Use selectedCityData coordinates directly
-                        // Ensure lat/lng are numbers
-                        const lat = parseFloat(selectedCityData.lat);
-                        const lng = parseFloat(selectedCityData.lng || selectedCityData.lon);
-                        if (isNaN(lat) || isNaN(lng)) return [];
-
-                        return [{
-                            lat: lat,
-                            lng: lng,
-                            maxR: 1.5, // Tighter Halo
-                            color: 'rgba(50, 200, 255, 0.6)',
-                            propagationSpeed: 2,
-                            repeatPeriod: 1500
-                        }];
-                    })() : [])
-                ]}
-                ringLat={(d: any) => d.lat}
-                ringLng={(d: any) => d.lng}
-                ringMaxRadius={(d: any) => d.maxR}
-                ringColor={(d: any) => d.color || 'rgba(255,255,255,0.1)'}
-                ringPropagationSpeed={2}
-                ringRepeatPeriod={1000}
-
-                // Paths (Spider Legs)
-                pathsData={processedData.links}
-                // @ts-ignore
-                pathPoints={(d: any) => [[d.startLng, d.startLat], [d.endLng, d.endLat]]} // Globe expects [lng, lat]
-                pathPointLat={(p: any) => p[1]}
-                pathPointLng={(p: any) => p[0]}
-                pathColor={(d: any) => d.color}
-                pathDashLength={0.1}
-                pathDashGap={0.05}
-                pathDashAnimateTime={2000}
-            />
-
+            {globeComponent}
             {
                 showOutletPanel && (
                     <div className="absolute top-20 left-4 w-96 bg-slate-900/95 backdrop-blur border border-slate-700 rounded-lg shadow-2xl overflow-hidden flex flex-col max-h-[calc(100vh-140px)]">
                         <div className="p-4 border-b border-slate-700 bg-slate-900">
                             {/* Search Bar */}
-                            <div className="relative mb-4">
+                            <div className="relative mb-4 max-w-[82%]">
                                 <input
                                     type="text"
                                     placeholder="Search City..."
@@ -1486,33 +1941,55 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                                 ))}
                             </div>
 
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 relative w-full">
                                 <button
                                     onClick={handleGenerateDigest}
-                                    disabled={isGeneratingDigest || selectedOutletIds.length === 0}
-                                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-lg shadow-lg shadow-blue-900/40 transition-all text-base border border-blue-500/30 flex justify-center items-center gap-2 h-14 min-w-[300px]"
+                                    disabled={!isGeneratingDigest && selectedOutletIds.length === 0}
+                                    className={`w-full font-medium py-3 rounded-lg shadow-lg transition-all text-base flex justify-center items-center gap-2 h-14 min-w-[300px]
+                                        ${isGeneratingDigest
+                                            ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-900/40 border border-blue-500/30'
+                                            : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-900/40 border border-blue-500/30'
+                                        }
+                                    `}
                                 >
                                     {isGeneratingDigest ? (
                                         <>
                                             <div className="flex flex-col items-center">
                                                 <span className="flex items-center gap-2">
                                                     <Loader2 className="w-5 h-5 animate-spin" />
-                                                    Generare Digest...
+                                                    Gathering Articles...
                                                 </span>
                                                 {progressLog && (
-                                                    <span className="text-xs text-blue-200 mt-1 font-mono opacity-80 animate-pulse whitespace-nowrap min-w-[250px] text-center">
-                                                        {progressLog.length > 40 ? progressLog.substring(0, 40) + '...' : progressLog}
-                                                    </span>
+                                                    <div className="mt-1 min-w-[250px] text-center">
+                                                        <UIMarquee
+                                                            text={progressLog}
+                                                            maxLength={40}
+                                                            className="text-xs text-blue-200 font-mono opacity-80"
+                                                        />
+                                                    </div>
                                                 )}
                                             </div>
                                         </>
                                     ) : (
                                         <>
                                             <FileText className="w-5 h-5" />
-                                            Generate Digest
+                                            Gather Articles
                                         </>
                                     )}
                                 </button>
+
+                                {isGeneratingDigest && (
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleStopDigest();
+                                        }}
+                                        title="Stop Generation"
+                                        className="absolute -top-2 -right-2 p-1.5 bg-red-500 hover:bg-red-600 text-white rounded shadow-lg transition-transform hover:scale-110 z-20 border-2 border-slate-900 flex items-center justify-center"
+                                    >
+                                        <div className="h-3 w-3 bg-white rounded-[1px]" />
+                                    </button>
+                                )}
                             </div>
 
                             {/* Sidebar Tabs */}
@@ -1681,23 +2158,45 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                                             <span className="text-xs">Generate one and click Save!</span>
                                         </div>
                                     ) : (
-                                        savedDigests.map((digest: any) => (
-                                            <div
-                                                key={digest.id}
-                                                onClick={() => handleLoadDigest(digest)}
-                                                className="bg-slate-800/50 hover:bg-slate-800 border border-slate-700 hover:border-blue-500 p-3 rounded cursor-pointer transition-all group"
-                                            >
-                                                <div className="flex justify-between items-start mb-1">
-                                                    <h4 className="font-bold text-slate-200 line-clamp-1 group-hover:text-blue-400">{digest.title}</h4>
-                                                    <button onClick={(e) => handleDeleteDigest(e, digest.id)} className="text-slate-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">✕</button>
+                                        (savedDigests || []).map((digest: any) => {
+                                            const end = new Date(digest.created_at);
+                                            const start = new Date(end);
+
+                                            if (digest.timeframe === "24h") start.setDate(end.getDate() - 1);
+                                            else if (digest.timeframe === "3days") start.setDate(end.getDate() - 3);
+                                            else if (digest.timeframe === "1week") start.setDate(end.getDate() - 7);
+                                            else if (digest.timeframe === "1month") start.setDate(end.getDate() - 30);
+
+                                            const f = (d: Date) => d.getDate().toString().padStart(2, '0') + "." + (d.getMonth() + 1).toString().padStart(2, '0');
+                                            const y = (d: Date) => d.getFullYear();
+                                            const dateRange = `${f(start)} - ${f(end)}.${y(end)}`;
+
+                                            const title = digest.title || "";
+                                            const cat = digest.category || "";
+                                            const showCategory = cat && !title.toLowerCase().includes(cat.toLowerCase());
+
+                                            return (
+                                                <div
+                                                    key={digest.id}
+                                                    onClick={() => handleLoadDigest(digest)}
+                                                    className="bg-slate-800/50 hover:bg-slate-800 border border-slate-700 hover:border-blue-500 p-3 rounded cursor-pointer transition-all group"
+                                                >
+                                                    <div className="flex justify-between items-start mb-1">
+                                                        <h4 className="font-bold text-slate-200 line-clamp-1 group-hover:text-blue-400">{title}</h4>
+                                                        <button onClick={(e) => handleDeleteDigest(e, digest.id)} className="text-slate-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">✕</button>
+                                                    </div>
+                                                    <div className="flex flex-col gap-0.5 text-[10px] text-slate-500 font-medium mt-1">
+                                                        <div className="flex items-center gap-2 uppercase font-bold">
+                                                            {digest.city && <span className="text-blue-400">{digest.city}</span>}
+                                                            {showCategory && <span>• {cat}</span>}
+                                                        </div>
+                                                        <div className="text-slate-400">
+                                                            {dateRange}
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                                <div className="flex justify-between text-[10px] text-slate-500 uppercase font-bold">
-                                                    <span>{digest.category}</span>
-                                                    <span>{new Date(digest.created_at).toLocaleDateString()}</span>
-                                                </div>
-                                            </div>
-                                        ))
-                                    )}
+                                            );
+                                        }))}
                                 </div>
                             )}
                         </div>

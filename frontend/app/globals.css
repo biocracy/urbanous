@@ -24,3 +24,11 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Translation Toggle Logic */
+.translate-mode .title-original { display: inline; }
+.translate-mode .title-translated { display: none; }
+
+/* When translate-active class is present on container */
+.translate-active .title-original { display: none !important; }
+.translate-active .title-translated { display: inline !important; }

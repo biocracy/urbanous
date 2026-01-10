@@ -4,6 +4,7 @@ import httpx
 import google.generativeai as genai
 from bs4 import BeautifulSoup
 import html # For escaping content in f-strings
+import traceback # Debugging
 import asyncio # Added for digest parallel requests
 from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.orm import Session
@@ -11,9 +12,8 @@ from sqlalchemy import select, distinct
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
 from database import AsyncSessionLocal
-from database import AsyncSessionLocal
-from models import NewsOutlet, User, Country, CityMetadata
-from dependencies import get_current_user
+from models import NewsOutlet, User, Country, CityMetadata, ScraperRule
+from dependencies import get_current_user, get_db
 import scraper_engine # New Import
 
 from datetime import datetime, timedelta
@@ -272,8 +272,10 @@ async def gemini_scrape_outlets(html_content: str, city: str, country: str, lat:
         print(f"Gemini Scrape Error: {e}")
         return []
 
+from dependencies import get_current_user, get_current_user_optional
+
 @router.post("/outlets/discover_city", response_model=List[OutletRead])
-async def discover_city_outlets(req: CityDiscoveryRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+async def discover_city_outlets(req: CityDiscoveryRequest, current_user: Optional[User] = Depends(get_current_user_optional), db: Session = Depends(get_db)):
     """
     Finds outlets for a specific city.
     Checks DB first. If not found OR force_refresh is True, uses AI to discover.
@@ -290,8 +292,14 @@ async def discover_city_outlets(req: CityDiscoveryRequest, current_user: User = 
     # Auto-Discover
     print(f"Discovering outlets for city: {req.city}, {req.country} (Force: {req.force_refresh})")
     
+    api_key = current_user.gemini_api_key if current_user else None
+    if not api_key:
+        print("DEBUG: No API key (Guest or missing), skipping AI discovery.")
+        if existing: return existing
+        return []
+
     try:
-        discovered = await gemini_discover_city_outlets(req.city, req.country, req.lat, req.lng, api_key=current_user.gemini_api_key)
+        discovered = await gemini_discover_city_outlets(req.city, req.country, req.lat, req.lng, api_key=api_key)
     except ResourceExhausted:
          raise HTTPException(status_code=429, detail="AI Quota Exceeded. Please try again later.")
     except Exception as e:
@@ -450,6 +458,7 @@ class ArticleMetadata(BaseModel):
     relevance_score: Optional[int] = 0
     scores: Optional[Dict[str, Any]] = {}
     ai_verdict: Optional[str] = None # New field for AI Title Check status
+    translated_title: Optional[str] = None # New field for Translation
     
 class DigestResponse(BaseModel):
     digest: str
@@ -521,19 +530,24 @@ async def assess_article_politics(req: PoliticsAssessmentRequest, current_user: 
 # We will return a tuple (result_map, error_msg)
 
 
-async def batch_verify_titles_debug(titles_map: Dict[int, str], definition: str, api_key: str) -> tuple[Dict[str, bool], str]:
+async def batch_verify_titles_debug(titles_map: Dict[int, str], definition: str, api_key: str, target_language: str = "English") -> tuple[Dict[str, Any], str]:
     if not api_key:
         print("DEBUG: missing API key for batch_verify_titles_debug")
         return {}, "Missing API Key"
     
-    print(f"DEBUG: Using API Key: {api_key[:4]}...{api_key[-4:]}")
+    print(f"DEBUG: Using API Key: {api_key[:4]}...{api_key[-4:]} | Target Lang: {target_language}")
     genai.configure(api_key=api_key)
     
     items_str = "\n".join([f"{idx}. {title}" for idx, title in titles_map.items()])
     
     prompt = f"""
-    You are an expert political analyst.
+    You are an expert political analyst and translator.
+    
+    TASK 1: Classify Article
     Classify the following article titles as "POLITICS" (True) or "NOT POLITICS" (False) based on the provided Operational Definition.
+    
+    TASK 2: Translate
+    Translate the title into **{target_language}**.
     
     DEFINITION:
     {definition}
@@ -541,10 +555,15 @@ async def batch_verify_titles_debug(titles_map: Dict[int, str], definition: str,
     TITLES:
     {items_str}
     
-    TASK:
-    Return a raw JSON object mapping the EXACT PROVIDED ID (e.g. {list(titles_map.keys())[0]}) to a boolean verdict.
+    OUTPUT FORMAT:
+    Return a raw JSON object mapping the EXACT PROVIDED ID (e.g. {list(titles_map.keys())[0]}) to an object containing "verdict" (boolean) and "translated" (string).
     Do NOT re-index the items. Use the numbers provided in the input list.
-    Example: {{"{list(titles_map.keys())[0]}": true, ...}}
+    
+    Example: 
+    {{
+        "{list(titles_map.keys())[0]}": {{ "verdict": true, "translated": "Translated Title Here..." }},
+        ...
+    }}
     
     STRICTLY RETURN JSON ONLY.
     """
@@ -570,21 +589,35 @@ async def batch_verify_titles_debug(titles_map: Dict[int, str], definition: str,
                 raise ValueError("Could not extract JSON")
 
         # Convert all keys to strings for consistent comparison
-        result_map = {str(k): v for k, v in result_map.items()}
+        # And ensure value structure
+        final_map = {}
+        for k, v in result_map.items():
+            str_k = str(k)
+            # Handle Legacy Boolean Response (Just in case AI hallucinates or old prompt cached?)
+            if isinstance(v, bool):
+                final_map[str_k] = {"verdict": v, "translated": None}
+            elif isinstance(v, dict):
+                final_map[str_k] = {
+                    "verdict": v.get("verdict", False),
+                    "translated": v.get("translated")
+                }
+            else:
+                 final_map[str_k] = {"verdict": False, "translated": None} # Fallback
+
         input_keys = [str(k) for k in titles_map.keys()]
         
         # Mismatch Check & Fallback
-        if not any(k in result_map for k in input_keys) and len(result_map) == len(input_keys):
+        # If complete mismatch but count matches, blindly assign in order
+        if not any(k in final_map for k in input_keys) and len(final_map) == len(input_keys):
             with open("debug_ai.log", "a") as f:
-                f.write("Mismatch detected. Applying fallback.\n")
-            # Assume order is preserved
-            result_values = list(result_map.values())
-            result_map = {input_keys[i]: result_values[i] for i in range(len(input_keys))}
+                f.write("Mismatch detected. Applying fallback mapping.\n")
+            result_values = list(final_map.values())
+            final_map = {input_keys[i]: result_values[i] for i in range(len(input_keys))}
             
         with open("debug_ai.log", "a") as f:
-             f.write(f"Mapped Keys: {list(result_map.keys())}\n")
+             f.write(f"Mapped Keys: {list(final_map.keys())}\n")
              
-        return result_map, None
+        return final_map, None
     except Exception as e:
         with open("debug_ai.log", "a") as f:
              f.write(f"ERROR: {e}\n")
@@ -603,6 +636,13 @@ class DigestRead(BaseModel):
     title: str
     category: str
     created_at: str
+
+@router.get("/outlets/", response_model=List[dict])
+async def get_all_outlets(db: Session = Depends(get_db)):
+    result = await db.execute(select(NewsOutlet))
+    outlets = result.scalars().all()
+    # Lightweight return
+    return [{"id": o.id, "name": o.name, "city": o.city, "country": o.country_code, "url": o.url} for o in outlets]
 
 @router.get("/outlets/digests/saved", response_model=List[DigestRead])
 async def get_saved_digests(db: Session = Depends(get_db)):
@@ -684,7 +724,7 @@ class CityInfoResponse(BaseModel):
     country_phonetic: Optional[str] = None
 
 @router.get("/outlets/city_info", response_model=CityInfoResponse)
-async def get_city_info(city: str, country: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+async def get_city_info(city: str, country: str, current_user: Optional[User] = Depends(get_current_user_optional), db: Session = Depends(get_db)):
     """
     Fetches quick city stats using Gemini, with DB caching.
     """
@@ -742,7 +782,7 @@ async def get_city_info(city: str, country: str, current_user: User = Depends(ge
     """
     
     try:
-        api_key = current_user.gemini_api_key
+        api_key = current_user.gemini_api_key if current_user else None
         if not api_key: 
             return CityInfoResponse(population="Unknown", description="API Key needed.", ruling_party="Unknown")
         
@@ -807,16 +847,23 @@ async def robust_fetch(client, url):
         print(f"Fetch error {url}: {e}")
         return None
 
-async def smart_scrape_outlet(outlet: NewsOutlet, category: str, timeframe: str = "24h", log_bus: any = None) -> dict:
+async def smart_scrape_outlet(outlet: NewsOutlet, category: str, timeframe: str = "24h", log_bus: any = None, api_key: str = None, scraper_rule_config: dict = None) -> dict:
     """
     Fetches content from an outlet, intelligently navigating to the category page if possible.
     Returns structured article data and raw text for AI.
     """
     
     async def log(msg: str):
+         ts = datetime.now().strftime("%H:%M:%S")
+         full_msg = f"[{ts}] {msg}"
+         try:
+             with open("stream_debug.log", "a") as f: f.write(f"SCRAPER-DEBUG: {full_msg}\n")
+         except: pass
          if log_bus:
-              await log_bus(msg)
-         print(msg) # Keep stdout
+              await log_bus(full_msg)
+         print(full_msg)
+         
+    await log(f"STARTING SCRAPE for {outlet.name} ({outlet.url})")
 
     # 1. Determine Target URL
     target_url = outlet.url
@@ -848,87 +895,84 @@ async def smart_scrape_outlet(outlet: NewsOutlet, category: str, timeframe: str 
         html = resp.text[:200000] 
         soup = BeautifulSoup(html, 'html.parser')
 
-        # 2. Try to find Category Link (if category is specific)
-        if category.lower() not in ["general", "all", "headline"]:
-            # naive search for link text or href
-            cat_link = None
-            term = category.lower()
-            # Multi-language mappings for Category navigation
-            # EN, RO, ES, FR, DE, IT
-            mappings = {
-                "politics": [
-                    "politics", "politic", "politica", "politique", "politik", 
-                    "administratie", "administration", "gobierno", "regierung", "governo"
-                ],
-                "sports": [
-                    "sport", "sports", "deporte", "deportes", "fotbal", "football", "soccer", "futbol"
-                ],
-                "economy": [
-                    "economy", "business", "financial", "economie", "economia", "wirtschaft", "finanzen", 
-                    "bani", "money", "dinero", "argent", "geld"
-                ],
-                "social": [
-                    "social", "society", "societate", "sociedad", "société", "gesellschaft", "società", 
-                    "community", "comunitate", "comunidad"
-                ],
-                "culture": [
-                    "culture", "cultura", "kultur", "arts", "life", "lifestyle", "monden", "entertainment", 
-                    "unterhaltung", "magazin", "magazine"
-                ]
-            }
+        # 2. Try to find Category Link (Universal AI Discovery)
+        discovered_cat_url = None
+        # Default keywords for fallback filtering logic downstream
+        cat_keywords = [category.lower()]
+        
+        if category.lower() not in ["general", "all", "headline"] and api_key:
+             await log(f"[{outlet.name}] 🧠 Asking AI to find navigation link for '{category}'...")
+             discovered_cat_url = await scraper_engine.gemini_find_category_url(html_content, outlet.url, category, api_key)
+             
+             if discovered_cat_url:
+                 await log(f"[{outlet.name}] ✅ AI Found Link: {discovered_cat_url}")
+             else:
+                 await log(f"[{outlet.name}] ⚠️ AI could not identify a specific link. Falling back to homepage.")
+        
+        # 3. Construct URLs to Scrape
+        urls_to_scrape = []
+        if discovered_cat_url:
+            urls_to_scrape.append(discovered_cat_url)
+        else:
+            urls_to_scrape.append(outlet.url)
             
-            # Add the requested category itself as a primary term
-            search_terms = mappings.get(term, [])
-            if term not in search_terms:
-                search_terms.insert(0, term)
-            
-            for t in search_terms:
-                link_tag = soup.find('a', string=lambda text: text and t in text.lower()) or \
-                           soup.find('a', href=lambda href: href and t in href.lower())
-                if link_tag:
-                    href = link_tag.get('href')
-                    if href:
-                        if href.startswith("/"):
-                            # Handle relative URLs
-                            import urllib.parse
-                            final_url = urllib.parse.urljoin(outlet.url, href)
-                        elif href.startswith("http"):
-                            final_url = href
-                        
-                        await log(f"[{outlet.name}] Found category link: {final_url}")
-                        cat_resp = await robust_fetch(client, final_url)
-                        if cat_resp and cat_resp.status_code == 200:
-                            html = cat_resp.text[:200000] # Limit size
-                            soup = BeautifulSoup(html, 'html.parser')
-                        break
-
-        # 2. Construct Potential Category URLs (Active Discovery)
-    # Instead of hoping to find a link on the homepage, we try to guess the category URL.
-    # Most RO sites use /politica, /administratie, /sport, etc.
-    outlet_url = outlet.url # Use the base URL for construction
-    urls_to_scrape = [outlet_url] # Always scrape homepage
-    
-    # Get relevant keywords for the category
-    cat_keywords = mappings.get(category.lower(), [])
-    
-    # Try to construct specific paths (limit to 2 most likely to save time)
-    # e.g. site.ro/politica or site.ro/category/politica
-    for kw in cat_keywords[:2]:
-        # Clean double slashes
-        base = outlet_url.rstrip("/")
-        urls_to_scrape.append(f"{base}/{kw}")
-        urls_to_scrape.append(f"{base}/stiri/{kw}") # Common pattern
-        urls_to_scrape.append(f"{base}/sectiune/{kw}") # Another pattern
-
-    await log(f"DEBUG: Active Scraping for {outlet.name}: {urls_to_scrape}")
-    
-    # NEW: Dictionary to aggregate metadata by URL
-    candidates_map = {} 
+        await log(f"DEBUG: Active Scraping for {outlet.name}: {urls_to_scrape}")
+        
+        # --- NEW: SITEMAP STRATEGY ---
+        # Try to fetch fresh links from sitemap directly to augment discovery
+        
+        # Calculate days limit from timeframe
+        sitemap_days = 3 # default
+        if timeframe == "24h": sitemap_days = 1
+        elif timeframe == "3days": sitemap_days = 3
+        elif timeframe == "1week": sitemap_days = 7
+        elif timeframe == "1month": sitemap_days = 30
+        
+        sitemap_links = []
+        print(f"DEBUG: Entering sitemap check for {outlet.name}")
+        try:
+             await log(f"[{outlet.name}] 🗺️ Checking sitemap...")
+             # Timebox sitemap fetching to prevent hangs
+             # sitemap_links = await asyncio.wait_for(
+             #    scraper_engine.fetch_sitemap_urls(outlet.url, days_limit=sitemap_days), 
+             #    timeout=15.0
+             # )
+             print("DEBUG: Sitemap disabled.")
+             print(f"DEBUG: Sitemap links count: {len(sitemap_links)}")
+             if sitemap_links:
+                 await log(f"[{outlet.name}] 🗺️ Found {len(sitemap_links)} links via Sitemap")
+        except asyncio.TimeoutError:
+             print(f"DEBUG: Sitemap timeout for {outlet.name}")
+             await log(f"[{outlet.name}] ⚠️ Sitemap fetch timed out. Skipping.")
+        except Exception as e: 
+             print(f"DEBUG: Sitemap error for {outlet.name}: {e}")
+             # await log(f"DEBUG: Sitemap error: {e}")
+             pass
+        
+        candidates_map = {} 
+        
+        # Process Sitemap Links directly
+        if sitemap_links:
+            await log(f"  -> Processing {len(sitemap_links)} sitemap entries...")
+            for s_url in sitemap_links:
+                # Basic metadata creation
+                s_date_str = None
+                date_obj = scraper_engine.extract_date_from_url(s_url)
+                if date_obj: s_date_str = date_obj.strftime("%Y-%m-%d")
+                
+                # Add to map
+                candidates_map[s_url] = ArticleMetadata(
+                    source=outlet.name,
+                    # Prettify Title (Slug -> Title Case)
+                    title=s_url.rstrip('/').split('/')[-1].replace('-', ' ').replace('_', ' ').title() or "Untitled Article",
+                    url=s_url,
+                    date_str=s_date_str
+                ) 
     
     # 3. Scrape All Candidates
-    import asyncio
+    # import asyncio (removed to prevent shadowing)
     
-    # Helper to fetch and parse single URL (placeholder)
+    # Helper (placeholder)
     async def fetch_and_parse(target_url):
          try: pass
          except: pass
@@ -936,168 +980,255 @@ async def smart_scrape_outlet(outlet: NewsOutlet, category: str, timeframe: str 
     # Refactored Loop to process multiple URLs
     combined_content = ""
     
+    headers = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
+
     for i, target_url in enumerate(urls_to_scrape):
         # Limit active scraping to avoid timeouts
         if i > 3: break 
+
+        await log(f"[{outlet.name}] 🕵️ Deep Scan: {target_url}")
         
-        try:
-            await log(f"  -> Fetching: {target_url}")
-            async with httpx.AsyncClient(follow_redirects=True, timeout=10.0) as client: # Reduced timeout for sub-pages
-                resp = await client.get(target_url, headers=headers)
-                if resp.status_code != 200: continue
+        resp = None
+        async with httpx.AsyncClient(follow_redirects=True, timeout=15.0, headers=headers) as client:
+             try:
+                 resp = await client.get(target_url)
+                 if resp.status_code != 200:
+                     await log(f"  -> Failed {resp.status_code}")
+                     continue 
+             except Exception as e:
+                 await log(f"  -> Fetch Error: {e}")
+                 continue 
+        
+        # Valid response check
+        if not resp: continue
+        
+        # NOTE: Removed the second 'try/log/async with' block that was here.
+        # Now proceeding to parsing...
                 
-                # Parse
-                soup = BeautifulSoup(resp.text, 'html.parser')
+        # Parse
+        soup = BeautifulSoup(resp.text, 'html.parser')
+        
+        # Extract Text (Append to combined)
+        text = soup.get_text(separator=' ', strip=True)
+        # Truncate to avoid exploding token context
+        combined_content += f"\n--- SOURCE: {outlet.name} [{target_url}] ---\n{text[:10000]}\n"
+        
+        # Extract Links (Article Discovery)
+        # Reuse the existing article extraction logic?
+        # The original code had a big block for "Find Articles".
+        # We need to run that block on 'soup'.
+        
+        # ... (Logic below is the original article extraction, customized for the loop)
+        
+        # Find all potential links
+        links = soup.find_all('a', href=True)
                 
-                # Extract Text (Append to combined)
-                text = soup.get_text(separator=' ', strip=True)
-                # Truncate to avoid exploding token context
-                combined_content += f"\n--- SOURCE: {outlet.name} [{target_url}] ---\n{text[:10000]}\n"
-                
-                # Extract Links (Article Discovery)
-                # Reuse the existing article extraction logic?
-                # The original code had a big block for "Find Articles".
-                # We need to run that block on 'soup'.
-                
-                # ... (Logic below is the original article extraction, customized for the loop)
-                
-                # Find all potential links
-                links = soup.find_all('a', href=True)
-                
-                for a in links:
-                    href = a['href']
-                    raw_title = a.get_text(strip=True)
-                    
-                    # Normalize URL
-                    # Normalize URL
-                    if not href.startswith('http'):
-                        import urllib.parse
-                        # Use target_url (current page) as base if possible, or outlet_url
-                        # Actually outlet_url (lines 708) might be just the base.
-                        # But href is usually relative to the current path if not absolute.
-                        # Safe bet: urljoin on outlet.url is standard for site-wide crawling if we assume href is from root.
-                        # But if href is relative "article.html", it should generally be joined with target_url.
-                        # HOWEVER, in this loop, target_url changes.
-                        # Let's use urljoin(target_url, href) which is most correct for scraping.
-                        full_url = urllib.parse.urljoin(target_url, href)
-                    else:
-                        full_url = href
-                    
-                    # Deduplication logic (handled via candidates_map later)
-                    # if full_url in seen_urls: continue
-                    
-                    # Basic Validation
-                    if len(raw_title) < 5: continue
-                    
-                    # Content/Allowlist Filter
-                    # (Reusing mappings/blacklist logic)
-                    is_relevant = False
-                    
-                    # 1. URL Keywords
-                    if any(k in full_url.lower() for k in cat_keywords): is_relevant = True
-                    # 2. Title Keywords
-                    if any(k in raw_title.lower() for k in cat_keywords): is_relevant = True
-                    # 3. Date check (simple slug)
-                    if "2026" in full_url or "2025" in full_url: is_relevant = True
-                    
-                    # Blacklist
-                    BLACKLIST_TERMS = [
-                        # Meta-pages (Contact, Terms, Privacy)
-                        "contact", "terms", "privacy", "cookies", "gdpr", "politica-confidentialitate", "despre", "about", 
-                        "redactia", "echipa", "team", "publicitate", "advertising", "cariere", "careers", 
-                        "politica-editoriala", "caseta-redactionala", "termeni", "conditii",
-                        # Food/Recipes
-                        "recipe", "retet", "receta", "recette", "rezept", "ricett", "mancare", "food", "kitchen", "bucatarie", "essen", "cucina",
-                        # Horoscope/Astrology
-                        "horoscop", "horoscope", "horoskop", "zodiac", "zodiaque", "astrology", "astro",
-                        # Gossip/Tabloid
-                        "can-can", "cancan", "paparazzi", "gossip", "tabloid", "klatsch", "potins", "monden", "diva", "vedete", "vip",
-                        # Games/Quizzes
-                        "game", "jocuri", "juego", "jeu", "spiele", "gioc", "quiz", "crossword", "sudoku", "rebus",
-                        # Lifestyle/Shopping
-                        "lifestyle", "fashion", "moda", "mode", "shop", "magazin-online", "store", "oferte"
-                    ]
-                    if any(b in full_url.lower() for b in BLACKLIST_TERMS): is_relevant = False
-                    
-                    if any(b in full_url.lower() for b in BLACKLIST_TERMS): is_relevant = False
+        for a in links:
+            href = a['href']
+            raw_title = a.get_text(strip=True)
+            
+            # Normalize URL
+            if not href.startswith('http'):
+                import urllib.parse
+                full_url = urllib.parse.urljoin(target_url, href)
+            else:
+                full_url = href
+            
+            # STRICT FILTER (Unify with Sitemap Logic)
+            if not scraper_engine.is_valid_article_url(full_url):
+                continue
+            
+            # Basic Validation
+            if len(raw_title) < 5: continue
+            
+            # Content/Allowlist Filter
+            is_relevant = False
+            
+            # 1. URL Keywords
+            if any(k in full_url.lower() for k in cat_keywords): is_relevant = True
+            # 2. Title Keywords
+            if any(k in raw_title.lower() for k in cat_keywords): is_relevant = True
+            # 3. Date check (simple slug)
+            if "2026" in full_url or "2025" in full_url: is_relevant = True
+            
+            # Blacklist
+            BLACKLIST_TERMS = [
+                # Meta-pages (Contact, Terms, Privacy)
+                "contact", "terms", "privacy", "cookies", "gdpr", "politica-confidentialitate", "despre", "about", 
+                "redactia", "echipa", "team", "publicitate", "advertising", "cariere", "careers", 
+                "politica-editoriala", "caseta-redactionala", "termeni", "conditii",
+                "donate", "donat", "pidtrymka", "support", "subscription", "login", "signin", "auth", "register",
+                "linklist", "rules", "pravyla", "allnews", "moda", "eksklyuziv", # User Spam
+
+                # Food/Recipes
+                "recipe", "retet", "receta", "recette", "rezept", "ricett", "mancare", "food", "kitchen", "bucatarie", "essen", "cucina",
+                # Horoscope/Astrology
+                "horoscop", "horoscope", "horoskop", "zodiac", "zodiaque", "astrology", "astro",
+                # Gossip/Tabloid
+                "can-can", "cancan", "paparazzi", "gossip", "tabloid", "klatsch", "potins", "monden", "diva", "vedete", "vip",
+                # Games/Quizzes
+                "game", "jocuri", "juego", "jeu", "spiele", "gioc", "quiz", "crossword", "sudoku", "rebus",
+                # Lifestyle/Shopping
+                "lifestyle", "fashion", "moda", "mode", "shop", "magazin-online", "store", "oferte"
+            ]
+            if any(b in full_url.lower() for b in BLACKLIST_TERMS): is_relevant = False
                     
                     # DEBUG: Log logic
                     # print(f"DEBUG LINK: {full_url} | Relevant: {is_relevant} | Keywords: {cat_keywords}")
 
-                    # 4. Contextual Relevance (NEW)
-                    page_is_category = any(k in target_url.lower() for k in cat_keywords)
-                    
-                    if not is_relevant and page_is_category:
-                         if full_url.count("-") >= 3:
-                             is_relevant = True
-                         elif re.search(r'/\d+/', full_url):
-                             is_relevant = True
+            # 4. Contextual Relevance (NEW)
+            page_is_category = any(k in target_url.lower() for k in cat_keywords)
+            
+            if not is_relevant and page_is_category:
+                 if full_url.count("-") >= 3:
+                     is_relevant = True
+                 elif re.search(r'/\d+/', full_url):
+                     is_relevant = True
+            
+            # --- NEW: Content-Based Verification for "Category" Suspects ---
+            
+            if is_relevant:
+                # Heuristic: If URL looks like a section root (short path, no date, specific keywords)
+                # Expanded for Finnish/Global patterns AND User Feedback
+                suspicious_roots = [
+                     "/category/", "/app/", "/shopping/", "/collection/", "/store/", "/shop/", 
+                             "/guide", "/rss", "/tilaus", "/logga-in", "/politik", # Finnish/Swedish specifics
+                             "/rubric/", "/list/", "/anfrage", "tel:", "mailto:", # User Reported Spams
+                             "/region", "/oblast", "/sport/", "/culture/", "/theme/", "/tema/", "/ukrayina", # Sections
+                             "/t/", "/a/" # Ambiguous short paths often used for topics or archives
+                ]
+                
+                # Count slashes ignoring protocols
+                path_depth = full_url.replace("://", "").rstrip("/").count("/")
+                
+                if any(s in full_url.lower() for s in suspicious_roots) or path_depth <= 2:
+                    # Fetch to verify
+                    try:
+                        async with httpx.AsyncClient(verify=False, timeout=5) as verify_client:
+                            head_resp = await verify_client.get(full_url)
+                            content_type = scraper_engine.detect_content_type(head_resp.text[:15000]) # First 15KB enough for meta/p structure
+                            
+                            if content_type == "category":
+                                print(f"DEBUG: REJECTED Content-Based {full_url} (Detected as {content_type})")
+                                is_relevant = False
+                    except:
+                        # Fail Closed for suspicious roots if we can't verify
+                        print(f"DEBUG: REJECTED {full_url} (Verification Failed)")
+                        is_relevant = False
+
                     
                     if is_relevant:
                         print(f"DEBUG: ACCEPTED CANDIDATE {full_url}")
-                    else:
-                        # Log first few rejections to see why
-                        if len(links) < 100 or i < 1: 
-                             pass 
-                             # print(f"DEBUG: REJECTED {full_url} (PageCat: {page_is_category})")
-                        # Attempt Date Parsing - SCAPER ENGINE V2
-                        
-                        # 1. Use the optimized Engine
-                        # We pass the snippet (parent text) as HTML context if needed, or full HTML?
-                        # For efficiency in this loop, we might want to just check URL and Link Text first.
-                        # BUT scraper_engine is designed for FULL HTML page analysis usually.
-                        # Adapted for Discovery Loop:
-                        
-                        found_date_str = None
-                        
-                        # A. Check URL (Fastest)
-                        url_date_obj = scraper_engine.extract_date_from_url(full_url)
-                        if url_date_obj: 
-                            found_date_str = url_date_obj.strftime("%Y-%m-%d")
-                        
-                        # B. Check Link Text / Parent (Heuristic)
-                        if not found_date_str:
-                             parent_text = a.parent.get_text(separator=' ', strip=True)
-                             # Reuse the parse_romanian_date logic which handles various text formats
-                             # We try to extract a date substring first? 
-                             # Actually `parse_romanian_date` is permissive.
-                             # Let's try passing likely candidates.
-                             
-                             # Heuristic: Check if Parent Text IS a date
-                             d = scraper_engine.parse_romanian_date(parent_text[:50]) # Check start
-                             if d: found_date_str = d.strftime("%Y-%m-%d")
-                             
-                        # C. Check Time Tag in Parent
-                        if not found_date_str:
-                             time_tag = a.find_next("time") or a.find_previous("time") or a.parent.find("time")
-                             if time_tag and time_tag.has_attr("datetime"):
-                                  t_match = re.search(r'(\d{4}-\d{2}-\d{2})', time_tag["datetime"])
-                                  if t_match: found_date_str = t_match.group(1)
+                else:
+                    # Log first few rejections to see why
+                    if len(links) < 100 or i < 1: 
+                         pass 
+                     # print(f"DEBUG: REJECTED {full_url} (PageCat: {page_is_category})")
+        # Standardized Link Extraction
+        extracted_items = scraper_engine.extract_article_links(resp.text, target_url)
+        await log(f"  -> Extracted {len(extracted_items)} raw links.")
+        
+        # Rule Object Init (Reuse)
+        rule_obj = None
+        if scraper_rule_config:
+              rule_obj = scraper_engine.ScraperRule(
+                  domain="custom",
+                  date_selectors=scraper_rule_config.get('date_selectors'),
+                  date_regex=scraper_rule_config.get('date_regex'),
+                  use_json_ld=scraper_rule_config.get('use_json_ld', True)
+              )
 
-                        # Merge/Update Logic
-                        existing = candidates_map.get(full_url)
-                        
-                        if existing:
-                              # Update Title if new one is longer (heuristic: longer text = actual headline vs category badge)
-                              if len(raw_title) > len(existing.title):
-                                   existing.title = raw_title
-                              
-                              # Update Date if missing
-                              if not existing.date_str and found_date_str:
-                                  existing.date_str = found_date_str
-                        else:
-                             # Create New
-                             art = ArticleMetadata(
-                                 source=outlet.name,
-                                 title=raw_title,
-                                 url=full_url,
-                                 date_str=found_date_str
-                             )
-                             candidates_map[full_url] = art
-                        
-        except Exception as e:
-            await log(f"Error scraping {target_url}: {e}")
-            continue
+        for item in extracted_items:
+            full_url = item['url']
+            raw_title = item['title']
+                    
+            found_date_str = None
+            
+            # 1. URL Date
+            url_date_obj = scraper_engine.extract_date_from_url(full_url)
+            if url_date_obj: found_date_str = url_date_obj.strftime("%Y-%m-%d")
+            
+            # UPDATED: Force Fetch whenever date is missing to ensure high quality (imitates Debugger success)
+            # Enhanced bad title check (strip whitespace, check for very short or numeric)
+            clean_rt = raw_title.strip()
+            is_bad_title = clean_rt.isdigit() or len(clean_rt) < 5 or (len(clean_rt) < 15 and clean_rt.replace(" ","").isdigit())
+            
+            if not found_date_str or is_bad_title:
+                try:
+                    if log_bus and (is_bad_title or rule_obj): 
+                         await log_bus(f"Deep scanning: {str(clean_rt)[:30]}...")
+                    
+                    # Anti-Blocking Delay
+                    import asyncio
+                    await asyncio.sleep(1.0)
+                    
+                    async with httpx.AsyncClient(headers={"User-Agent": "Mozilla/5.0"}, verify=False, timeout=15, follow_redirects=True) as s_client:
+                         s_resp = await s_client.get(full_url)
+                         
+                         if s_resp.status_code != 200:
+                             if log_bus: await log_bus(f"  -> Failed: {s_resp.status_code}")
+                         
+                         if s_resp.status_code == 200:
+                             # Rescue Date
+                             # If we have a rule, use it. If not, create a generous fallback rule (JSON-LD=True)
+                             # because we are already in "Rescue Mode" so we should try everything.
+                             effective_rule = rule_obj
+                             if not effective_rule:
+                                  effective_rule = scraper_engine.ScraperRule(
+                                      domain="fallback",
+                                      use_json_ld=True,
+                                      use_data_layer=True 
+                                  )
+
+                             if not found_date_str:
+                                 found_date_str = scraper_engine.extract_date_from_html(s_resp.text, full_url, custom_rule_override=effective_rule)
+                                 if found_date_str and log_bus: await log_bus(f"  -> Rescued Date: {found_date_str}")
+                             
+                             # Rescue Title
+                             if is_bad_title:
+                                 try:
+                                     if log_bus: await log_bus(f"  -> Rescuing Title for {clean_rt}...")
+                                     from bs4 import BeautifulSoup as BS
+                                     s_soup = BS(s_resp.text, "html.parser")
+                                     
+                                     new_title = None
+                                     
+                                     # Strategy 1: OG Title (High Confidence)
+                                     og = s_soup.find("meta", property="og:title")
+                                     if og and og.get("content") and len(og.get("content")) > 10:
+                                         new_title = og.get("content").strip()
+                                     
+                                     # Strategy 2: H1
+                                     if not new_title:
+                                         h1 = s_soup.find("h1")
+                                         if h1 and len(h1.get_text(strip=True)) > 10:
+                                             new_title = h1.get_text(strip=True)
+                                     
+                                     # Strategy 3: Title Tag
+                                     if not new_title and s_soup.title:
+                                         # Clean up common suffixes
+                                         t = s_soup.title.get_text(strip=True).split("|")[0].split("—")[0].strip()
+                                         if len(t) > 10:
+                                             new_title = t
+                                     
+                                     if new_title:
+                                         raw_title = new_title
+                                 except: pass
+                except Exception: pass
+
+            # 3. Store
+            if full_url in candidates_map:
+                ex = candidates_map[full_url]
+                if not ex.date_str and found_date_str: ex.date_str = found_date_str
+                if len(raw_title) > len(ex.title): ex.title = raw_title
+            else:
+                candidates_map[full_url] = ArticleMetadata(
+                    source=outlet.name,
+                    title=raw_title,
+                    url=full_url,
+                    date_str=found_date_str
+                )
+
 
     # Finalize: Convert values to list
     all_extracted_articles = list(candidates_map.values())
@@ -1173,6 +1304,8 @@ async def generate_keyword_analysis(text: str, category: str, current_user: User
 class DigestCreate(BaseModel):
     title: str
     category: str
+    city: Optional[str] = None
+    timeframe: Optional[str] = None
     summary_markdown: str
     articles: List[Dict[str, Any]] # Will be serialized to JSON
     analysis_source: Optional[List[Dict[str, Any]]] = None # Will be serialized to JSON
@@ -1201,6 +1334,8 @@ async def save_digest(
         user_id=current_user.id,
         title=digest.title,
         category=digest.category,
+        city=digest.city,
+        timeframe=digest.timeframe,
         summary_markdown=digest.summary_markdown,
         articles_json=json.dumps(digest.articles),
         analysis_source=json.dumps(digest.analysis_source) if digest.analysis_source else None,
@@ -1215,6 +1350,8 @@ async def save_digest(
         id=db_digest.id,
         title=db_digest.title,
         category=db_digest.category,
+        city=db_digest.city,
+        timeframe=db_digest.timeframe,
         summary_markdown=db_digest.summary_markdown,
         articles=json.loads(db_digest.articles_json),
         analysis_source=json.loads(db_digest.analysis_source) if db_digest.analysis_source else [],
@@ -1238,6 +1375,8 @@ async def list_digests(
             id=d.id,
             title=d.title,
             category=d.category,
+            city=d.city,
+            timeframe=d.timeframe,
             summary_markdown=d.summary_markdown,
             articles=json.loads(d.articles_json) if d.articles_json else [],
             analysis_source=json.loads(d.analysis_source) if d.analysis_source else [],
@@ -1316,24 +1455,88 @@ async def generate_digest_stream(req: DigestRequest, current_user: User = Depend
 
         yield json.dumps({"type": "log", "message": "Initializing Secure Pipeline..."}) + "\n"
         
-        # 1. Fetch Outlets
-        stmt = select(NewsOutlet).where(NewsOutlet.id.in_(req.outlet_ids))
-        result = await db.execute(stmt)
-        outlets = result.scalars().all()
+        # SESSION FIX: Create local session for stream lifespan
+        rules_map = {}
+        outlets = []
         
-        if not outlets:
-             yield json.dumps({"type": "error", "message": "No outlets found"}) + "\n"
-             return
+        try:
+             # Explicit internal imports to prevent any scope weirdness
+             import traceback
+             from sqlalchemy import select
+             from models import NewsOutlet, ScraperRule
+             
+             async with AsyncSessionLocal() as session:
+                 with open("stream_debug.log", "a") as f: f.write(f"\n=== STREAM INIT IDS: {req.outlet_ids} ===\n")
+                 
+                 # 1. Fetch Outlets
+                 stmt = select(NewsOutlet).where(NewsOutlet.id.in_(req.outlet_ids))
+                 result = await session.execute(stmt)
+                 outlets = result.scalars().all()
+                 
+                 with open("stream_debug.log", "a") as f: f.write(f"DEBUG: Found {len(outlets)} outlets.\n")
+                 
+                 if not outlets:
+                      yield json.dumps({"type": "error", "message": "No outlets found"}) + "\n"
+                      return
+    
+                 # 2. Fetch Rules
+                 stmt_rules = select(ScraperRule)
+                 res_rules = await session.execute(stmt_rules)
+                 all_rules = res_rules.scalars().all()
+                 
+                 for r in all_rules:
+                     try:
+                         rules_map[r.domain] = json.loads(r.config_json)
+                     except: pass
+                 
+                 yield json.dumps({"type": "log", "message": f"Loaded {len(rules_map)} custom rules..."}) + "\n"
+                 yield json.dumps({"type": "log", "message": f"Targeting {len(outlets)} sources..."}) + "\n"
+                 
+                 # EXPUNGE to allow usage after session closes
+                 for o in outlets:
+                     session.expunge(o)
 
-        yield json.dumps({"type": "log", "message": f"Targeting {len(outlets)} sources..."}) + "\n"
+        except Exception as e:
+             err = f"DB FETCH ERROR: {str(e)}\n"
+             try:
+                 err += traceback.format_exc()
+             except: err += " (Traceback failed)"
+             
+             print(err)
+             try:
+                 with open("stream_debug.log", "a") as f: f.write(err)
+             except: pass
+             yield json.dumps({"type": "error", "message": f"System Error: {str(e)}"}) + "\n"
+             return
         
         # WORKER FUNCTION
         async def scraper_worker():
             try:
+                with open("stream_debug.log", "a") as f: f.write("DEBUG: Worker Started.\n")
                 all_raw_articles = []
                 for outlet in outlets:
+                     with open("stream_debug.log", "a") as f: f.write(f"DEBUG: Processing {outlet.name}...\n")
+                     # Find Rule
+                     from urllib.parse import urlparse
+                     domain = urlparse(outlet.url).netloc.replace("www.", "").lower()
+                     rule_config = rules_map.get(domain)
+
+                     # Fallback check (e.g. root domain)
+                     if not rule_config:
+                         parts = domain.split('.')
+                         if len(parts) > 2:
+                             root = ".".join(parts[-2:])
+                             rule_config = rules_map.get(root)
+
+                     # Verbose Log to Stream
+                     has_rule = "YES" if rule_config else "NO"
+                     # Log specifically for problematic outlets or all? 
+                     # Start with generic but helpful log
+                     await stream_queue.put({"type": "log", "message": f"Processing {outlet.name} (Rule: {has_rule})..."})
+
                      # Pass queue_logger which is Awaitable (not a generator)
-                     res = await smart_scrape_outlet(outlet, req.category, req.timeframe, log_bus=queue_logger)
+                     # Pass current_user.gemini_api_key for AI Navigation
+                     res = await smart_scrape_outlet(outlet, req.category, req.timeframe, log_bus=queue_logger, api_key=current_user.gemini_api_key, scraper_rule_config=rule_config)
                      
                      if res.get("articles"):
                           all_raw_articles.extend(res["articles"])
@@ -1344,7 +1547,10 @@ async def generate_digest_stream(req: DigestRequest, current_user: User = Depend
                 await stream_queue.put({"type": "data", "articles": all_raw_articles})
             except Exception as e:
                 print(f"DEBUG: WORKER ERROR: {e}")
-                await stream_queue.put({"type": "error", "message": str(e)})
+                tb_str = traceback.format_exc()
+                print(tb_str)
+                await stream_queue.put({"type": "error", "message": f"Worker Critical: {e}"})
+                await stream_queue.put({"type": "log", "message": f"TRACE:\n{tb_str}"})
             finally:
                 await stream_queue.put(None) # Sentinel
 
@@ -1526,46 +1732,118 @@ async def generate_digest_stream(req: DigestRequest, current_user: User = Depend
              titles_map = {i: art.title for i, art in enumerate(candidates_to_verify)}
              
              # Chunking (Gemini has limits, maybe 50 at a time)
-             chunk_size = 50
+             chunk_size = 10 # Keep small for reliability
+             parallel_limit = 5 # Process 5 batches concurrently
              verified_results = {}
              
              title_ids = list(titles_map.keys())
+             
+             # Pre-calculate all batches
+             all_batches = []
              for i in range(0, len(title_ids), chunk_size):
                  chunk_ids = title_ids[i:i+chunk_size]
                  chunk_map = {k: titles_map[k] for k in chunk_ids}
-                 
-                 res, err = await batch_verify_titles_debug(chunk_map, POLITICS_OPERATIONAL_DEFINITION, current_user.gemini_api_key)
-                 if err:
-                      yield json.dumps({"type": "log", "message": f"⚠️ Batch AI Error: {err}"}) + "\n"
-                 
-                 verified_results.update(res)
+                 all_batches.append(chunk_map)
+            
+             total_batches = len(all_batches)
              
-             # Apply verdicts
-             filtered_articles = []
-             # Apply verdicts - NO FILTERING, just tagging
-             for i, art in enumerate(candidates_to_verify):
-                 # Result keys are strings in JSON
-                 verdict = verified_results.get(str(i), verified_results.get(i)) 
+             # Process in Parallel Groups
+             for i in range(0, total_batches, parallel_limit):
+                 batch_group = all_batches[i:i+parallel_limit]
                  
+                 # Prepare Tasks
+                 user_lang = current_user.preferred_language if current_user.preferred_language else "English"
+                 tasks = [
+                     batch_verify_titles_debug(b, POLITICS_OPERATIONAL_DEFINITION, current_user.gemini_api_key, user_lang)
+                     for b in batch_group
+                 ]
+                 
+                 # Process Results as they complete
+                 completed_in_group = 0
+                 for task in asyncio.as_completed(tasks):
+                     res, err = await task
+                     completed_in_group += 1
+                     
+                     if err:
+                          yield json.dumps({"type": "log", "message": f"⚠️ Batch AI Error: {err}"}) + "\n"
+                     else:
+                          verified_results.update(res)
+                     
+                     
+                     # Granular Heartbeat
+                     current_total = i + completed_in_group
+                     msg = f"Verified batches {current_total}/{total_batches} ({len(verified_results)} verified)..."
+                     yield json.dumps({"type": "log", "message": msg}) + "\n"
+                     
+                     try:
+                         with open("stream_debug.log", "a") as f: f.write(f"DEBUG: {msg}\n")
+                     except: pass
+             
+             with open("stream_debug.log", "a") as f: f.write("DEBUG: Exited AI loop normally.\n")
+             
+             # Apply verdicts & Translation
+             with open("stream_debug.log", "a") as f: f.write(f"DEBUG: Processing verdicts for {len(candidates_to_verify)} candidates...\n")
+             
+             for i, art in enumerate(candidates_to_verify):
+                 if i % 50 == 0:
+                      with open("stream_debug.log", "a") as f: f.write(f"DEBUG: Applied verdicts for {i} articles...\n")
+                 
+                 # Result keys are strings in JSON
+                 data = verified_results.get(str(i), verified_results.get(i))
+                 
+                 # Handle new Dict vs old Bool structure (Just in case)
+                 verdict = False
+                 translated = None
+                 
+                 if isinstance(data, bool):
+                     verdict = data
+                 elif isinstance(data, dict):
+                     verdict = data.get("verdict", False)
+                     translated = data.get("translated")
+                 
+                 # Store Translation
+                 if translated:
+                     art.translated_title = translated
+
                  if verdict is True:
                      # CONFIRMED POLITICS
                      art.relevance_score += 20 # Bonus
-                     art.ai_verdict = "PASS"
+                     art.ai_verdict = "VERIFIED"
                  elif verdict is False:
                      # CONFIRMED NOT POLITICS
                      art.relevance_score -= 10 # Penalty but keep
-                     art.ai_verdict = "FAIL"
+                     art.ai_verdict = "REJECTED"
                  else:
                      # Error/Missing
                      art.ai_verdict = "UNKNOWN"
         else:
              yield json.dumps({"type": "log", "message": "⚠️ Skipping AI Filter (No API Key or No Candidates)"}) + "\n"
         
-        # ALL articles go to final list now
-        filtered_articles = unique_articles
+        # POST-TRANSLATION DEDUPLICATION
+        # Remove duplicates that became identical after translation
+        final_articles = []
+        seen_final_titles = set()
+        
+        for art in unique_articles:
+            # Use translated title for check if available
+            check_title = (art.translated_title or art.title).lower().strip()
+            # Remove basic punctuation for fuzzy match
+            import string
+            check_title = check_title.translate(str.maketrans('', '', string.punctuation))
+            
+            if check_title in seen_final_titles:
+                 continue
+            
+            seen_final_titles.add(check_title)
+            final_articles.append(art)
+            
+        filtered_articles = final_articles
+        
+        with open("stream_debug.log", "a") as f: f.write(f"DEBUG: AI Loop Done. Filtering {len(filtered_articles)} articles (Deduped from {len(unique_articles)}).\n")
 
         # FINAL COMPILE
         yield json.dumps({"type": "log", "message": "Compiling HTML Digest..."}) + "\n"
+        with open("stream_debug.log", "a") as f: f.write("DEBUG: Starting Table Generation...\n")
         
         # Create HTML Table
         
@@ -1587,9 +1865,94 @@ async def generate_digest_stream(req: DigestRequest, current_user: User = Depend
             arts = outlet_articles_map.get(outlet.name, [])
             if not arts: continue
             
-            # Sort Articles
-            arts.sort(key=lambda x: x.relevance_score, reverse=True)
+            # Split Articles into Fresh and Stale
+            fresh_articles = []
+            stale_articles = []
             
+            for art in arts:
+                if art.scores.get('is_fresh'):
+                    fresh_articles.append(art)
+                else:
+                    stale_articles.append(art)
+            
+            # Helper for Date Sorting
+            def get_sort_key(x):
+                # Primary: Date (Newest First)
+                # Secondary: Relevance Score (Highest First)
+                d_val = datetime.min
+                if x.date_str:
+                    try:
+                        # Attempt to parse standard format
+                        d_val = datetime.strptime(x.date_str, "%Y-%m-%d")
+                    except:
+                        pass # Keep as min date if parsing fails
+                        
+                return (d_val, x.relevance_score)
+
+            # Sort both lists
+            try:
+                fresh_articles.sort(key=get_sort_key, reverse=True)
+                stale_articles.sort(key=get_sort_key, reverse=True)
+            except Exception as e:
+                # Log but continue if sorting fails
+                print(f"Sorting Error: {e}")
+                pass
+
+            # Helper to Render Rows
+            def render_article_rows(article_list):
+                rows = ""
+                for art in article_list:
+                    s = art.scores
+                    topic_display = f"{s.get('topic', 0)}"
+                    date_color = "#4ade80" if s.get('is_fresh') else "#7f1d1d"
+                    date_display = f"<span style='color: {date_color}; font-weight: bold;'>{art.date_str}</span>" if art.date_str else f"<span style='color: #94a3b8;'>N/A</span>"
+                    date_display += f"""<span class="scraper-debug-trigger" data-url="{art.url}" style="cursor: pointer; margin-left: 6px; font-size: 0.8em; opacity: 0.6;" title="Debug Date Extraction">🔧</span>"""
+
+                    # Score Styling
+                    if art.relevance_score > 80:
+                        score_bg = "#052e16"; score_text = "#4ade80"; score_border = "#15803d"
+                    elif art.relevance_score > 50:
+                        score_bg = "#422006"; score_text = "#facc15"; score_border = "#a16207"
+                    else:
+                        score_bg = "#450a0a"; score_text = "#f87171"; score_border = "#b91c1c"
+                    
+                    safe_url = html.escape(art.url); safe_title = html.escape(art.title)
+                    
+                    # Translation Logic
+                    title_html = f'<span class="title-original">{safe_title}</span>'
+                    if art.translated_title:
+                        safe_trans = html.escape(art.translated_title)
+                        title_html += f'<span class="title-translated" style="display: none; color: #fbbf24; font-style: italic;">{safe_trans}</span>' # Yellow styling for translation
+
+                    # Manual Assess Button
+                    score_badge = f"""
+                    <button class="politics-assess-trigger" data-url="{safe_url}" data-title="{safe_title}"
+                            style="display: inline-flex; align-items: center; gap: 4px; background-color: #1e293b; color: #94a3b8; border: 1px solid #334155; padding: 4px 8px; border-radius: 6px; font-weight: bold; font-size: 0.7rem; cursor: pointer; transition: all 0.2s;"
+                            onmouseover="this.style.backgroundColor='#334155'; this.style.color='white';"
+                            onmouseout="this.style.backgroundColor='#1e293b'; this.style.color='#94a3b8';">
+                        🤖 Assess
+                    </button>
+                    """
+                    
+                    # AI Status Column Logic
+                    verdict_icon = "❓"
+                    if hasattr(art, 'ai_verdict'):
+                        if art.ai_verdict == "PASS": verdict_icon = "✅"
+                        elif art.ai_verdict == "FAIL": verdict_icon = "⚠️"
+                    
+                    rows += f"""
+                    <tr style="border-bottom: 1px solid #1e293b; transition: background-color 0.2s;">
+                        <td style="padding: 12px 16px; border-bottom: 1px solid #1e293b;">{score_badge}</td>
+                        <td style="padding: 12px 16px; text-align: center; border-bottom: 1px solid #1e293b;">{verdict_icon}</td>
+                        <td style="padding: 12px 16px; text-align: center; border-bottom: 1px solid #1e293b; white-space: nowrap;">{date_display}</td>
+                        <td style="padding: 12px 16px; text-align: center; border-bottom: 1px solid #1e293b;">{topic_display}</td>
+                        <td style="padding: 12px 16px; border-bottom: 1px solid #1e293b;">
+                            <a href="{safe_url}" target="_blank" style="color: #e2e8f0; text-decoration: none; font-weight: 500; display: block; margin-bottom: 4px;">{title_html}</a>
+                        </td>
+                    </tr>
+                    """
+                return rows
+
             # Outlet Header
             table_html += f"""
             <div style="margin-top: 32px; margin-bottom: 16px; border-bottom: 1px solid #334155; padding-bottom: 8px;">
@@ -1615,103 +1978,86 @@ async def generate_digest_stream(req: DigestRequest, current_user: User = Depend
                 </thead>
                 <tbody style="background-color: #0f172a;">
             """
-            
-            for art in arts:
-                s = art.scores
-                
-                topic_display = f"{s.get('topic', 0)}"
-                
-                date_color = "#4ade80" if art.relevance_score > 0 else "#7f1d1d"
-                date_display = f"<span style='color: {date_color}; font-weight: bold;'>{art.date_str}</span>" if art.date_str else f"<span style='color: #7f1d1d;'>N/A</span>"
-                
-                # Add Debug Trigger to Date
-                date_display += f"""<span class="scraper-debug-trigger" data-url="{art.url}" style="cursor: pointer; margin-left: 6px; font-size: 0.8em; opacity: 0.6;" title="Debug Date Extraction">🔧</span>"""
 
-                # Score Styling
-                if art.relevance_score > 80:
-                    score_bg = "#052e16" 
-                    score_text = "#4ade80" 
-                    score_border = "#15803d"
-                elif art.relevance_score > 50:
-                    score_bg = "#422006" 
-                    score_text = "#facc15" 
-                    score_border = "#a16207"
-                else:
-                    score_bg = "#450a0a" 
-                    score_text = "#f87171" 
-                    score_border = "#b91c1c"
-                
-                # Escape for HTML attributes
-                safe_url = html.escape(art.url)
-                safe_title = html.escape(art.title)
+            # 1. Render Fresh Articles (Main Body)
+            table_html += render_article_rows(fresh_articles)
+            table_html += "</tbody>"
 
-                score_badge = f"""
-                <button class="politics-assess-trigger" 
-                        data-url="{safe_url}" 
-                        data-title="{safe_title}"
-                        style="
-                            display: inline-flex; align-items: center; gap: 4px;
-                            background-color: #1e293b; color: #94a3b8; 
-                            border: 1px solid #334155; padding: 4px 8px; 
-                            border-radius: 6px; font-weight: bold; font-size: 0.7rem; 
-                            cursor: pointer; transition: all 0.2s;
-                        "
-                        onmouseover="this.style.backgroundColor='#334155'; this.style.color='white';"
-                        onmouseout="this.style.backgroundColor='#1e293b'; this.style.color='#94a3b8';"
-                >
-                    🤖 Assess
-                </button>
-                <div class="politics-verdict" data-url="{art.url}" style="margin-top: 4px; font-size: 0.7rem; display: none;"></div>
-                """
-                
-                title_color = "#f1f5f9"
-                
-                # AI Status Column Logic
-                verdict_icon = "❓"
-                verdict_color = "#94a3b8"
-                verdict_tooltip = "Not Verified"
-                
-                if hasattr(art, 'ai_verdict'):
-                    if art.ai_verdict == "PASS":
-                        verdict_icon = "✅"
-                        verdict_color = "#4ade80"
-                        verdict_tooltip = "AI Confirmed: Fits Politics Definition"
-                    elif art.ai_verdict == "FAIL":
-                        verdict_icon = "⚠️"
-                        verdict_color = "#fbbf24"
-                        verdict_tooltip = "AI Warning: Likely Off-Topic (but shown per request)"
-                
-                ai_check_html = f"""
-                <div style="text-align: center; font-size: 1.2em; cursor: help;" title="{verdict_tooltip}">
-                    {verdict_icon}
-                </div>
-                """
-                
+            # 2. Render Stale Articles (Collapsible)
+            if stale_articles:
                 table_html += f"""
-                    <tr style="border-bottom: 1px solid #1e293b;">
-                        <td style="padding: 10px 16px; border-bottom: 1px solid #1e293b;">{score_badge}</td>
-                        <td style="padding: 10px 16px; border-bottom: 1px solid #1e293b;">{ai_check_html}</td>
-                        <td style="padding: 10px 16px; text-align: center; border-bottom: 1px solid #1e293b; font-size: 0.9rem; color: #cbd5e1;">{date_display}</td>
-                        <td style="padding: 10px 16px; text-align: center; border-bottom: 1px solid #1e293b; font-size: 0.9rem; color: #cbd5e1;">{topic_display}</td>
-                        <td style="padding: 10px 16px; border-bottom: 1px solid #1e293b;">
-                            <a href="{safe_url}" target="_blank" style="display: block; color: {title_color}; text-decoration: none; font-size: 1rem; font-weight: 500; line-height: 1.4; transition: color 0.2s;">
-                                <span style="border-bottom: 1px dotted #94a3b8;">{safe_title}</span> <span style="font-size: 0.8em; text-decoration: none;">🔗</span>
-                            </a>
+                <tbody style="border-top: 2px solid #334155;">
+                    <tr>
+                        <td colspan="5" style="padding: 0;">
+                            <details style="background-color: #0f172a;">
+                                <summary style="padding: 12px 16px; cursor: pointer; color: #94a3b8; font-size: 0.85rem; font-weight: 600; user-select: none; background-color: #1e293b; border-bottom: 1px solid #334155;">
+                                    🔻 Show {len(stale_articles)} Older / Undated Articles
+                                </summary>
+                                <table style="width: 100%; border-collapse: separate; border-spacing: 0;">
+                                    {render_article_rows(stale_articles)}
+                                </table>
+                            </details>
                         </td>
                     </tr>
+                </tbody>
                 """
+            
+            table_html += "</table>"
+                
             
             table_html += "</tbody></table>"
             
-        final_result = {
-            "digest": table_html,
-            "articles": [a.dict() for a in filtered_articles],
-            "analysis_source": analysis_source or [], 
-            "analysis_digest": [],
-            "category": req.category
-        }
-        
-        yield json.dumps({"type": "result", "payload": final_result}) + "\n"
+        try:
+            with open("stream_debug.log", "a") as logf:
+                logf.write(f"\n--- NEW STREAM START ---\n")
+                
+                # Send Partial Updates (Split Payload)
+                yield json.dumps({"type": "log", "message": "Sending Digest components..."}) + "\n"
+                logf.write("DEBUG: Sending Partial Digest HTML...\n")
+                
+                # 1. HTML Content
+                html_size_mb = len(table_html) / 1024 / 1024
+                yield json.dumps({"type": "log", "message": f"📦 Generating HTML Digest ({html_size_mb:.2f} MB)..."}) + "\n"
+                logf.write(f"DEBUG: Sending Partial Digest HTML ({html_size_mb:.2f} MB)...\n")
+                
+                if html_size_mb > 15:
+                     yield json.dumps({"type": "log", "message": "⚠️ Warning: Digest is very large, browser may lag."}) + "\n"
+
+                yield json.dumps({"type": "partial_digest", "html": table_html}, default=str) + "\n"
+                
+                # 2. Analysis Data
+                logf.write("DEBUG: Sending Partial Analysis...\n")
+                yield json.dumps({"type": "partial_analysis", "source": [k.dict() for k in (analysis_source or [])]}, default=str) + "\n"
+
+                # 3. Articles (Chunked)
+                article_chunk_size = 50
+                total_articles = len(filtered_articles)
+                logf.write(f"DEBUG: Sending {total_articles} articles in chunks of {article_chunk_size}...\n")
+                
+                for i in range(0, total_articles, article_chunk_size):
+                     chunk = filtered_articles[i:i+article_chunk_size]
+                     logf.write(f"DEBUG: Sending Article Chunk {i//article_chunk_size + 1}...\n")
+                     yield json.dumps({
+                         "type": "partial_articles", 
+                         "articles": [a.dict() for a in chunk], 
+                         "category": req.category
+                     }, default=str) + "\n"
+                     
+                     await asyncio.sleep(0.01)
+
+                # 4. Completion Signal
+                logf.write("DEBUG: Sending DONE signal...\n")
+                yield json.dumps({"type": "done"}) + "\n"
+                logf.write("DEBUG: Stream Finished Successfully.\n")
+            
+        except Exception as e:
+            with open("stream_debug.log", "a") as logf:
+                logf.write(f"CRITICAL STREAM ERROR: {e}\n")
+                import traceback
+                traceback.print_exc(file=logf)
+            
+            print(f"CRITICAL STREAM ERROR: {e}")
+            yield json.dumps({"type": "error", "message": f"Server Stream Error: {str(e)}"}) + "\n"
 
     # yield json.dumps({"type": "log", "message": "Processing..."}) + "\n" # OLD PLACEHOLDER
     
@@ -1904,56 +2250,102 @@ async def generate_digest(req: DigestRequest, current_user: User = Depends(get_c
         if date_score >= 30 and topic_score >= 20:
             # Candidate for AI
             candidates_for_ai.append(article)
-        elif topic_score >= 20 and date_score < 30:
-            # AI DATE RESCUE MISSION
-            # Relevant topic, but missing date. Try to rescue it.
-            # (Runs for any topic >= 20, even if date check failed)
+        else:
+            # Check rule availability efficiently
+            from urllib.parse import urlparse
             try:
-                 print(f"Rescuing Date for: {article.title}")
-                 async with httpx.AsyncClient() as client:
-                      resp = await client.get(article.url, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
-                      if resp.status_code == 200:
-                           rescued_date = await scraper_engine.extract_date_with_ai(resp.text, article.url, current_user.gemini_api_key)
+                 domain_key = urlparse(article.url).netloc.replace("www.", "").lower()
+                 has_custom_rule = domain_key in rules_map
+            except: 
+                 has_custom_rule = False
+            
+            # Expanded Rescue Condition
+            if (topic_score >= 15 or has_custom_rule) and date_score < 30 and topic_score > -50:
+                # AI/RULE DATE RESCUE MISSION
+                # Relevant topic OR User has custom rule. (But not spam)
+                try:
+                    print(f"DEBUG: Triggering Rescue for {article.title} (HasRule: {has_custom_rule})")
+                    async with httpx.AsyncClient(headers={"User-Agent": "Mozilla/5.0"}, verify=False, timeout=10) as rescue_client:
+                      resp = await robust_fetch(rescue_client, article.url)
+                      if resp and resp.status_code == 200:
                            
-                           if rescued_date and "429" in rescued_date:
+                           rescued_date = None
+                           
+                           # 1. Try Rule-Based Extraction
+                           from urllib.parse import urlparse
+                           domain = urlparse(article.url).netloc.replace("www.", "").lower()
+                           rule_config = rules_map.get(domain)
+                           
+                           if rule_config:
+                                rule_obj = scraper_engine.ScraperRule(
+                                    domain="custom",
+                                    date_selectors=rule_config.get('date_selectors'),
+                                    date_regex=rule_config.get('date_regex'),
+                                    use_json_ld=rule_config.get('use_json_ld', True)
+                                )
+                                rescued_date = scraper_engine.extract_date_from_html(resp.text, article.url, custom_rule_override=rule_obj)
+                                if rescued_date: print(f"DEBUG: Rule Rescued Date: {rescued_date} (Type: {type(rescued_date)})")
+
+                           # 2. Fallback to AI
+                           if not rescued_date:
+                                rescued_date = await scraper_engine.extract_date_with_ai(resp.text, article.url, current_user.gemini_api_key)
+
+                           if rescued_date and "429" in str(rescued_date):
                                 # RATE LIMIT HIT
                                 print(f"  -> Rate Limit 429: {rescued_date}")
-                                analysis_source.append(KeywordData(word="RATE_LIMIT", importance=1, type="System:RateLimit", sentiment="Warning")) # Hack to signal frontend
+                                analysis_source.append(KeywordData(word="RATE_LIMIT", importance=1, type="System:RateLimit", sentiment="Warning"))
                            elif rescued_date:
                                 # Validate Rescued Date against Cutoff!
                                 try:
-                                    d_obj = datetime.strptime(rescued_date, "%Y-%m-%d")
+                                    # Normalize to datetime
+                                    d_obj = None
+                                    if isinstance(rescued_date, datetime):
+                                        d_obj = rescued_date
+                                        # Format to string for article.date_str
+                                        rescued_date = d_obj.strftime("%Y-%m-%d")
+                                    else:
+                                        # Parse string
+                                        # Clean potential "YYYY-MM-DDT..."
+                                        c_date = str(rescued_date).split("T")[0]
+                                        d_obj = datetime.strptime(c_date, "%Y-%m-%d")
+                                        rescued_date = c_date
+
                                     if d_obj >= cutoff_date:
                                          print(f"  -> Rescued Valid Date: {rescued_date}")
                                          article.date_str = rescued_date
                                          # Bump Score
-                                         article.relevance_score = topic_score + 30 + 20 # Score reset: Topic + Date(30) + RescueBonus(20)
+                                         article.relevance_score = topic_score + 30 + 20 
                                          article.scores['date'] = 30
                                          # Now it qualifies for AI verification or basic inclusion
                                          candidates_for_ai.append(article)
                                     else:
                                          print(f"  -> Rescued OLD Date: {rescued_date} (Too Old)")
                                          article.date_str = rescued_date
-                                         article.relevance_score = 0 # STRICT: It's old, so 0 score.
-                                         filtered_articles.append(article) # Include as "Old" reference
+                                         article.relevance_score = 0 
+                                         filtered_articles.append(article) 
                                 except:
                                      pass
                            else:
-                                # Failed Rescue, still include as fallback if topic is valid
-                                article.relevance_score = 0 # No confirmed date = 0 score
+                                # Failed Rescue
+                                article.relevance_score = 0 
                                 filtered_articles.append(article)
                       else:
                            article.relevance_score = 0
                            filtered_articles.append(article)
-            except Exception as e:
-                 print(f"Rescue Failed: {e}")
-                 # Fallback
-                 article.relevance_score = 0 
-                 filtered_articles.append(article)
+                except Exception as e:
+                    print(f"Rescue Failed: {e}")
+                    article.relevance_score = 0 
+                    filtered_articles.append(article)
 
-        elif article.relevance_score > 30 and topic_score > 10:
+            elif article.relevance_score > 30 and topic_score > 10:
              # Fallback for "Decently High Score" but maybe weak on specific keywords
              filtered_articles.append(article)
+
+
+    # Mark heuristically accepted articles as VERIFIED
+    for art in filtered_articles:
+        if not art.ai_verdict:
+            art.ai_verdict = "VERIFIED"
 
     # Batch AI Verification
     if candidates_for_ai:
@@ -1967,10 +2359,56 @@ async def generate_digest(req: DigestRequest, current_user: User = Depends(get_c
         for art, is_relevant in zip(candidates_for_ai, results):
             if is_relevant:
                 # PASSED AI
+                art.ai_verdict = "VERIFIED"
                 filtered_articles.append(art)
             else:
                 print(f"AI Rejected: {art.title}")
     
+    # --- SORTING ---
+    # Sort by Date Descending (Newest First)
+    def date_sorter(art):
+        if not art.date_str: return "0000-00-00"
+        return art.date_str
+    filtered_articles.sort(key=date_sorter, reverse=True)
+
+    # --- TRANSLATION ---
+    if filtered_articles and current_user.gemini_api_key:
+        print(f"Translating {len(filtered_articles)} titles...")
+        try:
+            titles_to_translate = [art.title for art in filtered_articles]
+            # Batch translate ~50 at a time to be safe?
+            # Simple implementation: Translate all in one go (assuming < 100 articles)
+            
+            genai.configure(api_key=current_user.gemini_api_key)
+            model_tr = genai.GenerativeModel('gemini-flash-latest')
+            
+            # JSON Prompt
+            tr_prompt = f"""
+            Translate the following news headlines to English. Maintain the tone.
+            Input:
+            {json.dumps(titles_to_translate, ensure_ascii=False)}
+            
+            Return strictly a JSON list of strings:
+            ["Translated Title 1", "Translated Title 2", ...]
+            """
+            
+            tr_resp = await model_tr.generate_content_async(tr_prompt)
+            tr_text = tr_resp.text.replace("```json","").replace("```","").strip()
+            # Simple regex cleanup or json.loads
+            import re
+            json_match = re.search(r'\[.*\]', tr_text, re.DOTALL)
+            if json_match:
+                translated_list = json.loads(json_match.group(0))
+                if len(translated_list) == len(filtered_articles):
+                    for art, tr in zip(filtered_articles, translated_list):
+                        art.translated_title = tr
+                    print("Translation success.")
+                else:
+                    print(f"Translation mismatch: Got {len(translated_list)} vs {len(filtered_articles)}")
+        except Exception as e:
+            print(f"Batch Translation Failed: {e}")
+            pass # Continue without translation
+
     # Mapping
     outlet_articles_map = {o.name: [] for o in outlets}
     for article in filtered_articles:

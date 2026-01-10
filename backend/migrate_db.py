@@ -1,18 +1,32 @@
-import asyncio
-from sqlalchemy import text
-from database import engine
+import sqlite3
 
-async def migrate():
-    async with engine.begin() as conn:
-        print("Migrating: Adding 'type' column to 'news_outlets'...")
-        try:
-            await conn.execute(text("ALTER TABLE news_outlets ADD COLUMN type VARCHAR DEFAULT 'Unknown';"))
-            print("Migration successful: Added 'type' column.")
-        except Exception as e:
-            if "already exists" in str(e):
-                print("Column 'type' already exists. Skipping.")
-            else:
-                print(f"Migration failed: {e}")
+# Connect to the SQLite database
+# Assuming the db file is "urbanous.db" based on 'database.py'
+db_path = "urbanous.db"
 
-if __name__ == "__main__":
-    asyncio.run(migrate())
+try:
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    
+    # Add 'city' column
+    try:
+        print("Adding 'city' column...")
+        cursor.execute("ALTER TABLE news_digests ADD COLUMN city VARCHAR")
+        print("Success.")
+    except Exception as e:
+        print(f"Skipped 'city': {e}")
+
+    # Add 'timeframe' column
+    try:
+        print("Adding 'timeframe' column...")
+        cursor.execute("ALTER TABLE news_digests ADD COLUMN timeframe VARCHAR")
+        print("Success.")
+    except Exception as e:
+        print(f"Skipped 'timeframe': {e}")
+        
+    conn.commit()
+    conn.close()
+    print("Migration complete.")
+
+except Exception as e:
+    print(f"Migration failed completely: {e}")

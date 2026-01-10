@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from database import engine, Base
-from routers import auth, outlets
+from routers import auth, outlets, scraper
 from models import User, NewsOutlet, NewsDigest # Import to register models
 import os
 
@@ -35,6 +35,7 @@ async def startup():
 # Routers
 app.include_router(auth.router, tags=["Authentication"])
 app.include_router(outlets.router, tags=["News Agents"])
+app.include_router(scraper.router, tags=["Scraper Config"])
 
 @app.get("/")
 def read_root():

@@ -10,6 +10,7 @@ class User(Base):
     email = Column(String, unique=True, index=True)
     hashed_password = Column(String)
     gemini_api_key = Column(String, nullable=True) # Encrypted ideally, plain for MVP
+    preferred_language = Column(String, default="English") # New: Translation Preference
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
@@ -72,6 +73,8 @@ class NewsDigest(Base):
     
     title = Column(String)
     category = Column(String)
+    city = Column(String, nullable=True) # New: City Name
+    timeframe = Column(String, nullable=True) # New: Timeframe used (e.g. 24h)
     summary_markdown = Column(String)
     articles_json = Column(String) # JSON string of list of articles metadata
     analysis_source = Column(String, nullable=True) # JSON string of keyword analysis
@@ -79,5 +82,24 @@ class NewsDigest(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     user = relationship("User", back_populates="digests")
+
+# --- Scraper Rule Model ---
+class ScraperRule(Base):
+    __tablename__ = "scraper_rules"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    domain = Column(String, unique=True, index=True) # e.g. "tribuna.ro"
+    
+    # Configuration JSON stored as String
+    # {
+    #   "date_selectors": [".post-date"],
+    #   "use_json_ld": true,
+    #   "use_data_layer": false,
+    #   "data_layer_var": "dataLayer"
+    # }
+    config_json = Column(String) 
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
 # Keep Category if needed for tagging digests, but for now String category is simpler.

@@ -24,16 +24,7 @@ export default function Home() {
     setIsMounted(true);
   }, []);
 
-  useEffect(() => {
-    if (isMounted && !isAuthenticated) {
-      router.push('/login');
-    }
-  }, [isAuthenticated, router, isMounted]);
 
-  // Prevent hydration mismatch by rendering null until mounted on client
-  if (!isMounted) return <div className="min-h-screen bg-black text-white flex items-center justify-center">Loading...</div>;
-
-  if (!isAuthenticated) return null;
 
   return (
     <main className="relative min-h-screen bg-black overflow-hidden">
