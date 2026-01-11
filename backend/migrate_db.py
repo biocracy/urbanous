@@ -1,32 +1,34 @@
+
 import sqlite3
+import os
 
-# Connect to the SQLite database
-# Assuming the db file is "urbanous.db" based on 'database.py'
-db_path = "urbanous.db"
+DB_PATH = "urbanous.db"
 
-try:
-    conn = sqlite3.connect(db_path)
+def migrate():
+    if not os.path.exists(DB_PATH):
+        print("No database found, skipping migration.")
+        return
+
+    conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
-    # Add 'city' column
     try:
-        print("Adding 'city' column...")
-        cursor.execute("ALTER TABLE news_digests ADD COLUMN city VARCHAR")
-        print("Success.")
-    except Exception as e:
-        print(f"Skipped 'city': {e}")
-
-    # Add 'timeframe' column
-    try:
-        print("Adding 'timeframe' column...")
-        cursor.execute("ALTER TABLE news_digests ADD COLUMN timeframe VARCHAR")
-        print("Success.")
-    except Exception as e:
-        print(f"Skipped 'timeframe': {e}")
+        # Check if column exists
+        cursor.execute("PRAGMA table_info(news_digests)")
+        columns = [info[1] for info in cursor.fetchall()]
         
-    conn.commit()
-    conn.close()
-    print("Migration complete.")
+        if "selected_article_urls" not in columns:
+            print("Adding selected_article_urls column...")
+            cursor.execute("ALTER TABLE news_digests ADD COLUMN selected_article_urls TEXT")
+            conn.commit()
+            print("Migration successful.")
+        else:
+            print("Column selected_article_urls already exists.")
+            
+    except Exception as e:
+        print(f"Migration failed: {e}")
+    finally:
+        conn.close()
 
-except Exception as e:
-    print(f"Migration failed completely: {e}")
+if __name__ == "__main__":
+    migrate()

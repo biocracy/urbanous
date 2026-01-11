@@ -7,15 +7,16 @@ import { Article } from './types';
 interface ArticleRowProps {
     article: Article;
     isTranslated: boolean;
+    isSelected: boolean;
+    onToggle: (url: string) => void;
     onAssess?: (article: Article) => Promise<any> | any;
     onDebug?: (article: Article) => void;
 }
 
-export function ArticleRow({ article, isTranslated, onAssess, onDebug }: ArticleRowProps) {
+export function ArticleRow({ article, isTranslated, isSelected, onToggle, onAssess, onDebug }: ArticleRowProps) {
     const s = article.scores || { topic: 0, date: 0, is_fresh: false };
     const [isAssessing, setIsAssessing] = useState(false);
     const [assessmentResult, setAssessmentResult] = useState<any>(null);
-    const [isOverrideSelected, setIsOverrideSelected] = useState<boolean | null>(null);
 
     // Date Styling
     const isFresh = s.is_fresh || (article.relevance_score > 0 && s.date > 0);
@@ -24,10 +25,6 @@ export function ArticleRow({ article, isTranslated, onAssess, onDebug }: Article
     // AI Check Logic
     const isAiTitlePass = article.ai_verdict === "VERIFIED";
     const aiTitleIcon = isAiTitlePass ? "✅" : "❌";
-
-    // Auto-Select Logic: Fresh Date AND AI Title Pass
-    const isAutoSelected = isFresh && isAiTitlePass;
-    const isSelected = isOverrideSelected !== null ? isOverrideSelected : isAutoSelected;
 
     // Title Logic
     const displayTitle = (isTranslated && article.translated_title)
@@ -116,7 +113,7 @@ export function ArticleRow({ article, isTranslated, onAssess, onDebug }: Article
             {/* 5. SELECT CHECKBOX */}
             <td className="px-4 py-3 text-center">
                 <button
-                    onClick={() => setIsOverrideSelected(!isSelected)}
+                    onClick={() => onToggle(article.url)}
                     className={`w-5 h-5 mx-auto border rounded flex items-center justify-center transition-colors ${isSelected ? "bg-blue-600 border-blue-600 text-white" : "border-slate-600 text-transparent hover:border-slate-400"}`}
                 >
                     <CheckCircle2 size={14} />

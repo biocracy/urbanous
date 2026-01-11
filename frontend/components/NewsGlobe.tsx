@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 import * as turf from '@turf/turf';
 import api from '@/lib/api'; // Use the axios instance with Auth interceptor
 import { useAuthStore } from '@/lib/store';
-import { Sliders, X, Save, Key, Loader2, LogOut, StopCircle, Languages, Wrench, Search, Map, Calendar, Settings, ChevronDown, ChevronRight, List, Info, FileText } from 'lucide-react';
+import { Sliders, X, Save, Key, Loader2, LogOut, StopCircle, Languages, Wrench, Search, Map, Calendar, Settings, ChevronDown, ChevronRight, List, Info, FileText, Sparkles } from 'lucide-react';
 import ScraperDebugger from './ScraperDebugger';
 import ReactMarkdown from 'react-markdown';
 import { CAPITALS } from '../data/capitals';
@@ -76,6 +76,14 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
         focus?: string; // Local, National
     }
 
+    interface AnalyticsKeyword {
+        word: string;
+        translation?: string;
+        importance: number;
+        sentiment: 'Positive' | 'Negative' | 'Neutral';
+        source_ids: string[];
+    }
+
     // UI States
     const [isDiscovering, setIsDiscovering] = useState(false);
     const [showOutletPanel, setShowOutletPanel] = useState(false);
@@ -109,7 +117,118 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
     const [isSaving, setIsSaving] = useState(false);
     const [savedDigests, setSavedDigests] = useState<any[]>([]);
     const [activeSideTab, setActiveSideTab] = useState<'sources' | 'digests'>('sources');
-    const [activeModalTab, setActiveModalTab] = useState<'report' | 'analytics'>('report');
+    const [activeModalTab, setActiveModalTab] = useState<'articles' | 'digest' | 'analytics'>('articles');
+
+    // Digest Summarization State
+    const [selectedArticleUrls, setSelectedArticleUrls] = useState<Set<string>>(new Set());
+    const [digestSummary, setDigestSummary] = useState<string>("");
+    const [isSummarizing, setIsSummarizing] = useState(false);
+
+    // Analytics State
+    const [analyticsKeywords, setAnalyticsKeywords] = useState<AnalyticsKeyword[]>([]);
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const [isAnalyticsTranslated, setIsAnalyticsTranslated] = useState(false);
+    const [analyticsViewMode, setAnalyticsViewMode] = useState<'cloud' | 'columns'>('cloud');
+    const [analyzingTickerText, setAnalyzingTickerText] = useState<string>('');
+
+    const handleToggleSelection = (url: string) => {
+        const newSet = new Set(selectedArticleUrls);
+        if (newSet.has(url)) newSet.delete(url);
+        else newSet.add(url);
+        setSelectedArticleUrls(newSet);
+    };
+
+    // Stable list of selected articles for Index-based citation
+    const selectedArticlesList = useMemo(() => {
+        if (!digestData?.articles) return [];
+        return digestData.articles.filter((a: any) => selectedArticleUrls.has(a.url));
+    }, [digestData, selectedArticleUrls]);
+
+    // Ticker Effect
+    useEffect(() => {
+        if (!isSummarizing || selectedArticlesList.length === 0) {
+            setAnalyzingTickerText('');
+            return;
+        }
+        let idx = 0;
+        const interval = setInterval(() => {
+            const art = selectedArticlesList[idx % selectedArticlesList.length];
+            const title = art.title || "Article";
+            setAnalyzingTickerText(`Analyzing: ${title.substring(0, 40)}...`);
+            idx++;
+        }, 150);
+        return () => clearInterval(interval);
+    }, [isSummarizing, selectedArticlesList]);
+
+    const handleSmartSelect = () => {
+        if (!digestData?.articles) return;
+        const smartSet = new Set<string>();
+        digestData.articles.forEach((a: any) => {
+            const s = a.scores || {};
+            const isGreenDate = s.is_fresh || (a.relevance_score > 0 && s.date > 0);
+            // "Green AI-Title" check
+            const isVerified = a.ai_verdict === "VERIFIED";
+
+            if (isGreenDate && isVerified) {
+                smartSet.add(a.url);
+            }
+        });
+        setSelectedArticleUrls(smartSet);
+    };
+
+    const handleGenerateBackendSummary = async () => {
+        if (selectedArticleUrls.size === 0) return;
+        setIsSummarizing(true);
+        // "Gathering Articles..." text update
+        // We handle the text in the button, but if there's a global loader, we can set it here.
+        // For now, the user asked for text "somewhere". We updated the button text logic below.
+        try {
+            const selectedArts = digestData.articles.filter((a: any) => selectedArticleUrls.has(a.url));
+
+            const res = await api.post('/outlets/digest/summarize', {
+                articles: selectedArts,
+                category: selectedCategory,
+                city: selectedCityName || "Global"
+            });
+
+            setDigestSummary(res.data.summary);
+            setActiveModalTab('digest');
+        } catch (e) {
+            console.error("Summarization failed", e);
+            alert("Failed to generate summary");
+        } finally {
+            setIsSummarizing(false);
+        }
+    };
+
+    const handleGenerateAnalytics = async () => {
+        setIsAnalyzing(true);
+        try {
+            // Analyze selected articles if any, otherwise all available articles
+            let targetArticles = digestData.articles;
+            if (selectedArticleUrls.size > 0) {
+                targetArticles = digestData.articles.filter((a: any) => selectedArticleUrls.has(a.url));
+            }
+
+            if (!targetArticles || targetArticles.length === 0) {
+                alert("No articles available to analyze.");
+                return;
+            }
+
+            const res = await api.post('/outlets/digest/analytics', {
+                articles: targetArticles,
+                category: selectedCategory,
+                city: selectedCityName || "Global"
+            });
+            setAnalyticsKeywords(res.data.keywords);
+        } catch (e) {
+            console.error("Analytics failed", e);
+            alert("Failed to generate analytics");
+        } finally {
+            setIsAnalyzing(false);
+        }
+    };
+
     const { isAuthenticated } = useAuthStore();
 
     useEffect(() => {
@@ -273,11 +392,12 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             await api.post('/digests', {
                 title: title,
                 category: selectedCategory,
-                city: selectedCityName || "Global", // Pass city name
+                city: selectedCityName || "Global",
                 timeframe: selectedTimeframe,
-                summary_markdown: digestData.digest,
+                summary_markdown: digestSummary || digestData.digest,
                 articles: digestData.articles,
-                analysis_source: digestData.analysis_source
+                selected_article_urls: Array.from(selectedArticleUrls),
+                analysis_source: analyticsKeywords.length > 0 ? analyticsKeywords : digestData.analysis_source
             });
             await fetchSavedDigests();
             // Show toast? relying on button state for now
@@ -370,6 +490,8 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
         setIsGeneratingDigest(true);
         setErrorMessage(null);
         setDigestData(null);
+        setSelectedArticleUrls(new Set());
+        setDigestSummary("");
         setProgressLog('Connecting to stream...');
 
         try {
@@ -469,7 +591,21 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                             console.log("Digest Stream Complete.");
                             // Final Update
                             setDigestData({ ...currentDigestState });
-                            setActiveModalTab('report');
+
+                            // Auto-Select Fresh & Verified
+                            const autoSelected = new Set<string>(
+                                currentDigestState.articles
+                                    .filter((a: any) => {
+                                        const s = a.scores || {};
+                                        const isFresh = s.is_fresh || (a.relevance_score > 0 && s.date > 0);
+                                        const isVerified = a.ai_verdict === "VERIFIED";
+                                        return isFresh && isVerified;
+                                    })
+                                    .map((a: any) => a.url)
+                            );
+                            setSelectedArticleUrls(autoSelected);
+
+                            setActiveModalTab('articles');
                             setShowOutletPanel(true);
 
                             // Check for rate limits in the accumulated data
@@ -486,7 +622,21 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                             console.log("Received Digest Result:", data); // Debug
                             currentDigestState = data; // Update local
                             setDigestData(data);
-                            setActiveModalTab('report');
+
+                            // Auto-Select Fresh & Verified
+                            const autoSelectedResult = new Set<string>(
+                                data.articles
+                                    .filter((a: any) => {
+                                        const s = a.scores || {};
+                                        const isFresh = s.is_fresh || (a.relevance_score > 0 && s.date > 0);
+                                        const isVerified = a.ai_verdict === "VERIFIED";
+                                        return isFresh && isVerified;
+                                    })
+                                    .map((a: any) => a.url)
+                            );
+                            setSelectedArticleUrls(autoSelectedResult);
+
+                            setActiveModalTab('articles');
                             setShowOutletPanel(true);
                         } else if (msg.type === 'error') {
                             setErrorMessage(msg.message);
@@ -520,7 +670,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             analysis_source: digest.analysis_source
         });
         setSelectedCategory(digest.category);
-        setActiveModalTab('report');
+        setActiveModalTab('articles');
     };
 
     const handleDeleteDigest = async (e: any, id: number) => {
@@ -1593,10 +1743,16 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                                     </h2>
                                     <div className="flex gap-4 mt-2">
                                         <button
-                                            onClick={() => setActiveModalTab('report')}
-                                            className={`text-xs font-bold uppercase tracking-wider pb-1 ${activeModalTab === 'report' ? 'text-blue-400 border-b-2 border-blue-400' : 'text-slate-500'}`}
+                                            onClick={() => setActiveModalTab('articles')}
+                                            className={`text-xs font-bold uppercase tracking-wider pb-1 ${activeModalTab === 'articles' ? 'text-blue-400 border-b-2 border-blue-400' : 'text-slate-500'}`}
                                         >
-                                            Report
+                                            Articles
+                                        </button>
+                                        <button
+                                            onClick={() => setActiveModalTab('digest')}
+                                            className={`text-xs font-bold uppercase tracking-wider pb-1 ${activeModalTab === 'digest' ? 'text-blue-400 border-b-2 border-blue-400' : 'text-slate-500'}`}
+                                        >
+                                            Digest
                                         </button>
                                         <button
                                             onClick={() => setActiveModalTab('analytics')}
@@ -1641,7 +1797,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                             </div>
 
                             <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-                                {activeModalTab === 'report' ? (
+                                {activeModalTab === 'articles' ? (
                                     <div className={`flex flex-col gap-8 ${isTranslateActive ? 'translate-active' : ''}`}>
                                         <div className="border-b border-white/10 pb-4 mb-2">
                                             <h2 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-indigo-400">
@@ -1661,6 +1817,33 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                                                     })()}
                                                 </span>
                                             </p>
+
+                                            <div className="mt-4 flex items-center justify-between bg-slate-800/50 p-3 rounded-lg border border-white/5">
+                                                <div className="flex items-center gap-4">
+                                                    <span className="text-slate-400 text-sm">{selectedArticleUrls.size} articles selected</span>
+                                                    <button
+                                                        onClick={handleSmartSelect}
+                                                        className="px-3 py-1 bg-emerald-900/40 hover:bg-emerald-800/60 text-emerald-400 border border-emerald-800/50 font-bold rounded text-[10px] uppercase tracking-wider transition-all"
+                                                        title="Auto-select Fresh & Verified articles"
+                                                    >
+                                                        Auto-Select
+                                                    </button>
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    <button
+                                                        onClick={handleGenerateBackendSummary}
+                                                        disabled={isSummarizing || selectedArticleUrls.size === 0}
+                                                        className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded text-xs transition-all disabled:opacity-50 flex items-center gap-2 min-w-[180px] justify-center"
+                                                    >
+                                                        {isSummarizing ? (
+                                                            <>
+                                                                <Loader2 className="animate-spin shrink-0" size={14} />
+                                                                <span className="truncate max-w-[200px]">{analyzingTickerText || "Analyzing..."}</span>
+                                                            </>
+                                                        ) : "Summarize Selection"}
+                                                    </button>
+                                                </div>
+                                            </div>
                                         </div>
 
                                         {/* React Renderer (Virtualization Friendly) */}
@@ -1668,55 +1851,163 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                                             articles={digestData.articles || []}
                                             category={selectedCategory}
                                             isTranslated={isTranslateActive}
+                                            selectedUrls={selectedArticleUrls}
+                                            onToggle={handleToggleSelection}
                                             onAssess={handleAssessArticle}
                                             onDebug={handleDebugArticle}
                                         />
                                     </div>
+                                ) : activeModalTab === 'digest' ? (
+                                    <div className="flex flex-col gap-6">
+                                        {digestSummary ? (
+                                            <div className="bg-slate-900/50 p-12 rounded-xl border border-white/5 animate-in fade-in duration-500">
+                                                <ReactMarkdown
+                                                    components={{
+                                                        h1: ({ node, ...props }) => <h1 className="text-4xl font-extrabold text-white mb-8 border-b border-white/10 pb-4 mt-8" {...props} />,
+                                                        h2: ({ node, ...props }) => <h2 className="text-3xl font-bold text-blue-200 mt-12 mb-6 border-l-4 border-blue-500 pl-4" {...props} />,
+                                                        h3: ({ node, ...props }) => <h3 className="text-xl font-bold text-indigo-300 mt-8 mb-3 uppercase tracking-wide" {...props} />,
+                                                        p: ({ node, ...props }) => <p className="text-lg text-slate-300 leading-loose mb-6 text-justify" {...props} />,
+                                                        ul: ({ node, ...props }) => <ul className="list-disc list-outside ml-6 mb-6 space-y-2 text-slate-300" {...props} />,
+                                                        li: ({ node, ...props }) => <li className="pl-2" {...props} />,
+                                                        a: ({ node, ...props }) => {
+                                                            const href = props.href || '';
+                                                            if (href.startsWith('citation:')) {
+                                                                const index = parseInt(href.split(':')[1]);
+                                                                const article = selectedArticlesList[index - 1]; // 1-based index
+                                                                const title = article ? (article.title || 'Source') : `Source ${index}`;
+                                                                const url = article ? article.url : '#';
+
+                                                                return (
+                                                                    <span className="relative inline-block group mx-1 align-baseline">
+                                                                        <a
+                                                                            href={url}
+                                                                            target="_blank"
+                                                                            rel="noopener noreferrer"
+                                                                            className="text-emerald-400 font-bold hover:underline cursor-pointer text-sm align-super"
+                                                                            onClick={(e) => e.stopPropagation()}
+                                                                        >
+                                                                            [{index}]
+                                                                        </a>
+                                                                        {/* Tooltip */}
+                                                                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 bg-slate-900 border border-slate-700 rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 text-xs text-left">
+                                                                            <div className="font-bold text-white mb-1 line-clamp-2">{title}</div>
+                                                                            <div className="text-slate-400 truncate">{new URL(url).hostname}</div>
+                                                                        </div>
+                                                                    </span>
+                                                                );
+                                                            }
+                                                            return <a className="text-blue-400 hover:text-blue-300 underline underline-offset-4" target="_blank" rel="noopener noreferrer" {...props} />;
+                                                        },
+                                                        strong: ({ node, ...props }) => <strong className="text-amber-400 font-bold" {...props} />,
+                                                        blockquote: ({ node, ...props }) => <blockquote className="border-l-4 border-slate-600 pl-4 italic text-slate-400 my-6 bg-slate-800/30 py-2 rounded-r" {...props} />
+                                                    }}
+                                                >
+                                                    {/* Regex to convert [n] to [[n]](citation:n) */}
+                                                    {digestSummary.replace(/\[(\d+)\]/g, '[[/$1/]](citation:$1)').replace(/\[\/(\d+)\/\]/g, '$1')}
+                                                </ReactMarkdown>
+                                            </div>
+                                        ) : (
+                                            <div className="text-center py-20 text-slate-600 italic border-2 border-dashed border-slate-800 rounded-xl">
+                                                Select articles from the "Articles" tab and click Summarize.
+                                            </div>
+                                        )}
+                                    </div>
                                 ) : (
                                     <div className="min-h-full flex flex-col">
                                         <div className="flex justify-between items-center mb-6">
-                                            <h3 className="text-xl font-bold text-slate-300">
-                                                Semantic Cloud <span className="text-slate-500 text-sm font-normal ml-2">({selectedTimeframe})</span>
-                                            </h3>
-                                            <div className="flex bg-slate-700/50 rounded-lg p-1 border border-slate-600">
-                                                <button
-                                                    onClick={() => setAnalyticsMode('source')}
-                                                    className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${analyticsMode === 'source' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
-                                                >
-                                                    From Sources
-                                                </button>
-                                                <button
-                                                    onClick={() => setAnalyticsMode('digest')}
-                                                    className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${analyticsMode === 'digest' ? 'bg-purple-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
-                                                >
-                                                    From Digest
-                                                </button>
+                                            <div className="flex flex-col">
+                                                <h3 className="text-xl font-bold text-slate-300 flex items-center gap-2">
+                                                    Semantic Cloud
+                                                </h3>
+                                                <span className="text-slate-500 text-sm font-normal">
+                                                    {(() => {
+                                                        const now = new Date();
+                                                        const start = new Date();
+                                                        if (selectedTimeframe === '24h') start.setDate(now.getDate() - 1);
+                                                        if (selectedTimeframe === '3days') start.setDate(now.getDate() - 3);
+                                                        if (selectedTimeframe === '1week') start.setDate(now.getDate() - 7);
+
+                                                        const fmt = (d: Date) => `${d.getDate()}.${d.getMonth() + 1}`;
+                                                        return `${fmt(start)} - ${fmt(now)}`;
+                                                    })()}
+                                                </span>
+                                            </div>
+
+                                            <div className="flex items-center gap-3">
+                                                {/* Controls */}
+                                                {analyticsKeywords.length > 0 && (
+                                                    <>
+                                                        <div className="flex bg-slate-800 rounded-lg p-0.5 border border-slate-700">
+                                                            <button
+                                                                onClick={() => setIsAnalyticsTranslated(!isAnalyticsTranslated)}
+                                                                className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${isAnalyticsTranslated ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
+                                                                title="Translate to English"
+                                                            >
+                                                                A/文
+                                                            </button>
+                                                        </div>
+
+                                                        <div className="flex bg-slate-800 rounded-lg p-0.5 border border-slate-700">
+                                                            <button
+                                                                onClick={() => setAnalyticsViewMode('cloud')}
+                                                                className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${analyticsViewMode === 'cloud' ? 'bg-slate-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
+                                                            >
+                                                                ☁️
+                                                            </button>
+                                                            <button
+                                                                onClick={() => setAnalyticsViewMode('columns')}
+                                                                className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${analyticsViewMode === 'columns' ? 'bg-slate-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
+                                                            >
+                                                                |||
+                                                            </button>
+                                                        </div>
+
+                                                        <button
+                                                            onClick={handleGenerateAnalytics}
+                                                            disabled={isAnalyzing}
+                                                            className="px-3 py-1 text-xs font-bold text-slate-400 hover:text-white flex items-center gap-1 transition-colors border border-slate-700 rounded-lg bg-slate-800/50"
+                                                        >
+                                                            <Sparkles className="w-3 h-3" /> Regenerate
+                                                        </button>
+                                                    </>
+                                                )}
                                             </div>
                                         </div>
 
-                                        {(() => {
-                                            const activeData = analyticsMode === 'source' ? digestData.analysis_source : digestData.analysis_digest;
+                                        {isAnalyzing ? (
+                                            <div className="flex flex-col items-center justify-center h-64 text-slate-400 animate-pulse">
+                                                <Loader2 className="w-8 h-8 mb-3 text-purple-500 animate-spin" />
+                                                <p>Extracting Insights...</p>
+                                            </div>
+                                        ) : analyticsKeywords.length === 0 ? (
+                                            <div className="flex flex-col items-center justify-center h-64 border-2 border-dashed border-slate-700/50 rounded-xl bg-slate-900/30">
+                                                <p className="text-slate-400 mb-6 max-w-sm text-center">
+                                                    Analyze selected articles to detect key entities, sentiment, and patterns.
+                                                </p>
+                                                <button
+                                                    onClick={handleGenerateAnalytics}
+                                                    className="bg-purple-600 hover:bg-purple-500 text-white px-6 py-2.5 rounded-full font-bold shadow-lg shadow-purple-900/20 transition-all hover:scale-105 flex items-center gap-2"
+                                                >
+                                                    <Sparkles className="w-4 h-4" /> Generate Smart Cloud
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            analyticsViewMode === 'cloud' ? (
+                                                <div className="flex flex-wrap gap-3 content-start justify-center py-4">
+                                                    {analyticsKeywords.map((kw: any, i: number) => {
+                                                        const displayWord = (isAnalyticsTranslated && kw.translation) ? kw.translation : kw.word;
+                                                        // Size logic: 1 to 2.5rem based on score (0-100)
+                                                        const scale = 0.8 + ((kw.importance || 50) / 100) * 1.5;
 
-                                            if (!activeData || activeData.length === 0) {
-                                                return <div className="text-slate-500 italic">No analytics data available for this mode.</div>;
-                                            }
-
-                                            return (
-                                                <div className="flex flex-wrap gap-2 content-start">
-                                                    {activeData.map((kw: any, i: number) => {
-                                                        // Size logic: 1 to 2rem
-                                                        const scale = 0.8 + ((kw.importance - 1) / 100) * 0.6;
-
-                                                        // Color Logic
-                                                        let bg = "bg-slate-700/50 border-slate-600 text-slate-300";
-                                                        if (kw.sentiment === 'Positive') bg = "bg-green-900/40 border-green-700/50 text-green-300";
-                                                        if (kw.sentiment === 'Negative') bg = "bg-red-900/40 border-red-700/50 text-red-300";
-                                                        if (kw.importance > 80) bg = "bg-blue-900/40 border-blue-500/50 text-blue-200 font-bold";
+                                                        let bg = "bg-slate-800 border-slate-600 text-slate-300";
+                                                        if (kw.sentiment === 'Positive') bg = "bg-green-950/40 border-green-600/50 text-green-300 shadow-[0_0_10px_rgba(34,197,94,0.1)]";
+                                                        if (kw.sentiment === 'Negative') bg = "bg-red-950/40 border-red-600/50 text-red-300 shadow-[0_0_10px_rgba(239,68,68,0.1)]";
+                                                        if (kw.importance > 85) bg += " ring-1 ring-white/20 font-bold";
 
                                                         return (
                                                             <div
                                                                 key={i}
-                                                                className={`relative group cursor-help px-3 py-1.5 rounded-full border ${bg} transition-all hover:scale-105 hover:shadow-lg hover:z-10`}
+                                                                className={`relative group cursor-help px-4 py-2 rounded-xl border ${bg} transition-all duration-300 hover:scale-110 hover:shadow-xl hover:z-20`}
                                                                 style={{ fontSize: `${Math.max(0.75, scale)}rem` }}
                                                                 onMouseEnter={(e) => {
                                                                     if (hoverTimeout.current) clearTimeout(hoverTimeout.current);
@@ -1729,15 +2020,16 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                                                                     hoverTimeout.current = setTimeout(() => setActiveTooltip(null), 150);
                                                                 }}
                                                             >
-                                                                {kw.word}
+                                                                {displayWord}
 
-                                                                {/* Interactive Tooltip controlled by State */}
-                                                                {activeTooltip?.word === kw.word && activeTooltip && (
+                                                                {/* Interactive Tooltip */}
+                                                                {activeTooltip && activeTooltip.word === kw.word && (
                                                                     <div
-                                                                        className={`absolute w-72 bg-slate-900/95 backdrop-blur border border-slate-500 rounded-xl shadow-2xl p-3 z-[100] text-xs text-left cursor-auto animate-in fade-in duration-200 
+                                                                        className={`absolute w-80 bg-slate-900/95 backdrop-blur-md border border-slate-500/50 rounded-xl shadow-2xl p-4 z-[100] text-xs text-left cursor-auto animate-in fade-in zoom-in-95 duration-200 
                                                                             ${activeTooltip.placement === 'bottom' ? 'top-[calc(100%+8px)]' : 'bottom-[calc(100%+8px)]'}
                                                                             ${activeTooltip.align === 'left' ? 'left-0' : activeTooltip.align === 'right' ? 'right-0' : 'left-1/2 -translate-x-1/2'}
                                                                         `}
+                                                                        style={{ fontSize: '0.75rem' }}
                                                                         onMouseEnter={() => {
                                                                             if (hoverTimeout.current) clearTimeout(hoverTimeout.current);
                                                                         }}
@@ -1748,69 +2040,94 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                                                                         {/* Invisible Bridge */}
                                                                         <div className={`absolute left-0 w-full h-4 bg-transparent ${activeTooltip.placement === 'bottom' ? '-top-3' : '-bottom-3'}`}></div>
 
-                                                                        <div className="flex justify-between items-start border-b border-slate-700 pb-2 mb-2">
-                                                                            <div className="font-bold text-white text-sm">{kw.word}</div>
-                                                                            <div className="flex flex-col items-end">
-                                                                                <span className={`text-[10px] uppercase font-bold px-1.5 rounded ${kw.sentiment === 'Positive' ? 'bg-green-900 text-green-400' : kw.sentiment === 'Negative' ? 'bg-red-900 text-red-400' : 'bg-slate-700 text-slate-400'}`}>
+                                                                        <div className="flex justify-between items-start border-b border-slate-700/50 pb-2 mb-3">
+                                                                            <div className="font-bold text-white text-base">{displayWord}</div>
+                                                                            <div className="flex flex-col items-end gap-1">
+                                                                                <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${kw.sentiment === 'Positive' ? 'bg-green-900/50 text-green-400 border border-green-800' : kw.sentiment === 'Negative' ? 'bg-red-900/50 text-red-400 border border-red-800' : 'bg-slate-700/50 text-slate-400 border border-slate-600'}`}>
                                                                                     {kw.sentiment}
                                                                                 </span>
-                                                                                <span className="text-[10px] text-slate-500 mt-1">Score: {kw.importance}</span>
+                                                                                <span className="text-[10px] text-slate-500 font-mono">Imp: {kw.importance}</span>
                                                                             </div>
                                                                         </div>
 
-                                                                        <div className="space-y-1">
-                                                                            <div className="text-slate-400 font-mono text-[10px]">
-                                                                                Found in <span className="text-white font-bold">{kw.source_urls?.length || 0}</span> sources
+                                                                        <div className="space-y-2">
+                                                                            <div className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-1">
+                                                                                Found in {kw.sources?.length || 0} sources
                                                                             </div>
-                                                                            {analyticsMode === 'source' && (
-                                                                                <div className="mt-2 pt-2 border-t border-slate-800/50">
-                                                                                    <div className="mb-1 text-[10px] text-slate-500 font-bold uppercase">Mentions:</div>
-                                                                                    <ul className="space-y-1 max-h-32 overflow-y-auto custom-scrollbar">
-                                                                                        {(() => {
-                                                                                            const uniqueUrls = Array.from(new Set(kw.source_urls || [])) as string[];
-                                                                                            if (uniqueUrls.length === 0) return <li className="text-slate-600 italic">No direct links available.</li>;
-
-                                                                                            return uniqueUrls.map((url: string, idx: number) => {
-                                                                                                try {
-                                                                                                    const domain = new URL(url).hostname.replace('www.', '');
-                                                                                                    return (
-                                                                                                        <li key={idx} className="line-clamp-1">
-                                                                                                            <a href={url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 hover:underline block truncate" title={url}>
-                                                                                                                {domain}
-                                                                                                            </a>
-                                                                                                        </li>
-                                                                                                    )
-                                                                                                } catch (e) { return null; }
-                                                                                            });
-                                                                                        })()}
-                                                                                    </ul>
-                                                                                </div>
-                                                                            )}
+                                                                            <ul className="space-y-2 max-h-40 overflow-y-auto custom-scrollbar pr-1">
+                                                                                {kw.sources && kw.sources.length > 0 ? (
+                                                                                    kw.sources.map((src: any, idx: number) => (
+                                                                                        <li key={idx} className="flex flex-col gap-0.5 bg-slate-800/30 p-2 rounded hover:bg-slate-800/50 transition-colors">
+                                                                                            <a href={src.url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 hover:underline font-medium line-clamp-2 leading-tight">
+                                                                                                {src.title}
+                                                                                            </a>
+                                                                                            <span className="text-[10px] text-slate-500">{src.source}</span>
+                                                                                        </li>
+                                                                                    ))
+                                                                                ) : (
+                                                                                    <li className="text-slate-600 italic">No direct sources mapped.</li>
+                                                                                )}
+                                                                            </ul>
                                                                         </div>
-
-                                                                        {/* Arrow */}
-                                                                        <div className={`absolute left-1/2 -translate-x-1/2 -ml-1 border-4 border-transparent pointer-events-none 
-                                                                            ${activeTooltip.placement === 'bottom'
-                                                                                ? 'bottom-full -mb-[1px] border-b-slate-500'
-                                                                                : 'top-full -mt-[1px] border-t-slate-500'
-                                                                            }
-                                                                            ${activeTooltip.align === 'left' ? 'left-6' : activeTooltip.align === 'right' ? 'right-6' : 'left-1/2 -translate-x-1/2'}
-                                                                        `}></div>
                                                                     </div>
                                                                 )}
                                                             </div>
-                                                        )
+                                                        );
                                                     })}
                                                 </div>
-                                            );
-                                        })()}
+                                            ) : (
+                                                <div className="grid grid-cols-3 gap-0 h-full border border-slate-700 rounded-xl overflow-hidden bg-slate-900/50 min-h-[500px]">
+                                                    {['Positive', 'Neutral', 'Negative'].map((sent) => {
+                                                        const sentimentKeywords = analyticsKeywords.filter((k: any) => k.sentiment === sent).sort((a: any, b: any) => b.importance - a.importance);
+                                                        const headerColor = sent === 'Positive' ? 'text-green-400 border-green-900/30' : sent === 'Negative' ? 'text-red-400 border-red-900/30' : 'text-slate-400 border-slate-700/30';
+
+                                                        return (
+                                                            <div key={sent} className="flex flex-col border-r border-slate-700/50 last:border-r-0">
+                                                                <div className={`p-4 border-b ${headerColor} bg-slate-900/80 backdrop-blur sticky top-0 z-10 font-bold uppercase tracking-wider text-center text-sm`}>
+                                                                    {sent}
+                                                                </div>
+                                                                <div className="p-4 space-y-3 overflow-y-auto custom-scrollbar flex-1">
+                                                                    {sentimentKeywords.map((kw: any, i: number) => (
+                                                                        <div key={i} className="bg-slate-800/40 p-3 rounded border border-white/5 hover:bg-slate-800 transition-colors group relative">
+                                                                            {/* Tooltip for Column View */}
+                                                                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 bg-slate-900 border border-slate-700 rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 text-xs text-left">
+                                                                                <div className="font-bold text-white mb-1">Sources:</div>
+                                                                                <ul className="space-y-1">
+                                                                                    {kw.sources?.slice(0, 3).map((src: any, idx: number) => (
+                                                                                        <li key={idx} className="line-clamp-1 text-slate-400">• {src.title || src.url}</li>
+                                                                                    ))}
+                                                                                </ul>
+                                                                            </div>
+                                                                            <div className="flex justify-between items-start mb-1">
+                                                                                <div className="font-bold text-slate-200">
+                                                                                    {isAnalyticsTranslated && kw.translation ? kw.translation : kw.word}
+                                                                                </div>
+                                                                                <span className="text-xs text-slate-500 font-mono">{kw.importance}</span>
+                                                                            </div>
+                                                                            {isAnalyticsTranslated && kw.translation && kw.translation !== kw.word && (
+                                                                                <div className="text-xs text-slate-500 italic mb-2">{kw.word}</div>
+                                                                            )}
+                                                                            <div className="flex flex-wrap gap-1 mt-2">
+                                                                                {kw.sources?.slice(0, 3).map((src: any, idx: number) => (
+                                                                                    <a key={idx} href={src.url} target="_blank" title={src.title} className="w-1.5 h-1.5 rounded-full bg-slate-600 hover:bg-blue-400 transition-colors block"></a>
+                                                                                ))}
+                                                                            </div>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )
+                                        )}
                                     </div>
                                 )}
                             </div>
                         </div>
                     </div>
-                )
-            }
+                )}
+
             {globeComponent}
             {
                 showOutletPanel && (
@@ -2201,7 +2518,8 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                             )}
                         </div>
                     </div>
-                )}
+                )
+            }
 
 
             {
@@ -2217,7 +2535,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                     />
                 )
             }
-        </div>
+        </div >
 
     );
 }

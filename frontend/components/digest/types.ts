@@ -20,6 +20,8 @@ export interface DigestReportRendererProps {
     articles: Article[];
     category: string;
     isTranslated?: boolean;
+    selectedUrls: Set<string>;
+    onToggle: (url: string) => void;
     onAssess?: (article: Article) => void;
     onDebug?: (article: Article) => void;
 }

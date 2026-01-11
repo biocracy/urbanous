@@ -11,11 +11,13 @@ interface OutletGroupProps {
         articles: Article[];
     };
     isTranslated: boolean;
+    selectedUrls: Set<string>;
+    onToggle: (url: string) => void;
     onAssess?: (article: Article) => void;
     onDebug?: (article: Article) => void;
 }
 
-export function OutletGroup({ group, isTranslated, onAssess, onDebug }: OutletGroupProps) {
+export function OutletGroup({ group, isTranslated, selectedUrls, onToggle, onAssess, onDebug }: OutletGroupProps) {
     const [isOpen, setIsOpen] = useState(true);
 
     return (
@@ -51,7 +53,15 @@ export function OutletGroup({ group, isTranslated, onAssess, onDebug }: OutletGr
                         </thead>
                         <tbody className="divide-y divide-slate-800/50">
                             {group.articles.map((art, idx) => (
-                                <ArticleRow key={idx} article={art} isTranslated={isTranslated} onAssess={onAssess} onDebug={onDebug} />
+                                <ArticleRow
+                                    key={idx}
+                                    article={art}
+                                    isTranslated={isTranslated}
+                                    isSelected={selectedUrls.has(art.url)}
+                                    onToggle={onToggle}
+                                    onAssess={onAssess}
+                                    onDebug={onDebug}
+                                />
                             ))}
                         </tbody>
                     </table>

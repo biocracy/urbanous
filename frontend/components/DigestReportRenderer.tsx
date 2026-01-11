@@ -4,7 +4,7 @@ import React, { useState, useMemo } from 'react';
 import { Article, DigestReportRendererProps } from './digest/types';
 import { OutletGroup } from './digest/OutletGroup';
 
-export default function DigestReportRenderer({ articles, category, isTranslated = false, onAssess, onDebug }: DigestReportRendererProps) {
+export default function DigestReportRenderer({ articles, category, isTranslated = false, selectedUrls, onToggle, onAssess, onDebug }: DigestReportRendererProps) {
     const [displayCount, setDisplayCount] = useState(20);
 
     // Group Articles by Outlet
@@ -39,7 +39,15 @@ export default function DigestReportRenderer({ articles, category, isTranslated 
     return (
         <div className="flex flex-col gap-8 pb-20">
             {visibleGroups.map(group => (
-                <OutletGroup key={group.source} group={group} isTranslated={isTranslated} onAssess={onAssess} onDebug={onDebug} />
+                <OutletGroup
+                    key={group.source}
+                    group={group}
+                    isTranslated={isTranslated}
+                    selectedUrls={selectedUrls}
+                    onToggle={onToggle}
+                    onAssess={onAssess}
+                    onDebug={onDebug}
+                />
             ))}
 
             {visibleGroups.length < groupedArticles.length && (

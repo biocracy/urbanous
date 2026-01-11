@@ -674,3 +674,146 @@ async def fetch_sitemap_urls(base_url: str, max_urls: int = 50, days_limit: int 
     
     # Return top N URLs
     return [x[1] for x in found_items[:max_urls]]
+
+def generate_master_timeline(all_events_map: Dict[str, List[Dict[str, Any]]]):
+    """
+    Generates a master HTML timeline for ALL sources + Histogram of operations.
+    all_events_map: { "OutletName": [events...] }
+    """
+    if not all_events_map: return
+
+    # Flatten for global bounds
+    all_events_flat = []
+    for src, evs in all_events_map.items():
+        for e in evs:
+            e['source'] = src
+            all_events_flat.append(e)
+
+    if not all_events_flat: return
+
+    start_time = min(e['start'] for e in all_events_flat)
+    end_time = max(e.get('end', e['start']) for e in all_events_flat)
+    total_duration = end_time - start_time
+    if total_duration == 0: total_duration = 1
+
+    # Colors
+    colors = {
+        "fetch": "#3b82f6",     # Blue
+        "parse": "#a855f7",     # Purple
+        "extract": "#eab308",   # Yellow
+        "deep_scan": "#ef4444", # Red
+        "rescue": "#22c55e",    # Green
+        "init": "#64748b",      # Gray
+        "other": "#94a3b8"
+    }
+
+    # Histogram Data Aggregation
+    # Sum duration per type
+    stats = {}
+    for e in all_events_flat:
+        etype = e.get('type', 'other')
+        dur = e.get('end', e['start']) - e['start']
+        if etype not in stats: stats[etype] = 0.0
+        stats[etype] += dur
+
+    # Generate HTML
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Master Scraper Timeline ({len(all_events_map)} Sources)</title>
+        <style>
+            body {{ font-family: system-ui, sans-serif; padding: 20px; background: #0f172a; color: white; }}
+            h1, h2 {{ color: #e2e8f0; }}
+            .container {{ display: flex; flex-direction: column; gap: 40px; }}
+            
+            /* Gantt Styles */
+            .timeline-container {{ width: 100%; border: 1px solid #334155; padding: 10px; border-radius: 8px; background: #1e293b; overflow-x: auto; }}
+            .timeline-row {{ position: relative; height: 40px; border-bottom: 1px solid #334155; margin-bottom: 5px; }}
+            .timeline-label {{ position: absolute; left: 0; width: 150px; font-size: 12px; line-height: 40px; padding-left: 10px; color: #94a3b8; font-weight: bold; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }}
+            .timeline-track {{ position: absolute; left: 160px; right: 0; height: 100%; }}
+            .bar {{ position: absolute; height: 24px; top: 8px; border-radius: 4px; font-size: 10px; padding-left: 5px; line-height: 24px; white-space: nowrap; overflow: hidden; color: rgba(255,255,255,0.9); box-shadow: 0 1px 2px rgba(0,0,0,0.3); }}
+            
+            /* Histogram Styles */
+            .chart-container {{ width: 100%; max-width: 800px; padding: 20px; background: #1e293b; border-radius: 8px; }}
+            .bar-row {{ display: flex; align-items: center; margin-bottom: 15px; }}
+            .bar-label {{ width: 100px; font-size: 14px; text-transform: capitalize; }}
+            .bar-track {{ flex-grow: 1; background: #334155; height: 20px; border-radius: 10px; overflow: hidden; position: relative; }}
+            .bar-fill {{ height: 100%; border-radius: 10px; transition: width 0.5s; }}
+            .bar-val {{ width: 80px; text-align: right; padding-left: 10px; font-mono; font-size: 13px; color: #cbd5e1; }}
+        </style>
+    </head>
+    <body>
+        <h1>Master Scraper Timeline</h1>
+        <div class="info">Total Duration: {total_duration:.2f}s | Sources: {len(all_events_map)} | Events: {len(all_events_flat)}</div>
+        
+        <div class="container">
+            <!-- Section 1: Gantt Chart -->
+            <div>
+                <h2>Operation Timeline</h2>
+                <div class="timeline-container">
+    """
+    
+    # Sort outlets by name
+    sorted_outlets = sorted(all_events_map.keys())
+    
+    for outlet in sorted_outlets:
+        evs = all_events_map[outlet]
+        html += f"""
+        <div class="timeline-row">
+            <div class="timeline-label">{outlet}</div>
+            <div class="timeline-track">
+        """
+        for e in evs:
+            start_pct = ((e['start'] - start_time) / total_duration) * 100
+            duration = e.get('end', e['start']) - e['start']
+            width_pct = (duration / total_duration) * 100
+            if width_pct < 0.1: width_pct = 0.1 # Min visibility
+            
+            color = colors.get(e.get('type', 'other'), colors['other'])
+            label = f"{e.get('label', e.get('type'))}"
+            
+            html += f"""
+                <div class="bar" style="left: {start_pct}%; width: {width_pct}%; background: {color};" title="{label} ({duration:.2f}s)"></div>
+            """
+        html += """
+            </div>
+        </div>
+        """
+        
+    html += """
+                </div>
+            </div>
+            
+            <!-- Section 2: Histogram -->
+            <div>
+                <h2>Time Distribution (Total Seconds)</h2>
+                <div class="chart-container">
+    """
+    
+    max_val = max(stats.values()) if stats else 1
+    
+    for etype, val in stats.items():
+        pct = (val / max_val) * 100
+        color = colors.get(etype, colors['other'])
+        html += f"""
+            <div class="bar-row">
+                <div class="bar-label">{etype}</div>
+                <div class="bar-track">
+                    <div class="bar-fill" style="width: {pct}%; background: {color};"></div>
+                </div>
+                <div class="bar-val">{val:.2f}s</div>
+            </div>
+        """
+        
+    html += """
+                </div>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    
+    with open("master_timeline.html", "w", encoding="utf-8") as f:
+        f.write(html)
+    print("Master Timeline saved to master_timeline.html")

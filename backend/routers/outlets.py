@@ -1,4 +1,5 @@
 import os
+import time
 import json
 import httpx
 import google.generativeai as genai
@@ -864,6 +865,8 @@ async def smart_scrape_outlet(outlet: NewsOutlet, category: str, timeframe: str 
          print(full_msg)
          
     await log(f"STARTING SCRAPE for {outlet.name} ({outlet.url})")
+    timeline_events = []
+    timeline_events.append({"type": "init", "start": time.time(), "label": "Init Scraper"})
 
     # 1. Determine Target URL
     target_url = outlet.url
@@ -873,6 +876,8 @@ async def smart_scrape_outlet(outlet: NewsOutlet, category: str, timeframe: str 
     
     async with httpx.AsyncClient(follow_redirects=True, timeout=20, headers=headers) as client:
         # 1. Fetch Homepage
+        timeline_events.append({"type": "fetch", "start": time.time(), "label": "Fetch Homepage"})
+        t0_fetch = time.time()
         await log(f"[{outlet.name}] Fetching homepage: {outlet.url}")
         resp = await robust_fetch(client, outlet.url)
         if not resp or resp.status_code != 200:
@@ -889,11 +894,16 @@ async def smart_scrape_outlet(outlet: NewsOutlet, category: str, timeframe: str 
                  pass # Fallback to .text auto-decode
         
         await log(f"Fetched {len(html_content)} bytes (Encoding: {resp.encoding or 'auto'})")
+        timeline_events[-1]["end"] = time.time() # End Fetch
+        
+        t0_parse = time.time()
+        timeline_events.append({"type": "parse", "start": t0_parse, "label": "Parse Basic"})
         
         final_url = outlet.url
         # Limit HTML size to prevent CPU blocking on huge pages
         html = resp.text[:200000] 
         soup = BeautifulSoup(html, 'html.parser')
+        timeline_events[-1]["end"] = time.time()
 
         # 2. Try to find Category Link (Universal AI Discovery)
         discovered_cat_url = None
@@ -1138,105 +1148,102 @@ async def smart_scrape_outlet(outlet: NewsOutlet, category: str, timeframe: str 
                   use_json_ld=scraper_rule_config.get('use_json_ld', True)
               )
 
+        # Separate items needing scan vs ready items
+        items_to_scan = []
+        
         for item in extracted_items:
             full_url = item['url']
             raw_title = item['title']
-                    
-            found_date_str = None
             
-            # 1. URL Date
+            # Initial Date Check
+            found_date_str = None
             url_date_obj = scraper_engine.extract_date_from_url(full_url)
             if url_date_obj: found_date_str = url_date_obj.strftime("%Y-%m-%d")
             
-            # UPDATED: Force Fetch whenever date is missing to ensure high quality (imitates Debugger success)
-            # Enhanced bad title check (strip whitespace, check for very short or numeric)
             clean_rt = raw_title.strip()
             is_bad_title = clean_rt.isdigit() or len(clean_rt) < 5 or (len(clean_rt) < 15 and clean_rt.replace(" ","").isdigit())
             
             if not found_date_str or is_bad_title:
+                items_to_scan.append({
+                    "url": full_url, 
+                    "title": raw_title, 
+                    "date": found_date_str,
+                    "is_bad_title": is_bad_title
+                })
+            else:
+                # Add directly
+                if full_url not in candidates_map:
+                    candidates_map[full_url] = ArticleMetadata(
+                        source=outlet.name,
+                        title=raw_title,
+                        url=full_url,
+                        date_str=found_date_str
+                    )
+
+        # Parallel Worker
+        sem = asyncio.Semaphore(5) # max 5 concurrent scans
+        
+        async def process_deep_scan_safe(item):
+            async with sem:
+                full_url = item["url"]
+                raw_title = item["title"]
+                found_date_str = item["date"]
+                is_bad_title = item["is_bad_title"]
+                
+                ev = {"type": "deep_scan", "start": time.time(), "label": f"Deep Scan: {full_url.split('/')[-1][:20]}"}
+                timeline_events.append(ev)
+                
                 try:
-                    if log_bus and (is_bad_title or rule_obj): 
-                         await log_bus(f"Deep scanning: {str(clean_rt)[:30]}...")
-                    
-                    # Anti-Blocking Delay
-                    import asyncio
-                    await asyncio.sleep(1.0)
-                    
+                    await asyncio.sleep(0.5) 
                     async with httpx.AsyncClient(headers={"User-Agent": "Mozilla/5.0"}, verify=False, timeout=15, follow_redirects=True) as s_client:
                          s_resp = await s_client.get(full_url)
-                         
-                         if s_resp.status_code != 200:
-                             if log_bus: await log_bus(f"  -> Failed: {s_resp.status_code}")
-                         
                          if s_resp.status_code == 200:
-                             # Rescue Date
-                             # If we have a rule, use it. If not, create a generous fallback rule (JSON-LD=True)
-                             # because we are already in "Rescue Mode" so we should try everything.
-                             effective_rule = rule_obj
-                             if not effective_rule:
-                                  effective_rule = scraper_engine.ScraperRule(
-                                      domain="fallback",
-                                      use_json_ld=True,
-                                      use_data_layer=True 
-                                  )
-
+                             effective_rule = rule_obj or scraper_engine.ScraperRule(domain="fallback", use_json_ld=True, use_data_layer=True)
                              if not found_date_str:
                                  found_date_str = scraper_engine.extract_date_from_html(s_resp.text, full_url, custom_rule_override=effective_rule)
-                                 if found_date_str and log_bus: await log_bus(f"  -> Rescued Date: {found_date_str}")
-                             
-                             # Rescue Title
                              if is_bad_title:
                                  try:
-                                     if log_bus: await log_bus(f"  -> Rescuing Title for {clean_rt}...")
                                      from bs4 import BeautifulSoup as BS
                                      s_soup = BS(s_resp.text, "html.parser")
-                                     
-                                     new_title = None
-                                     
-                                     # Strategy 1: OG Title (High Confidence)
                                      og = s_soup.find("meta", property="og:title")
-                                     if og and og.get("content") and len(og.get("content")) > 10:
-                                         new_title = og.get("content").strip()
-                                     
-                                     # Strategy 2: H1
-                                     if not new_title:
+                                     if og and og.get("content"): raw_title = og.get("content").strip()
+                                     else:
                                          h1 = s_soup.find("h1")
-                                         if h1 and len(h1.get_text(strip=True)) > 10:
-                                             new_title = h1.get_text(strip=True)
-                                     
-                                     # Strategy 3: Title Tag
-                                     if not new_title and s_soup.title:
-                                         # Clean up common suffixes
-                                         t = s_soup.title.get_text(strip=True).split("|")[0].split("—")[0].strip()
-                                         if len(t) > 10:
-                                             new_title = t
-                                     
-                                     if new_title:
-                                         raw_title = new_title
+                                         if h1: raw_title = h1.get_text(strip=True)
                                  except: pass
-                except Exception: pass
+                except: pass
+                
+                ev["end"] = time.time()
+                return (full_url, raw_title, found_date_str)
 
-            # 3. Store
-            if full_url in candidates_map:
-                ex = candidates_map[full_url]
-                if not ex.date_str and found_date_str: ex.date_str = found_date_str
-                if len(raw_title) > len(ex.title): ex.title = raw_title
-            else:
-                candidates_map[full_url] = ArticleMetadata(
-                    source=outlet.name,
-                    title=raw_title,
-                    url=full_url,
-                    date_str=found_date_str
-                )
+        # Execute Parallel
+        tasks = [process_deep_scan_safe(i) for i in items_to_scan]
+        if tasks:
+            await log(f"Launching {len(tasks)} parallel deep scans (5 concurrent)...")
+            scan_results = await asyncio.gather(*tasks)
+            
+            for res_url, res_title, res_date in scan_results:
+                 if res_url in candidates_map:
+                     c = candidates_map[res_url]
+                     if res_date: c.date_str = res_date
+                     if len(res_title) > len(c.title): c.title = res_title
+                 else:
+                     candidates_map[res_url] = ArticleMetadata(
+                        source=outlet.name,
+                        title=res_title,
+                        url=res_url,
+                        date_str=res_date
+                     )
 
-
-    # Finalize: Convert values to list
     all_extracted_articles = list(candidates_map.values())
 
     # Return aggregated result (matching the expected dict structure)
+
+    
     return {
         "text": combined_content,
-        "articles": all_extracted_articles
+        "articles": all_extracted_articles,
+        "timeline_events": timeline_events
     }
 
 async def generate_keyword_analysis(text: str, category: str, current_user: User) -> List[KeywordData]:
@@ -1308,6 +1315,7 @@ class DigestCreate(BaseModel):
     timeframe: Optional[str] = None
     summary_markdown: str
     articles: List[Dict[str, Any]] # Will be serialized to JSON
+    selected_article_urls: Optional[List[str]] = None
     analysis_source: Optional[List[Dict[str, Any]]] = None # Will be serialized to JSON
     analysis_digest: Optional[List[Dict[str, Any]]] = None
 
@@ -1338,6 +1346,7 @@ async def save_digest(
         timeframe=digest.timeframe,
         summary_markdown=digest.summary_markdown,
         articles_json=json.dumps(digest.articles),
+        selected_article_urls=json.dumps(digest.selected_article_urls) if digest.selected_article_urls else None,
         analysis_source=json.dumps(digest.analysis_source) if digest.analysis_source else None,
         analysis_digest=json.dumps(digest.analysis_digest) if digest.analysis_digest else None
     )
@@ -1354,6 +1363,7 @@ async def save_digest(
         timeframe=db_digest.timeframe,
         summary_markdown=db_digest.summary_markdown,
         articles=json.loads(db_digest.articles_json),
+        selected_article_urls=json.loads(db_digest.selected_article_urls) if db_digest.selected_article_urls else None,
         analysis_source=json.loads(db_digest.analysis_source) if db_digest.analysis_source else [],
         created_at=db_digest.created_at
     )
@@ -1379,6 +1389,7 @@ async def list_digests(
             timeframe=d.timeframe,
             summary_markdown=d.summary_markdown,
             articles=json.loads(d.articles_json) if d.articles_json else [],
+            selected_article_urls=json.loads(d.selected_article_urls) if d.selected_article_urls else None,
             analysis_source=json.loads(d.analysis_source) if d.analysis_source else [],
             created_at=d.created_at
         ) for d in digests
@@ -1438,6 +1449,183 @@ async def verify_relevance_with_ai(title: str, url: str, category: str, api_key:
 from fastapi.responses import StreamingResponse
 import json
 import asyncio
+
+class SummarizeRequest(BaseModel):
+    articles: List[dict]
+    category: str
+    city: str
+
+@router.post("/outlets/digest/summarize")
+async def summarize_selected_articles(req: SummarizeRequest, current_user: User = Depends(get_current_user)):
+    """
+    Generates a contrasted summary of *selected* articles using Gemini.
+    """
+    if not req.articles:
+        return {"summary": "No articles selected."}
+        
+    api_key = current_user.gemini_api_key or os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=400, detail="Missing Gemini API Key. Please set it in Settings.")
+        
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel('gemini-2.0-flash-exp')
+    
+    # Construct Context
+    context = ""
+    for idx, art in enumerate(req.articles):
+        # Prefer content summary if available, else title
+        txt = art.get('content_summary', '') or art.get('title', '')
+        src = art.get('source', 'Unknown')
+        url = art.get('url', '#')
+        title = art.get('title', 'Source')
+        context += f"SOURCE {idx+1}: [{title}]({url}) ({src})\nCONTENT: {txt}\n\n"
+        
+    prompt = f"""
+    You are an expert, exhaustive news analyst for {req.city}.
+    Your task is to write a MASSIVELY DETAILED, COMPREHENSIVE INTELLIGENCE REPORT based on the following {len(req.articles)} articles regarding '{req.category}'.
+    
+    SOURCE DATA:
+    {context}
+    
+    CRITICAL MANDATES:
+    1. **CITATION STRICTNESS**: 
+       - You MUST cite valid sources for every claim.
+       - **ANTI-CLUMPING RULE**: NEVER cite more than 4 sources for a single sentence/claim (e.g. `[1], [2], [3], [4]`).
+       - If you have 20 sources for a topic, you MUST write a longer section (3-4 paragraphs), breaking the topic down into nuances, citing 2-3 sources per sentence.
+       - **PROHIBITED**: "Global events are happening [1], [2], [3] ... [50]." -> This is banned.
+    
+    2. **NUMERIC FORMAT ONLY**: 
+       - **ALWAYS** use `[n]` format. 
+       - **SEPARATION**: Citations MUST be separated by a comma and a space: `[1], [5]`.
+    
+    3. **DEEP ANALYSIS & NUANCE**: 
+       - **FIND CONFLICT**: If 10 sources discuss an event, they likely differ. "Source [1] focuses on X, while Source [5] highlights Y."
+       - **AVOID GENERIC SUMMARIES**: Do not write "Various sources report X". Be specific. "Reports from [1] and [3] indicate X, specifically noting..."
+       - **LENGTH**: The report should be LONG. Do not compress information. Use as much space as needed to cover all unique details from the {len(req.articles)} articles.
+       
+    4. **STRUCTURE**:
+       - **## Executive Summary**: High-level overview.
+       - **## In-Depth Analysis**: Detailed breakdown. Use H3 headers for sub-themes.
+       - **## Diverging Narratives**: A section specifically for conflicting viewpoints.
+       - **## Comprehensive Source Index**: 
+         - A **Markdown List** of ALL sources used at the very bottom.
+         - Format: `- [n] [Title](url)`
+    
+    The user is a high-level decision maker. Length is NOT a constraint. Be EXHAUSTIVE, NUANCED, and PRECISE.
+    """
+    
+    try:
+        response = await model.generate_content_async(prompt)
+        return {"summary": response.text}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        print(f"Summarize Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+class AnalyticsRequest(BaseModel):
+    articles: List[dict]
+    category: str
+    city: str
+
+@router.post("/outlets/digest/analytics")
+async def generate_analytics(req: AnalyticsRequest, current_user: User = Depends(get_current_user)):
+    """
+    Generates a smart word cloud with sentiment and source mapping.
+    """
+    if not req.articles:
+        return {"keywords": []}
+
+    api_key = current_user.gemini_api_key or os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=400, detail="Missing Gemini API Key.")
+
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel('gemini-2.0-flash-exp')
+
+    # Construct Context with Truncation to avoid token limits
+    # Cap at 60 articles for Analytics to ensure stability (Word clouds don't need 300 articles)
+    target_articles = req.articles[:60] if len(req.articles) > 60 else req.articles
+    
+    context = ""
+    for idx, art in enumerate(target_articles):
+        txt = art.get('content_summary', '') or art.get('title', '')
+        # Truncate content to 500 chars to fit more articles in context
+        if len(txt) > 500:
+            txt = txt[:500] + "..."
+        src = art.get('source', 'Unknown')
+        context += f"SOURCE_ID_{idx}: {src} - {txt}\n"
+
+    prompt = f"""
+    Analyze these {len(target_articles)} articles about '{req.category}' in {req.city}.
+    
+    DATA:
+    {context}
+    
+    TASK:
+    Extract 3-5 distinct keywords/entities per article (min {max(10, 3 * len(target_articles))} total keywords).
+    For each keyword:
+    1. Score importance (0-100).
+    2. Determine sentiment: Positive, Negative, or Neutral (based on how the entity is portrayed).
+    3. Provide an English translation in a field called 'translation'. If it's a name, keep it.
+    4. List source IDs (e.g. SOURCE_ID_0) where this keyword appears effectively.
+    
+    OUTPUT JSON format only:
+    [
+      {{ "word": "Putin", "translation": "Putin", "importance": 95, "sentiment": "Negative", "source_ids": ["SOURCE_ID_0", "SOURCE_ID_2"] }},
+      {{ "word": "Primaria", "translation": "City Hall", "importance": 80, "sentiment": "Neutral", "source_ids": ["SOURCE_ID_1"] }},
+      ...
+    ]
+    """
+    
+    try:
+        response = await model.generate_content_async(prompt, generation_config={"response_mime_type": "application/json"})
+        text = response.text
+        
+        # Robust JSON cleaning
+        if text.strip().startswith("```"):
+            text = text.strip().split("\n", 1)[1]
+            if text.strip().endswith("```"):
+                text = text.strip().rsplit("\n", 1)[0]
+        
+        import json
+        try:
+            keywords = json.loads(text)
+        except json.JSONDecodeError:
+            # Fallback: try to find list bracket
+            start = text.find('[')
+            end = text.rfind(']')
+            if start != -1 and end != -1:
+                keywords = json.loads(text[start:end+1])
+            else:
+                raise ValueError("Could not extract JSON from AI response")
+
+        
+        # Map IDs back to article titles/urls
+        for kw in keywords:
+            sources_meta = []
+            for sid_str in kw.get("source_ids", []):
+                try:
+                    idx = int(sid_str.split("_")[-1])
+                    if 0 <= idx < len(req.articles):
+                        sources_meta.append({
+                            "title": req.articles[idx].get('title', 'Unknown'),
+                            "url": req.articles[idx].get('url', '#'),
+                            "source": req.articles[idx].get('source', 'Unknown')
+                        })
+                except: pass
+            kw["sources"] = sources_meta
+            
+        return {"keywords": keywords}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        print(f"Analytics Error: {e}")
+        # Log the raw text if available for debugging
+        try:
+            print(f"FAILED AI RESPONSE: {response.text}")
+        except: pass
+        raise HTTPException(status_code=500, detail=f"Analytics failed: {str(e)}")
 
 @router.post("/outlets/digest/stream")
 async def generate_digest_stream(req: DigestRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -1541,6 +1729,9 @@ async def generate_digest_stream(req: DigestRequest, current_user: User = Depend
                      if res.get("articles"):
                           all_raw_articles.extend(res["articles"])
                           await stream_queue.put({"type": "log", "message": f"Found {len(res['articles'])} articles from {outlet.name}"})
+                     
+                     if res.get("timeline_events"):
+                          await stream_queue.put({"type": "timeline", "source": outlet.name, "events": res["timeline_events"]})
                 
                 # Signal phase change or return data
                 print(f"DEBUG: WORKER FINISHED. Sending {len(all_raw_articles)} articles.")
@@ -1558,6 +1749,7 @@ async def generate_digest_stream(req: DigestRequest, current_user: User = Depend
         task = asyncio.create_task(scraper_worker())
         
         all_articles = []
+        all_timeline_events = {} # Map[Source, Events]
         
         # Consumer Loop
         while True:
@@ -1573,8 +1765,16 @@ async def generate_digest_stream(req: DigestRequest, current_user: User = Depend
                 all_articles = item["articles"]
                 print(f"DEBUG: CONSUMER RECEIVED {len(all_articles)} ARTICLES")
                 yield json.dumps({"type": "log", "message": f"Processing {len(all_articles)} raw items..."}) + "\n"
+            elif item["type"] == "timeline":
+                all_timeline_events[item["source"]] = item["events"]
         
         print(f"DEBUG: CONSUMER EXITED LOOP. Total Articles: {len(all_articles)}")
+        
+        # Generate Master Timeline
+        try:
+             scraper_engine.generate_master_timeline(all_timeline_events)
+        except Exception as e:
+             print(f"Master Timeline Error: {e}")
         
         await task # Ensure clean exit check
 

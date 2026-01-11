@@ -77,6 +77,7 @@ class NewsDigest(Base):
     timeframe = Column(String, nullable=True) # New: Timeframe used (e.g. 24h)
     summary_markdown = Column(String)
     articles_json = Column(String) # JSON string of list of articles metadata
+    selected_article_urls = Column(String, nullable=True) # JSON string of selected URLs
     analysis_source = Column(String, nullable=True) # JSON string of keyword analysis
     analysis_digest = Column(String, nullable=True) # JSON string of keyword analysis
     created_at = Column(DateTime(timezone=True), server_default=func.now())
