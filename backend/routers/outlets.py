@@ -1,6 +1,7 @@
 import os
 import time
 import json
+import re # Added for regex parsing
 import httpx
 import google.generativeai as genai
 from bs4 import BeautifulSoup
@@ -1472,6 +1473,7 @@ class SummarizeRequest(BaseModel):
 async def summarize_selected_articles(req: SummarizeRequest, current_user: User = Depends(get_current_user)):
     """
     Generates a contrasted summary of *selected* articles using Gemini.
+    Uses Chunked Processing for large sets to ensure full coverage.
     """
     if not req.articles:
         return {"summary": "No articles selected."}
@@ -1483,162 +1485,232 @@ async def summarize_selected_articles(req: SummarizeRequest, current_user: User 
     genai.configure(api_key=api_key)
     model = genai.GenerativeModel('gemini-2.0-flash-exp')
     
-    # Construct Context
-    context = ""
+    # 1. GENERATE SOURCE INDEX PROGRAMMATICALLY
+    # This ensures 100% accuracy and perfectly formatted links (no LLM hallucination).
+    source_index_md = "\n\n## Global Source Index\n"
     for idx, art in enumerate(req.articles):
-        # Prefer content summary if available, else title
-        txt = art.get('content_summary', '') or art.get('title', '')
-        src = art.get('source', 'Unknown')
+        # Clean URL
         url = art.get('url', '#')
-        title = art.get('title', 'Source')
-        context += f"SOURCE {idx+1}: [{title}]({url}) ({src})\nCONTENT: {txt}\n\n"
+        if url and not url.startswith('http'):
+             # Attempt to guess protocol or leave broken (better than localhost)
+             if not url.startswith('/'): url = 'https://' + url
         
-    prompt = f"""
-    You are an expert, exhaustive news analyst for {req.city}.
-    Your task is to write a MASSIVELY DETAILED, COMPREHENSIVE INTELLIGENCE REPORT based on the following {len(req.articles)} articles regarding '{req.category}'.
+        title = art.get('title', 'Source').replace('[', '(').replace(']', ')') # Escape brackets
+        src = art.get('source', 'Unknown')
+        # Format: - [1] [Title](url) (Source)
+        source_index_md += f"- [{idx+1}] [{title}]({url}) *({src})*\n"
+
+    # 2. CHUNKED PROCESSING
+    BATCH_SIZE = 50
+    chunks = [req.articles[i:i + BATCH_SIZE] for i in range(0, len(req.articles), BATCH_SIZE)]
     
-    SOURCE DATA:
-    {context}
+    partial_reports = []
     
-    CRITICAL MANDATES:
-    1. **CITATION STRICTNESS**: 
-       - You MUST cite valid sources for every claim.
-       - **ANTI-CLUMPING RULE**: NEVER cite more than 4 sources for a single sentence/claim (e.g. `[1], [2], [3], [4]`).
-       - If you have 20 sources for a topic, you MUST write a longer section (3-4 paragraphs), breaking the topic down into nuances, citing 2-3 sources per sentence.
-       - **PROHIBITED**: "Global events are happening [1], [2], [3] ... [50]." -> This is banned.
+    async def process_chunk(chunk_idx, chunk_articles):
+        start_idx = chunk_idx * BATCH_SIZE + 1
+        end_idx = start_idx + len(chunk_articles) - 1
+        
+        context = ""
+        for i, art in enumerate(chunk_articles):
+            global_id = start_idx + i
+            txt = art.get('content_summary', '') or art.get('title', '')
+            src = art.get('source', 'Unknown')
+            # We don't need URL in context for the LLM anymore if we handle index externally,
+            # BUT the LLM needs to know WHICH [n] to use.
+            context += f"SOURCE [{global_id}]: {txt} (from {src})\n\n"
+            
+        prompt = f"""
+        You are writing a section of a MASSIVELY DETAILED INTELLIGENCE REPORT for {req.city}.
+        This section covers Sources [{start_idx}] to [{end_idx}].
+        
+        SOURCE DATA:
+        {context}
+        
+        MANDATES:
+        1. **CITATION STRICTNESS**: Use ONLY the `[n]` format provided in the source headers.
+        2. **NO HALLUCINATION**: Do not cite sources outside the range [{start_idx}-{end_idx}].
+        3. **DEEP DIVE**: Write a detailed analysis of the themes found in strictly THESE sources.
+        4. **ANTI-CLUMPING**: Discuss details. Do not just list citations.
+        5. **FORMAT**: Use Markdown. Do NOT include a "Source Index" at the end (it is handled externally).
+        
+        Analyze the conflict, nuances, and details within this batch.
+        """
+        
+        try:
+            response = await model.generate_content_async(prompt)
+            # Add a header for the chunk
+            return f"\n### Analysis of Sources {start_idx}-{end_idx}\n{response.text}"
+        except Exception as e:
+            print(f"Chunk {chunk_idx} error: {e}")
+            return f"\n### Analysis of Sources {start_idx}-{end_idx}\n(Data processing error for this section)"
+
+    # Run chunks sequentially or parallel?
+    # Parallel is faster, but might hit rate limits. Flash has high limits.
+    # Let's try parallel chunks of 3.
     
-    2. **NUMERIC FORMAT ONLY**: 
-       - **ALWAYS** use `[n]` format. 
-       - **SEPARATION**: Citations MUST be separated by a comma and a space: `[1], [5]`.
+    # Simple gather for now
+    tasks = [process_chunk(i, c) for i, c in enumerate(chunks)]
+    results = await asyncio.gather(*tasks)
     
-    3. **DEEP ANALYSIS & NUANCE**: 
-       - **FIND CONFLICT**: If 10 sources discuss an event, they likely differ. "Source [1] focuses on X, while Source [5] highlights Y."
-       - **AVOID GENERIC SUMMARIES**: Do not write "Various sources report X". Be specific. "Reports from [1] and [3] indicate X, specifically noting..."
-       - **LENGTH**: The report should be LONG. Do not compress information. Use as much space as needed to cover all unique details from the {len(req.articles)} articles.
-       
-    4. **STRUCTURE**:
-       - **## Executive Summary**: High-level overview.
-       - **## In-Depth Analysis**: Detailed breakdown. Use H3 headers for sub-themes.
-       - **## Diverging Narratives**: A section specifically for conflicting viewpoints.
-       - **## Comprehensive Source Index**: 
-         - A **Markdown List** of ALL sources used at the very bottom.
-         - Format: `- [n] [Title](url)`
+    full_body = "# Comprehensive Intelligence Report\n" + "\n".join(results)
     
-    The user is a high-level decision maker. Length is NOT a constraint. Be EXHAUSTIVE, NUANCED, and PRECISE.
-    """
+    # Combine Body + Index
+    final_markdown = full_body + source_index_md
     
-    try:
-        response = await model.generate_content_async(prompt)
-        return {"summary": response.text}
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        print(f"Summarize Error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    return {"summary": final_markdown}
 
 class AnalyticsRequest(BaseModel):
     articles: List[dict]
-    category: str
-    city: str
+    city: str = "Unknown City"
 
 @router.post("/outlets/digest/analytics")
 async def generate_analytics(req: AnalyticsRequest, current_user: User = Depends(get_current_user)):
-    """
-    Generates a smart word cloud with sentiment and source mapping.
-    """
     if not req.articles:
-        return {"keywords": []}
-
+        return []
+        
     api_key = current_user.gemini_api_key or os.getenv("GEMINI_API_KEY")
     if not api_key:
-        raise HTTPException(status_code=400, detail="Missing Gemini API Key.")
-
+        raise HTTPException(status_code=400, detail="Missing Gemini API Key. Please set it in Settings.")
+        
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-2.0-flash-exp')
+    model = genai.GenerativeModel('gemini-2.0-flash-exp', generation_config={"response_mime_type": "application/json"})
+    
+    # Remove Article Cap; Use MapReduce
+    BATCH_SIZE = 50 
+    
+    # Split articles into batches
+    batches = [req.articles[i:i + BATCH_SIZE] for i in range(0, len(req.articles), BATCH_SIZE)]
+    print(f"Analytics: Processing {len(req.articles)} articles in {len(batches)} batches.")
 
-    # Construct Context with Truncation to avoid token limits
-    # Cap at 60 articles for Analytics to ensure stability (Word clouds don't need 300 articles)
-    target_articles = req.articles[:60] if len(req.articles) > 60 else req.articles
-    
-    context = ""
-    for idx, art in enumerate(target_articles):
-        txt = art.get('content_summary', '') or art.get('title', '')
-        # Truncate content to 500 chars to fit more articles in context
-        if len(txt) > 500:
-            txt = txt[:500] + "..."
-        src = art.get('source', 'Unknown')
-        context += f"SOURCE_ID_{idx}: {src} - {txt}\n"
+    all_keywords_map = {} # Key: word_lower, Value: {word, translation, importance_sum, count, sentiment_counts, source_ids_set}
 
-    prompt = f"""
-    Analyze these {len(target_articles)} articles about '{req.category}' in {req.city}.
-    
-    DATA:
-    {context}
-    
-    TASK:
-    Extract 3-5 distinct keywords/entities per article (min {max(10, 3 * len(target_articles))} total keywords).
-    For each keyword:
-    1. Score importance (0-100).
-    2. Determine sentiment: Positive, Negative, or Neutral (based on how the entity is portrayed).
-    3. Provide an English translation in a field called 'translation'. If it's a name, keep it.
-    4. List source IDs (e.g. SOURCE_ID_0) where this keyword appears effectively.
-    
-    OUTPUT JSON format only:
-    [
-      {{ "word": "Putin", "translation": "Putin", "importance": 95, "sentiment": "Negative", "source_ids": ["SOURCE_ID_0", "SOURCE_ID_2"] }},
-      {{ "word": "Primaria", "translation": "City Hall", "importance": 80, "sentiment": "Neutral", "source_ids": ["SOURCE_ID_1"] }},
-      ...
-    ]
-    """
-    
-    try:
-        response = await model.generate_content_async(prompt, generation_config={"response_mime_type": "application/json"})
-        text = response.text
+    async def process_batch(batch_idx, batch_articles):
+        context = ""
+        for idx, art in enumerate(batch_articles):
+            global_idx = (batch_idx * BATCH_SIZE) + idx
+            txt = art.get('content_summary', '') or art.get('title', '')
+            src = art.get('source', 'Unknown')
+            context += f"SOURCE_ID_{global_idx}: {src} - {txt}\n"
+
+        prompt = f"""
+        Analyze these articles regarding '{req.city}'.
         
-        # Robust JSON cleaning
-        if text.strip().startswith("```"):
-            text = text.strip().split("\n", 1)[1]
-            if text.strip().endswith("```"):
-                text = text.strip().rsplit("\n", 1)[0]
+        DATA:
+        {context}
         
-        import json
+        TASK:
+        Extract AT LEAST 200 (TWO HUNDRED) distinct keywords/entities/topics from this batch.
+        Aim for 5-7 meaningful keywords for EACH article.
+        
+        STRATEGY:
+        - Include MAJOR THEMES (to capture dominant trends).
+        - Include SPECIFIC DETAILS (names, places, unique IDs) to ensure count diversity after deduplication.
+        
+        Focus on specific:
+        - People (Politicians, CEOs, Activists)
+        - Organizations (Companies, Parties, Groups)
+        - Locations (Cities, Specific Buildings)
+        - Events (Protests, Laws, Meetings, Scandals)
+        
+        Filter out generic media terms (e.g. "News", "Report", "Update", "Article", "Journal").
+        
+        For each keyword:
+        1. Score importance (0-100).
+        2. Determine sentiment: Positive, Negative, or Neutral.
+        3. Provide English 'translation' (or same word).
+        4. List source IDs (e.g. SOURCE_ID_5) where this keyword appears.
+        
+        OUTPUT JSON:
+        [
+          {{ "word": "Term", "translation": "Term", "importance": 90, "sentiment": "Neutral", "source_ids": ["SOURCE_ID_X"] }}
+        ]
+        """
         try:
-            keywords = json.loads(text)
-        except json.JSONDecodeError:
-            # Fallback: try to find list bracket
-            start = text.find('[')
-            end = text.rfind(']')
-            if start != -1 and end != -1:
-                keywords = json.loads(text[start:end+1])
-            else:
-                raise ValueError("Could not extract JSON from AI response")
-
-        
-        # Map IDs back to article titles/urls
-        for kw in keywords:
-            sources_meta = []
-            for sid_str in kw.get("source_ids", []):
-                try:
-                    idx = int(sid_str.split("_")[-1])
-                    if 0 <= idx < len(req.articles):
-                        sources_meta.append({
-                            "title": req.articles[idx].get('title', 'Unknown'),
-                            "url": req.articles[idx].get('url', '#'),
-                            "source": req.articles[idx].get('source', 'Unknown')
-                        })
-                except: pass
-            kw["sources"] = sources_meta
+            response = await model.generate_content_async(prompt, generation_config={"response_mime_type": "application/json"})
+            text = response.text
+            # Clean JSON
+            if text.strip().startswith("```"):
+                text = text.strip().split("\n", 1)[1]
+                if text.strip().endswith("```"):
+                     text = text.strip().rsplit("\n", 1)[0]
             
-        return {"keywords": keywords}
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        print(f"Analytics Error: {e}")
-        # Log the raw text if available for debugging
-        try:
-            print(f"FAILED AI RESPONSE: {response.text}")
-        except: pass
-        raise HTTPException(status_code=500, detail=f"Analytics failed: {str(e)}")
+            return json.loads(text)
+        except Exception as e:
+            print(f"Batch {batch_idx} failed: {e}")
+            return []
+
+    # Run Batches in Parallel
+    tasks = [process_batch(i, b) for i, b in enumerate(batches)]
+    results = await asyncio.gather(*tasks)
+
+    # REDUCE / COMBINE
+    for batch_res in results:
+        for kw in batch_res:
+            w = kw.get('word', '').strip()
+            if not w: continue
+            k = w.lower()
+            
+            if k not in all_keywords_map:
+                all_keywords_map[k] = {
+                    "word": w,
+                    "translation": kw.get("translation", w),
+                    "importance_sum": 0,
+                    "count": 0,
+                    "sentiments": {"Positive": 0, "Negative": 0, "Neutral": 0},
+                    "source_ids": set() # Store JSON strings of article metadata
+                }
+            
+            entry = all_keywords_map[k]
+            entry["importance_sum"] += kw.get("importance", 50)
+            entry["count"] += 1
+            
+            s = kw.get("sentiment", "Neutral")
+            if s in entry["sentiments"]: entry["sentiments"][s] += 1
+            
+            # Map Source ID back to Article Object
+            for sid in kw.get("source_ids", []):
+                try:
+                    # Robust Regex Extraction (Handles formatting variations)
+                    match = re.search(r"SOURCE_ID_(\d+)", str(sid), re.IGNORECASE)
+                    if match:
+                         idx = int(match.group(1))
+                         if 0 <= idx < len(req.articles):
+                              art = req.articles[idx]
+                              # Store as JSON string for deduplication in Set
+                              meta = json.dumps({"title": art.get('title'), "url": art.get('url'), "source": art.get('source')})
+                              entry["source_ids"].add(meta)
+                except:
+                    continue
+
+    # Finalize List
+    final_keywords = []
+    for k, v in all_keywords_map.items():
+        # Decode Sources
+        sources = [json.loads(s) for s in v["source_ids"]]
+        
+        # FILTER ORPHANS: If no sources mapped, skip this keyword to prevent "0 sources" bug
+        if not sources: 
+            continue
+
+        # Average importance
+        avg_imp = int(v["importance_sum"] / v["count"])
+        
+        # Majority Sentiment
+        best_sent = max(v["sentiments"], key=v["sentiments"].get)
+        
+        final_keywords.append({
+            "word": v["word"],
+            "translation": v["translation"],
+            "importance": avg_imp,
+            "sentiment": best_sent,
+            "sources": sources
+        })
+        
+    # Sort by importance
+    final_keywords.sort(key=lambda x: x['importance'], reverse=True)
+    
+
+    return {"keywords": final_keywords}
 
 @router.post("/outlets/digest/stream")
 async def generate_digest_stream(req: DigestRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):

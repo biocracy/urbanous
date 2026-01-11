@@ -141,7 +141,16 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
     // Stable list of selected articles for Index-based citation
     const selectedArticlesList = useMemo(() => {
         if (!digestData?.articles) return [];
-        return digestData.articles.filter((a: any) => selectedArticleUrls.has(a.url));
+
+        // If user has actively selected articles (e.g. for re-summarization), use that subset.
+        if (selectedArticleUrls.size > 0) {
+            const subset = digestData.articles.filter((a: any) => selectedArticleUrls.has(a.url));
+            // If subset is valid, return it. If empty (mismatch), fallback to full list to prevent crashes.
+            if (subset.length > 0) return subset;
+        }
+
+        // Default: If no selection (Viewing Saved Digest), use the full stored article list associated with this digest.
+        return digestData.articles;
     }, [digestData, selectedArticleUrls]);
 
     // Ticker Effect
@@ -391,9 +400,9 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
             await api.post('/digests', {
                 title: title,
-                category: selectedCategory,
-                city: selectedCityName || "Global",
-                timeframe: selectedTimeframe,
+                category: digestData.category || selectedCategory,
+                city: digestData.city || selectedCityName || "Global",
+                timeframe: digestData.timeframe || selectedTimeframe,
                 summary_markdown: digestSummary || digestData.digest,
                 articles: digestData.articles,
                 selected_article_urls: Array.from(selectedArticleUrls),
@@ -412,9 +421,99 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
     const handleDownloadDigest = () => {
         if (!digestData) return;
 
-        const titleMatch = digestData.digest.match(/^# (.*)$/m);
-        const title = titleMatch ? titleMatch[1] : `${selectedCategory} Digest`;
+        // Extract Title
+        let title = "OpenNews Digest";
+        const titleMatch = (digestSummary || digestData.digest).match(/^# (.*)$/m);
+        if (titleMatch) title = titleMatch[1];
+        else title = `${selectedCategory} Digest - ${new Date().toLocaleDateString()}`;
+
         const filename = `${title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.html`;
+
+        // 1. Prepare Summary & Linkify Citations
+        // Turn [n] into markdown links [n](#source-n) if they aren't already links.
+        // Regex: Matches [n] not followed by (.
+        let summaryRaw = digestSummary || "";
+        summaryRaw = summaryRaw.replace(/\[(\d+)\](?!\()/g, '[$1](#source-$1)');
+
+        // 2. Prepare Wordcloud HTML
+        const keywords = analyticsKeywords.length > 0 ? analyticsKeywords : (digestData.analysis_source || []);
+        let wordcloudHtml = "";
+        if (keywords.length > 0) {
+            wordcloudHtml = `<div class="wordcloud-container">`;
+            keywords.forEach((kw: any) => { // Fixed 'any' type
+                const size = 0.8 + ((kw.importance || 50) / 100) * 1.5;
+                let colorClass = "neutral";
+                let colorStyle = "#cbd5e1"; // slate-300
+                if (kw.sentiment === 'Positive') { colorClass = "positive"; colorStyle = "#86efac"; } // green-300
+                if (kw.sentiment === 'Negative') { colorClass = "negative"; colorStyle = "#fca5a5"; } // red-300
+
+                wordcloudHtml += `
+                    <span class="cloud-tag ${colorClass}" style="font-size: ${size}rem; color: ${colorStyle}; border-color: ${colorStyle}40;">
+                        ${kw.word}
+                        <span class="tooltip">
+                           <strong>${kw.translation || kw.word}</strong><br/>
+                           Imp: ${kw.importance}<br/>
+                           Sources: ${kw.sources?.length || 0}
+                        </span>
+                    </span>
+                 `;
+            });
+            wordcloudHtml += `</div>`;
+        }
+
+        // 3. GENERATE SOURCE TABLES (Part III)
+        // We rebuild this from data to ensure styling and anchors match user expectation.
+        let tableHtml = "";
+        if (digestData.articles && digestData.articles.length > 0) {
+            tableHtml = `
+             <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr>
+                            <th class="p-3 border-b border-slate-700 bg-slate-900 text-slate-400 font-semibold w-24">Assess</th>
+                            <th class="p-3 border-b border-slate-700 bg-slate-900 text-slate-400 font-semibold w-20 text-center">AI</th>
+                            <th class="p-3 border-b border-slate-700 bg-slate-900 text-slate-400 font-semibold w-32">Date</th>
+                            <th class="p-3 border-b border-slate-700 bg-slate-900 text-slate-400 font-semibold w-20 text-center">Score</th>
+                            <th class="p-3 border-b border-slate-700 bg-slate-900 text-slate-400 font-semibold">Article</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+             `;
+
+            digestData.articles.forEach((art: any, idx: number) => {
+                const id = `source-${idx + 1}`;
+                const scoreColor = art.relevance_score > 80 ? 'text-green-400' : (art.relevance_score > 50 ? 'text-yellow-400' : 'text-red-400');
+                const dateColor = art.scores?.is_fresh ? 'text-green-400' : 'text-red-400';
+                const aiVerdict = art.ai_verdict === 'VERIFIED' ? '✅' : (art.ai_verdict === 'REJECTED' ? '❌' : '❓');
+
+                tableHtml += `
+                    <tr id="${id}" class="hover:bg-slate-800/50 transition-colors border-b border-slate-800/50">
+                        <td class="p-3 align-top">
+                            <span class="inline-flex items-center gap-1 px-2 py-1 rounded border border-slate-700 bg-slate-800 text-slate-400 text-xs font-bold select-none cursor-not-allowed">
+                                🤖 Assess
+                            </span>
+                        </td>
+                        <td class="p-3 align-top text-center">${aiVerdict}</td>
+                        <td class="p-3 align-top whitespace-nowrap ${dateColor} font-mono text-sm">${art.date_str || 'N/A'}</td>
+                        <td class="p-3 align-top text-center ${scoreColor} font-bold">${art.relevance_score}</td>
+                        <td class="p-3 align-top">
+                            <a href="${art.url}" target="_blank" class="text-blue-400 hover:text-blue-300 hover:underline font-medium block mb-1">
+                                [${idx + 1}] ${art.title}
+                            </a>
+                            <div class="text-slate-500 text-xs flex items-center gap-2">
+                                <span class="uppercase tracking-wider font-semibold">${art.source}</span>
+                            </div>
+                        </td>
+                    </tr>
+                 `;
+            });
+            tableHtml += `</tbody></table></div>`;
+        } else {
+            // Fallback to existing if available
+            if (digestData.digest && digestData.digest !== digestSummary) {
+                tableHtml = digestData.digest;
+            }
+        }
 
         const htmlContent = `
             <!DOCTYPE html>
@@ -423,32 +522,100 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                 <meta charset="utf-8">
                 <title>${title}</title>
                 <script src="https://cdn.tailwindcss.com"></script>
+                <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
                 <style>
-                    body { background-color: #020617; color: #e2e8f0; font-family: system-ui, sans-serif; padding: 2rem; max-width: 800px; margin: 0 auto; }
-                    .prose { max-width: none; }
+                    body { background-color: #020617; color: #e2e8f0; font-family: 'Segoe UI', system-ui, sans-serif; padding: 2rem; max-width: 1000px; margin: 0 auto; line-height: 1.6; }
                     
-                    /* Fallback Styles */
-                    h1 { font-size: 2.25rem; font-weight: 800; margin-bottom: 1rem; color: #f8fafc; }
-                    h2 { font-size: 1.5rem; font-weight: 700; margin-top: 2rem; margin-bottom: 1rem; color: #f1f5f9; border-bottom: 1px solid #1e293b; padding-bottom: 0.5rem; }
-                    h3 { font-size: 1.25rem; font-weight: 600; margin-top: 1.5rem; margin-bottom: 0.75rem; color: #e2e8f0; }
-                    a { color: #60a5fa; text-decoration: none; }
-                    a:hover { text-decoration: underline; }
-                    table { width: 100%; border-collapse: collapse; margin: 1.5rem 0; font-size: 0.875rem; }
-                    th, td { border: 1px solid #1e293b; padding: 0.75rem; text-align: left; }
-                    th { background-color: #0f172a; font-weight: 600; color: #94a3b8; }
-                    tr:nth-child(even) { background-color: #0f172a; }
-                    blockquote { border-left: 4px solid #3b82f6; padding-left: 1rem; color: #94a3b8; font-style: italic; }
-                    ul { list-style-type: disc; padding-left: 1.5rem; margin: 1rem 0; }
+                    /* Typography */
+                    h1, h2, h3 { color: #f8fafc; margin-top: 1.5em; margin-bottom: 0.5em; line-height: 1.2; }
+                    h1 { font-size: 2.5rem; font-weight: 800; border-bottom: 2px solid #3b82f6; padding-bottom: 0.5rem; }
+                    h2 { font-size: 1.8rem; font-weight: 700; border-bottom: 1px solid #1e293b; padding-bottom: 0.5rem; }
+                    h3 { font-size: 1.4rem; font-weight: 600; color: #cbd5e1; }
+                    p { margin-bottom: 1em; }
+                    a { color: #60a5fa; text-decoration: none; transition: color 0.2s; }
+                    a:hover { color: #93c5fd; text-decoration: underline; }
+                    blockquote { border-left: 4px solid #3b82f6; padding-left: 1rem; color: #94a3b8; font-style: italic; background: #1e293b50; padding: 1rem; border-radius: 0 8px 8px 0; }
+                    ul, ol { margin-bottom: 1em; padding-left: 2em; }
+                    li { margin-bottom: 0.5em; }
+                    code { background: #1e293b; padding: 0.2em 0.4em; rounded: 4px; font-family: monospace; font-size: 0.9em; color: #e2e8f0; }
+
+                    /* Wordcloud */
+                    .wordcloud-section { margin: 3rem 0; padding: 2rem; background: #0f172a; border: 1px solid #1e293b; border-radius: 12px; }
+                    .wordcloud-container { display: flex; flex-wrap: wrap; gap: 0.8rem; justify-content: center; align-items: center; }
+                    .cloud-tag { 
+                        display: inline-block; padding: 0.3rem 0.8rem; border: 1px solid transparent; border-radius: 20px; 
+                        background: #1e293b; cursor: default; position: relative; transition: all 0.2s;
+                    }
+                    .cloud-tag:hover { transform: scale(1.1); z-index: 10; background: #334155; }
+                    .cloud-tag .tooltip {
+                        visibility: hidden; opacity: 0; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
+                        background: #020617; border: 1px solid #475569; padding: 0.5rem; border-radius: 6px;
+                        font-size: 0.8rem; white-space: nowrap; z-index: 20; transition: opacity 0.2s;
+                        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5); pointer-events: none; margin-bottom: 0.5rem;
+                    }
+                    .cloud-tag:hover .tooltip { visibility: visible; opacity: 1; }
                     
-                    .politics-assess-trigger { display: none; } /* Hide interactive buttons */
-                    .scraper-debug-trigger { pointer-events: none; opacity: 0.7; }
+                    /* Custom Scrollbar for Pre blocks if any */
+                    ::-webkit-scrollbar { width: 8px; height: 8px; }
+                    ::-webkit-scrollbar-track { background: #0f172a; }
+                    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+                    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+                    /* Tables (Inherited from Stream) */
+                    table { width: 100%; border-collapse: separate; border-spacing: 0; margin: 2rem 0; border: 1px solid #334155; border-radius: 8px; overflow: hidden; }
+                    th { background: #1e293b; color: #94a3b8; font-weight: 600; text-align: left; padding: 1rem; }
+                    td { border-top: 1px solid #334155; padding: 1rem; }
+                    tr:hover td { background: #1e293b50; }
+                    
+                    .section-label { text-transform: uppercase; font-size: 0.85rem; letter-spacing: 1px; color: #64748b; font-weight: 700; margin-bottom: 1rem; display: block; border-left: 3px solid #3b82f6; padding-left: 10px; }
+                    .citation-link { color: #facc15; font-weight: bold; background: #422006; padding: 0 4px; rounded: 4px; font-size: 0.9em; }
+                    .citation-link:hover { background: #a16207; color: white; text-decoration: none; }
                 </style>
             </head>
             <body>
-                <article class="prose prose-invert">
-                    ${digestData.digest}
-                </article>
-                <footer style="margin-top: 4rem; padding-top: 2rem; border-top: 1px solid #1e293b; color: #64748b; font-size: 0.875rem; text-align: center;">
+                <header style="text-align: center; margin-bottom: 4rem; border-bottom: 1px solid #1e293b; padding-bottom: 2rem;">
+                    <h1 style="border:none; margin: 0 0 1rem 0; font-size: 3rem; background: linear-gradient(to right, #60a5fa, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                        ${title}
+                    </h1>
+                    <div style="color: #94a3b8; font-family: monospace; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 3px;">
+                        OpenNews Intelligence • ${new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                    </div>
+                </header>
+
+                <!-- I. DIGEST REPORT -->
+                ${summaryRaw ? `
+                <section id="digest-report">
+                    <span class="section-label">Part I: Intelligence Report</span>
+                    <div id="markdown-content"></div>
+                    <script>
+                        // Configure Marked to handle custom classes if needed, or just run it.
+                        // We replaced [n] with links in summaryRaw before embedding.
+                        document.getElementById('markdown-content').innerHTML = marked.parse(\`${summaryRaw.replace(/`/g, '\\`').replace(/\$/g, '\\$')}\`);
+                    </script>
+                </section>
+                <hr style="border-color: #334155; margin: 4rem 0;" />
+                ` : ''}
+
+                <!-- II. WORDCLOUD -->
+                ${wordcloudHtml ? `
+                <section id="analytics-cloud">
+                    <span class="section-label">Part II: Key Entities & Sentiment</span>
+                    <div class="wordcloud-section">
+                        ${wordcloudHtml}
+                    </div>
+                </section>
+                <hr style="border-color: #334155; margin: 4rem 0;" />
+                ` : ''}
+
+                <!-- III. SOURCE TABLES -->
+                ${tableHtml ? `
+                <section id="source-tables">
+                    <span class="section-label">Part III: Source Data Verification</span>
+                    ${tableHtml}
+                </section>
+                ` : ''}
+
+                <footer style="margin-top: 5rem; padding-top: 2rem; border-top: 1px solid #1e293b; color: #64748b; font-size: 0.875rem; text-align: center;">
                     Generated by OpenNews • ${new Date().toLocaleString()}
                 </footer>
             </body>
@@ -665,11 +832,11 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
     const handleLoadDigest = (digest: any) => {
         setDigestData({
-            digest: digest.summary_markdown,
-            articles: digest.articles,
-            analysis_source: digest.analysis_source
+            ...digest, // Preserve ID, City, Title, Created_At
+            digest: digest.summary_markdown, // Map content to UI prop
         });
         setSelectedCategory(digest.category);
+        if (digest.timeframe) setSelectedTimeframe(digest.timeframe); // Also restore timeframe state for date calculation
         setActiveModalTab('articles');
     };
 
@@ -1739,7 +1906,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                             <div className="p-6 border-b border-slate-700 flex justify-between items-center bg-slate-800/50">
                                 <div>
                                     <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
-                                        {selectedCityData?.name} Digest
+                                        {digestData?.city || selectedCityData?.name} Digest
                                     </h2>
                                     <div className="flex gap-4 mt-2">
                                         <button
@@ -1875,28 +2042,50 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                                                                 const index = parseInt(href.split(':')[1]);
                                                                 const article = selectedArticlesList[index - 1]; // 1-based index
                                                                 const title = article ? (article.title || 'Source') : `Source ${index}`;
-                                                                const url = article ? article.url : '#';
+                                                                let url = article ? article.url : '';
+
+                                                                // Validate URL to prevent localhost redirects
+                                                                const isValidUrl = url && url.startsWith('http');
 
                                                                 return (
                                                                     <span className="relative inline-block group mx-1 align-baseline">
-                                                                        <a
-                                                                            href={url}
-                                                                            target="_blank"
-                                                                            rel="noopener noreferrer"
-                                                                            className="text-emerald-400 font-bold hover:underline cursor-pointer text-sm align-super"
-                                                                            onClick={(e) => e.stopPropagation()}
+                                                                        <button
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                if (isValidUrl) window.open(url, '_blank');
+                                                                            }}
+                                                                            className={`font-bold text-xs align-super px-1 rounded transition-colors ${isValidUrl
+                                                                                ? 'text-blue-400 hover:bg-blue-900/30 cursor-pointer'
+                                                                                : 'text-slate-500 cursor-help'
+                                                                                }`}
                                                                         >
                                                                             [{index}]
-                                                                        </a>
+                                                                        </button>
                                                                         {/* Tooltip */}
-                                                                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 bg-slate-900 border border-slate-700 rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 text-xs text-left">
-                                                                            <div className="font-bold text-white mb-1 line-clamp-2">{title}</div>
-                                                                            <div className="text-slate-400 truncate">{new URL(url).hostname}</div>
+                                                                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-72 p-3 bg-slate-900 border border-slate-700 rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 text-xs text-left">
+                                                                            <div className="font-bold text-white mb-1 line-clamp-3 leading-tight">{title}</div>
+                                                                            <div className={`truncate font-mono mt-1 ${isValidUrl ? 'text-blue-400' : 'text-amber-500'}`}>
+                                                                                {isValidUrl ? new URL(url).hostname : 'Source URL not available'}
+                                                                            </div>
                                                                         </div>
                                                                     </span>
                                                                 );
                                                             }
-                                                            return <a className="text-blue-400 hover:text-blue-300 underline underline-offset-4" target="_blank" rel="noopener noreferrer" {...props} />;
+
+                                                            const fallbackHref = props.href || '';
+                                                            const isFallbackValid = fallbackHref.startsWith('http') || fallbackHref.startsWith('mailto');
+
+                                                            return (
+                                                                <a
+                                                                    className={`${isFallbackValid ? 'text-blue-400 hover:text-blue-300 hover:underline' : 'text-slate-500 cursor-help decoration-dotted underline'} underline-offset-4`}
+                                                                    target={isFallbackValid ? "_blank" : undefined}
+                                                                    rel="noopener noreferrer"
+                                                                    {...props}
+                                                                    href={isFallbackValid ? fallbackHref : undefined}
+                                                                    title={isFallbackValid ? undefined : `Invalid/Relative Link: ${fallbackHref}`}
+                                                                    onClick={(e) => { if (!isFallbackValid) e.preventDefault(); }}
+                                                                />
+                                                            );
                                                         },
                                                         strong: ({ node, ...props }) => <strong className="text-amber-400 font-bold" {...props} />,
                                                         blockquote: ({ node, ...props }) => <blockquote className="border-l-4 border-slate-600 pl-4 italic text-slate-400 my-6 bg-slate-800/30 py-2 rounded-r" {...props} />
