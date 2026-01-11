@@ -582,7 +582,12 @@ async def fetch_sitemap_urls(base_url: str, max_urls: int = 50, days_limit: int 
         # Threshold: N days ago
         cutoff_date = datetime.now() - timedelta(days=days_limit)
         
-        async with httpx.AsyncClient(verify=False, timeout=10, follow_redirects=True) as client:
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+            "Accept": "application/xml,text/xml,application/xhtml+xml,text/html;q=0.9,*/*;q=0.8"
+        }
+
+        async with httpx.AsyncClient(verify=False, timeout=20, follow_redirects=True, headers=headers) as client:
             for path in paths:
                 target = base_url.rstrip("/") + path
                 try:

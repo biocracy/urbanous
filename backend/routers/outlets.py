@@ -20,6 +20,19 @@ import scraper_engine # New Import
 from datetime import datetime, timedelta
 import re
 
+
+# Common Headers to bypass simple bot protections
+ROBUST_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9,uk;q=0.8",
+    "Referer": "https://www.google.com/",
+    "Upgrade-Insecure-Requests": "1",
+    "Sec-Fetch-Dest": "document",
+    "Sec-Fetch-Mode": "navigate",
+    "Sec-Fetch-Site": "cross-site",
+}
+
 router = APIRouter()
 
 # --- Pydantic Schemas ---
@@ -389,7 +402,7 @@ async def import_outlets_from_url(req: ImportUrlRequest, current_user: User = De
         headers = {
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         }
-        async with httpx.AsyncClient(follow_redirects=True, timeout=15, headers=headers) as client:
+        async with httpx.AsyncClient(follow_redirects=True, timeout=15, headers=ROBUST_HEADERS) as client:
             response = await client.get(req.url)
             response.raise_for_status()
             html_content = response.text
@@ -481,9 +494,9 @@ async def assess_article_politics(req: PoliticsAssessmentRequest, current_user: 
     article_text = req.content
     if not article_text or len(article_text) < 100:
         # Fetch ephemeral
-        async with httpx.AsyncClient(follow_redirects=True, timeout=10) as client:
+        async with httpx.AsyncClient(follow_redirects=True, timeout=10, headers=ROBUST_HEADERS) as client:
             try:
-                resp = await client.get(req.url, headers={"User-Agent": "Mozilla/5.0"})
+                resp = await client.get(req.url)
                 if resp.status_code == 200:
                     soup = BeautifulSoup(resp.text, 'html.parser')
                     # Basic extraction
@@ -874,7 +887,7 @@ async def smart_scrape_outlet(outlet: NewsOutlet, category: str, timeframe: str 
         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     }
     
-    async with httpx.AsyncClient(follow_redirects=True, timeout=20, headers=headers) as client:
+    async with httpx.AsyncClient(follow_redirects=True, timeout=20, headers=ROBUST_HEADERS) as client:
         # 1. Fetch Homepage
         timeline_events.append({"type": "fetch", "start": time.time(), "label": "Fetch Homepage"})
         t0_fetch = time.time()
@@ -999,7 +1012,7 @@ async def smart_scrape_outlet(outlet: NewsOutlet, category: str, timeframe: str 
         await log(f"[{outlet.name}] 🕵️ Deep Scan: {target_url}")
         
         resp = None
-        async with httpx.AsyncClient(follow_redirects=True, timeout=15.0, headers=headers) as client:
+        async with httpx.AsyncClient(follow_redirects=True, timeout=15.0, headers=ROBUST_HEADERS) as client:
              try:
                  resp = await client.get(target_url)
                  if resp.status_code != 200:
@@ -1114,7 +1127,7 @@ async def smart_scrape_outlet(outlet: NewsOutlet, category: str, timeframe: str 
                 if any(s in full_url.lower() for s in suspicious_roots) or path_depth <= 2:
                     # Fetch to verify
                     try:
-                        async with httpx.AsyncClient(verify=False, timeout=5) as verify_client:
+                        async with httpx.AsyncClient(verify=False, timeout=5, headers=ROBUST_HEADERS) as verify_client:
                             head_resp = await verify_client.get(full_url)
                             content_type = scraper_engine.detect_content_type(head_resp.text[:15000]) # First 15KB enough for meta/p structure
                             
@@ -1195,7 +1208,7 @@ async def smart_scrape_outlet(outlet: NewsOutlet, category: str, timeframe: str 
                 
                 try:
                     await asyncio.sleep(0.5) 
-                    async with httpx.AsyncClient(headers={"User-Agent": "Mozilla/5.0"}, verify=False, timeout=15, follow_redirects=True) as s_client:
+                    async with httpx.AsyncClient(headers=ROBUST_HEADERS, verify=False, timeout=15, follow_redirects=True) as s_client:
                          s_resp = await s_client.get(full_url)
                          if s_resp.status_code == 200:
                              effective_rule = rule_obj or scraper_engine.ScraperRule(domain="fallback", use_json_ld=True, use_data_layer=True)
@@ -2465,7 +2478,7 @@ async def generate_digest(req: DigestRequest, current_user: User = Depends(get_c
                 # Relevant topic OR User has custom rule. (But not spam)
                 try:
                     print(f"DEBUG: Triggering Rescue for {article.title} (HasRule: {has_custom_rule})")
-                    async with httpx.AsyncClient(headers={"User-Agent": "Mozilla/5.0"}, verify=False, timeout=10) as rescue_client:
+                    async with httpx.AsyncClient(headers=ROBUST_HEADERS, verify=False, timeout=10) as rescue_client:
                       resp = await robust_fetch(rescue_client, article.url)
                       if resp and resp.status_code == 200:
                            
