@@ -14,8 +14,15 @@ origins = [
     "https://urbanous.vercel.app",
     "https://urbanous.net",
     "https://www.urbanous.net",
-    os.getenv("FRONTEND_URL", "https://urbanous.vercel.app") 
+    # Allow Railway generated domains
+    "https://urbanous-production.up.railway.app",
+    os.getenv("FRONTEND_URL", "*")  # Fallback to wildcard if specified, or specific URL
 ]
+
+# For debugging connection issues, we can temporarily allow all if needed, but best to be specific.
+# If FRONTEND_URL is set to '*', allow_origins should be ['*']
+if os.getenv("FRONTEND_URL") == "*":
+    origins = ["*"]
 
 app.add_middleware(
     CORSMiddleware,
