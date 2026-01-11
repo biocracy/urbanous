@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 import * as turf from '@turf/turf';
 import api from '@/lib/api'; // Use the axios instance with Auth interceptor
 import { useAuthStore } from '@/lib/store';
-import { Sliders, X, Save, Key, Loader2, LogOut, StopCircle, Languages, Wrench, Search, Map, Calendar, Settings, ChevronDown, ChevronRight, List, Info, FileText, Sparkles } from 'lucide-react';
+import { Sliders, X, Save, Key, Loader2, LogOut, StopCircle, Languages, Wrench, Search, Map, Calendar, Settings, ChevronDown, ChevronRight, List, Info, FileText, Sparkles, Coffee } from 'lucide-react';
 import ScraperDebugger from './ScraperDebugger';
 import ReactMarkdown from 'react-markdown';
 import { CAPITALS } from '../utils/capitals';
@@ -2535,6 +2535,18 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                     />
                 )
             }
+            {/* Support / Donation Button */}
+            <a
+                href="https://buymeacoffee.com/urbanous"
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Support OpenNews"
+                className="absolute top-4 right-16 z-20 p-2 rounded-lg bg-yellow-500/90 text-white shadow-lg shadow-yellow-500/20 hover:bg-yellow-400 hover:scale-110 transition-all flex items-center gap-2 font-bold text-sm"
+            >
+                <Coffee className="w-5 h-5" />
+                <span className="hidden group-hover:block whitespace-nowrap">Support Us</span>
+            </a>
+
         </div >
 
     );
