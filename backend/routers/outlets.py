@@ -1544,16 +1544,77 @@ async def summarize_selected_articles(req: SummarizeRequest, current_user: User 
             print(f"Chunk {chunk_idx} error: {e}")
             return f"\n### Analysis of Sources {start_idx}-{end_idx}\n(Data processing error for this section)"
 
-    # Run chunks sequentially or parallel?
-    # Parallel is faster, but might hit rate limits. Flash has high limits.
-    # Let's try parallel chunks of 3.
-    
-    # Simple gather for now
+    # Run chunks in parallel
     tasks = [process_chunk(i, c) for i, c in enumerate(chunks)]
-    results = await asyncio.gather(*tasks)
+    chunk_results = await asyncio.gather(*tasks)
     
-    full_body = "# Comprehensive Intelligence Report\n" + "\n".join(results)
+    # 3. SYNTHESIS / CONSOLIDATION
+    # If we have multiple chunks, we must unify them to avoid "Batch 1... Batch 2..." fragmentation.
+    combined_raw_analysis = "\n\n".join(chunk_results)
     
+    # Calculate Date Range from Articles for Title
+    try:
+        from datetime import datetime
+        dates = []
+        for a in req.articles:
+            d_str = a.get('date_str')
+            if d_str:
+                # Try simple ISO parsing; might need more robust if date_str varies
+                try: dates.append(datetime.fromisoformat(d_str).date())
+                except: pass
+        
+        if dates:
+            min_d, max_d = min(dates), max(dates)
+            # Format: 8.1.2026 - 11.1.2026
+            fmt = lambda d: f"{d.day}.{d.month}.{d.year}"
+            date_range_str = f"{fmt(min_d)} - {fmt(max_d)}"
+        else:
+            from datetime import date
+            date_range_str = date.today().strftime("%d.%m.%Y")
+            
+    except Exception as e:
+        print(f"Date Calc Error: {e}")
+        from datetime import date
+        date_range_str = date.today().strftime("%d.%m.%Y")
+        
+    report_title = f"# {req.city}: {req.category} Report ({date_range_str})"
+
+    if len(chunks) > 1:
+        synthesis_prompt = f"""
+        You are the Chief Editor of a high-level Intelligence Report.
+        You have received detailed section drafts from field agents.
+        
+        DRAFTS:
+        {combined_raw_analysis}
+        
+        MISSION:
+        1. **UNIFY**: Merge these drafts into ONE seamless, cohesive narrative history.
+        2. **PRESERVE DETAILS**: Do not Summarize away the specifics. Keep the verified facts.
+        3. **PRESERVE CITATIONS**: You MUST retain the `[n]` citations exactly as they appear.
+           - CRITICAL: Do NOT re-number citations. If a fact has `[55]`, keep `[55]`.
+        4. **STRUCTURE**: Start directly with the first section header (e.g. ## Executive Summary or ## Key Developments).
+        5. **NO CHAT / NO TITLE**: Do NOT output a Main Title (H1). Do NOT output conversational filler. The output must start with `##`.
+        
+        Write the final consolidated report in Markdown.
+        """
+        try:
+            consolidation_response = await model.generate_content_async(synthesis_prompt)
+            # Ensure we don't double up titles if the model ignores instruction, strip leading H1 if matches ours
+            reply = consolidation_response.text.strip()
+            if reply.startswith("# "): # Attempt to remove redundant title if LLM generates one
+                lines = reply.split('\n')
+                if len(lines) > 0 and lines[0].startswith("# "):
+                    reply = "\n".join(lines[1:]).strip()
+            
+            full_body = f"{report_title}\n\n" + reply
+        except Exception as e:
+            print(f"Synthesis error: {e}")
+            full_body = f"{report_title}\n(Synthesis failed, showing raw batched reports)\n" + combined_raw_analysis
+    else:
+        # Single batch processing
+        reply = chunk_results[0].replace(f"### Analysis of Sources 1-{len(req.articles)}", "").strip()
+        full_body = f"{report_title}\n\n" + reply
+
     # Combine Body + Index
     final_markdown = full_body + source_index_md
     

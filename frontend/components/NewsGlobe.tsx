@@ -197,10 +197,18 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             const res = await api.post('/outlets/digest/summarize', {
                 articles: selectedArts,
                 category: selectedCategory,
-                city: selectedCityName || "Global"
+                city: digestData.city || selectedCityName || "Global"
             });
 
+            // CRITICAL: Update the local digest Data to reflect that ONLY these articles are now part of the report.
+            // This ensures that Citation [1] in text maps to Article [1] in the list.
+            setDigestData((prev: any) => prev ? ({ ...prev, articles: selectedArts }) : null);
+
             setDigestSummary(res.data.summary);
+
+            // Also clear selection since the new list is effectively "all selected" contextually,
+            // or keep them selected visually? Keeping them is fine, but the indices now align 1:1.
+
             setActiveModalTab('digest');
         } catch (e) {
             console.error("Summarization failed", e);
@@ -2027,8 +2035,9 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                                 ) : activeModalTab === 'digest' ? (
                                     <div className="flex flex-col gap-6">
                                         {digestSummary ? (
-                                            <div className="bg-slate-900/50 p-12 rounded-xl border border-white/5 animate-in fade-in duration-500">
+                                            <div className="bg-slate-900/50 p-12 rounded-xl border border-white/5 animate-in fade-in duration-500 text-slate-300">
                                                 <ReactMarkdown
+                                                    urlTransform={(url) => url}
                                                     components={{
                                                         h1: ({ node, ...props }) => <h1 className="text-4xl font-extrabold text-white mb-8 border-b border-white/10 pb-4 mt-8" {...props} />,
                                                         h2: ({ node, ...props }) => <h2 className="text-3xl font-bold text-blue-200 mt-12 mb-6 border-l-4 border-blue-500 pl-4" {...props} />,
@@ -2041,6 +2050,10 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                                                             if (href.startsWith('citation:')) {
                                                                 const index = parseInt(href.split(':')[1]);
                                                                 const article = selectedArticlesList[index - 1]; // 1-based index
+
+                                                                // DEBUG CITATION
+                                                                if (!article) console.warn(`Citation Mismatch: [${index}] not found in list of ${selectedArticlesList.length}`);
+
                                                                 const title = article ? (article.title || 'Source') : `Source ${index}`;
                                                                 let url = article ? article.url : '';
 
@@ -2062,12 +2075,12 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                                                                             [{index}]
                                                                         </button>
                                                                         {/* Tooltip */}
-                                                                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-72 p-3 bg-slate-900 border border-slate-700 rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 text-xs text-left">
-                                                                            <div className="font-bold text-white mb-1 line-clamp-3 leading-tight">{title}</div>
-                                                                            <div className={`truncate font-mono mt-1 ${isValidUrl ? 'text-blue-400' : 'text-amber-500'}`}>
+                                                                        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-72 p-3 bg-slate-900 border border-slate-700 rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 text-xs text-left">
+                                                                            <span className="block font-bold text-white mb-1 line-clamp-3 leading-tight">{title}</span>
+                                                                            <span className={`block truncate font-mono mt-1 ${isValidUrl ? 'text-blue-400' : 'text-amber-500'}`}>
                                                                                 {isValidUrl ? new URL(url).hostname : 'Source URL not available'}
-                                                                            </div>
-                                                                        </div>
+                                                                            </span>
+                                                                        </span>
                                                                     </span>
                                                                 );
                                                             }
@@ -2091,8 +2104,8 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                                                         blockquote: ({ node, ...props }) => <blockquote className="border-l-4 border-slate-600 pl-4 italic text-slate-400 my-6 bg-slate-800/30 py-2 rounded-r" {...props} />
                                                     }}
                                                 >
-                                                    {/* Regex to convert [n] to [[n]](citation:n) */}
-                                                    {digestSummary.replace(/\[(\d+)\]/g, '[[/$1/]](citation:$1)').replace(/\[\/(\d+)\/\]/g, '$1')}
+                                                    {/* Regex to convert [n] to [n](citation:n) */}
+                                                    {digestSummary.replace(/\[(\d+)\]/g, '[$1](citation:$1)')}
                                                 </ReactMarkdown>
                                             </div>
                                         ) : (
