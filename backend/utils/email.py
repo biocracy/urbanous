@@ -1,23 +1,10 @@
 
 import os
-from typing import List
-from fastapi_mail import FastMail, MessageSchema, ConnectionConfig, MessageType
+import httpx
 from pydantic import EmailStr
-from pathlib import Path
 
-# Load env variables (ensuring these are set in Railway)
-conf = ConnectionConfig(
-    MAIL_USERNAME = os.getenv("MAIL_USERNAME", ""),
-    MAIL_PASSWORD = os.getenv("MAIL_PASSWORD", ""),
-    MAIL_FROM = os.getenv("MAIL_FROM", "noreply@urbanous.net"),
-    MAIL_PORT = int(os.getenv("MAIL_PORT", 587)),
-    MAIL_SERVER = os.getenv("MAIL_SERVER", "smtp.gmail.com"),
-    MAIL_STARTTLS = False if int(os.getenv("MAIL_PORT", 587)) == 465 else True,
-    MAIL_SSL_TLS = True if int(os.getenv("MAIL_PORT", 587)) == 465 else False,
-    USE_CREDENTIALS = True,
-    VALIDATE_CERTS = True
-)
-
+# We use HTTP API now because SMTP ports (587, 465, 2525) are blocked or timing out in Railway.
+SENDGRID_API_URL = "https://api.sendgrid.com/v3/mail/send"
 
 html_template = """
 <!DOCTYPE html>
@@ -40,28 +27,51 @@ html_template = """
 
 async def send_verification_email(email: EmailStr, token: str):
     """
-    Sends a verification email with the token link.
+    Sends a verification email with the token link using SendGrid HTTP API (v3).
     """
-    # Allow local dev verification if no SMTP configured
-    if not os.getenv("MAIL_USERNAME"):
-        print(f"WARNING: SMTP not configured. Verification Link: http://localhost:3000/verify?token={token}")
+    api_key = os.getenv("MAIL_PASSWORD") # We reuse this var for the API Key
+    if not api_key:
+        print(f"WARNING: No API Key (MAIL_PASSWORD). Verification Link: http://localhost:3000/verify?token={token}")
         return
 
-    # Construct Link (Use FRONTEND_URL if available, else localhost default)
+    # Construct Link
     base_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
     whitelist_url = f"{base_url}/verify?token={token}"
+    
+    sender_email = os.getenv("MAIL_FROM", "noreply@urbanous.net")
 
-    message = MessageSchema(
-        subject="Verify your OpenNews Account",
-        recipients=[email],
-        body=html_template.format(link=whitelist_url),
-        subtype=MessageType.html
-    )
+    payload = {
+        "personalizations": [
+            {
+                "to": [{"email": email}],
+                "subject": "Verify your OpenNews Account"
+            }
+        ],
+        "from": {"email": sender_email, "name": "Urbanous Team"},
+        "content": [
+            {
+                "type": "text/html",
+                "value": html_template.format(link=whitelist_url)
+            }
+        ]
+    }
 
-    fm = FastMail(conf)
-    try:
-        await fm.send_message(message)
-        print(f"Email sent to {email}")
-    except Exception as e:
-        print(f"Failed to send email: {e}")
-        raise e
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.post(SENDGRID_API_URL, json=payload, headers=headers, timeout=10.0)
+            if response.status_code >= 200 and response.status_code < 300:
+                print(f"Email sent successfully to {email}")
+            else:
+                print(f"Failed to send email. Status: {response.status_code}")
+                print(f"Response: {response.text}")
+                # We can choose to raise an error if we want it logged as an exception
+                raise Exception(f"SendGrid Error: {response.text}")
+                
+        except Exception as e:
+            print(f"Exception sending email via HTTP: {e}")
+            raise e
