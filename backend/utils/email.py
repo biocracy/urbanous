@@ -12,8 +12,8 @@ conf = ConnectionConfig(
     MAIL_FROM = os.getenv("MAIL_FROM", "noreply@urbanous.net"),
     MAIL_PORT = int(os.getenv("MAIL_PORT", 587)),
     MAIL_SERVER = os.getenv("MAIL_SERVER", "smtp.gmail.com"),
-    MAIL_STARTTLS = True,
-    MAIL_SSL_TLS = False,
+    MAIL_STARTTLS = False if int(os.getenv("MAIL_PORT", 587)) == 465 else True,
+    MAIL_SSL_TLS = True if int(os.getenv("MAIL_PORT", 587)) == 465 else False,
     USE_CREDENTIALS = True,
     VALIDATE_CERTS = True
 )
