@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -23,7 +23,7 @@ import uuid
 from utils.email import send_verification_email
 
 @router.post("/register")
-async def register(user: UserCreate, db: Session = Depends(get_db)):
+async def register(user: UserCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     # Check existing
     result = await db.execute(select(User).where(User.email == user.email))
     if result.scalars().first():
@@ -42,15 +42,8 @@ async def register(user: UserCreate, db: Session = Depends(get_db)):
     db.add(db_user)
     await db.commit()
     
-    # Send Email (Background task ideal, but direct await for simplicity/feedback)
-    try:
-        await send_verification_email(user.email, verification_token)
-    except Exception as e:
-        print(f"Error sending email: {e}")
-        # We don't rollback user, but user receives error? Or just "Check email"?
-        # If email fails, user is stuck.
-        # Ideally we rollback or allow resend.
-        # For prototype: Log error, tell user to check email/contact support.
+    # Send Email in background (prevents timeout)
+    background_tasks.add_task(send_verification_email, user.email, verification_token)
     
     return {"message": "Registration successful. Please check your email to verify your account."}
 
