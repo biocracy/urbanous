@@ -11,6 +11,7 @@ pytesseract
 Pillow
 passlib[argon2]
 python-jose[cryptography]
+fastapi-mail
 
 httpx
 python-dotenv

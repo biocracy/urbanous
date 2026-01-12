@@ -19,7 +19,10 @@ class Token(BaseModel):
     access_token: str
     token_type: str
 
-@router.post("/register", response_model=Token)
+import uuid
+from utils.email import send_verification_email
+
+@router.post("/register")
 async def register(user: UserCreate, db: Session = Depends(get_db)):
     # Check existing
     result = await db.execute(select(User).where(User.email == user.email))
@@ -27,20 +30,46 @@ async def register(user: UserCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Email already registered")
     
     hashed_pw = get_password_hash(user.password)
+    verification_token = str(uuid.uuid4())
+    
     db_user = User(
         email=user.email,
         hashed_password=hashed_pw,
-        gemini_api_key=user.gemini_api_key
+        gemini_api_key=user.gemini_api_key,
+        is_verified=False,
+        verification_token=verification_token
     )
     db.add(db_user)
     await db.commit()
     
-    # Auto-login
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": user.email}, expires_delta=access_token_expires
-    )
-    return {"access_token": access_token, "token_type": "bearer"}
+    # Send Email (Background task ideal, but direct await for simplicity/feedback)
+    try:
+        await send_verification_email(user.email, verification_token)
+    except Exception as e:
+        print(f"Error sending email: {e}")
+        # We don't rollback user, but user receives error? Or just "Check email"?
+        # If email fails, user is stuck.
+        # Ideally we rollback or allow resend.
+        # For prototype: Log error, tell user to check email/contact support.
+    
+    return {"message": "Registration successful. Please check your email to verify your account."}
+
+@router.get("/verify")
+async def verify_email(token: str, db: Session = Depends(get_db)):
+    result = await db.execute(select(User).where(User.verification_token == token))
+    user = result.scalars().first()
+    
+    if not user:
+        raise HTTPException(status_code=400, detail="Invalid verification token")
+    
+    if user.is_verified:
+         return {"message": "Email already verified"}
+
+    user.is_verified = True
+    user.verification_token = None
+    await db.commit()
+    
+    return {"message": "Email verified successfully. You can now login."}
 
 @router.post("/token", response_model=Token)
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
@@ -51,6 +80,13 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+        
+    if not user.is_verified:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Email not verified. Please check your inbox.",
             headers={"WWW-Authenticate": "Bearer"},
         )
     

@@ -12,6 +12,11 @@ class User(Base):
     gemini_api_key = Column(String, nullable=True) # Encrypted ideally, plain for MVP
     preferred_language = Column(String, default="English") # New: Translation Preference
     is_active = Column(Boolean, default=True)
+    
+    # Email Verification
+    is_verified = Column(Boolean, default=False)
+    verification_token = Column(String, nullable=True)
+    
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     digests = relationship("NewsDigest", back_populates="user")
