@@ -94,8 +94,22 @@ async def reset_password(request: ResetPasswordRequest, db: Session = Depends(ge
     if not user:
         raise HTTPException(status_code=400, detail="Invalid or used token")
         
-    if user.reset_token_expires and user.reset_token_expires < datetime.now(timezone.utc):
-        raise HTTPException(status_code=400, detail="Token expired")
+    if user.reset_token_expires:
+        expires = user.reset_token_expires
+        # Handle case where DB returns string (due to TEXT column type)
+        if isinstance(expires, str):
+            try:
+                expires = datetime.fromisoformat(expires)
+            except ValueError:
+                # If parsing fails, invalidate token
+                raise HTTPException(status_code=400, detail="Token data corrupted")
+        
+        # Ensure timezone awareness (assume UTC if naive)
+        if expires.tzinfo is None:
+            expires = expires.replace(tzinfo=timezone.utc)
+            
+        if expires < datetime.now(timezone.utc):
+            raise HTTPException(status_code=400, detail="Token expired")
         
     user.hashed_password = get_password_hash(request.new_password)
     user.reset_token = None
