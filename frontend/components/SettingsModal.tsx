@@ -174,7 +174,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
                                     <div className="border-t border-slate-800 pt-4 mt-2">
                                         <button
-                                            onClick={() => { logout(); onClose(); }}
+                                            onClick={() => { logout(); onClose(); window.location.href = "/"; }}
                                             className="w-full py-2 bg-red-900/20 hover:bg-red-900/40 text-red-400 border border-red-900/50 rounded font-bold text-sm flex items-center justify-center gap-2 transition-colors"
                                         >
                                             <LogOut className="w-4 h-4" />
