@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from models import User
 from security import verify_password, get_password_hash, create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES
 from dependencies import get_db, get_current_user
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 
 router = APIRouter()
 
@@ -20,7 +20,14 @@ class Token(BaseModel):
     token_type: str
 
 import uuid
-from utils.email import send_verification_email
+from utils.email import send_verification_email, send_reset_password_email
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
 
 @router.post("/register")
 async def register(user: UserCreate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
@@ -63,6 +70,39 @@ async def verify_email(token: str, db: Session = Depends(get_db)):
     await db.commit()
     
     return {"message": "Email verified successfully. You can now login."}
+
+@router.post("/forgot-password")
+async def forgot_password(request: ForgotPasswordRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    result = await db.execute(select(User).where(User.email == request.email))
+    user = result.scalars().first()
+    
+    if user:
+        token = str(uuid.uuid4())
+        user.reset_token = token
+        user.reset_token_expires = datetime.now(timezone.utc) + timedelta(hours=1)
+        await db.commit()
+        
+        background_tasks.add_task(send_reset_password_email, user.email, token)
+        
+    return {"message": "If the email is registered, a reset link has been sent."}
+
+@router.post("/reset-password")
+async def reset_password(request: ResetPasswordRequest, db: Session = Depends(get_db)):
+    result = await db.execute(select(User).where(User.reset_token == request.token))
+    user = result.scalars().first()
+    
+    if not user:
+        raise HTTPException(status_code=400, detail="Invalid or used token")
+        
+    if user.reset_token_expires and user.reset_token_expires < datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="Token expired")
+        
+    user.hashed_password = get_password_hash(request.new_password)
+    user.reset_token = None
+    user.reset_token_expires = None
+    await db.commit()
+    
+    return {"message": "Password reset successfully. You can now login."}
 
 @router.post("/token", response_model=Token)
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
