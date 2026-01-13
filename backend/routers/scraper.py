@@ -94,7 +94,7 @@ async def test_extraction(req: TestExtractionRequest, db: Session = Depends(get_
         "Sec-Fetch-Site": "cross-site",
         "Sec-Fetch-User": "?1",
     }
-    async with httpx.AsyncClient(follow_redirects=True, verify=False, http2=True) as client:
+    async with httpx.AsyncClient(follow_redirects=True, verify=False, http2=False) as client:
         try:
             resp = await client.get(req.url, headers=headers, timeout=15)
             if resp.status_code != 200:

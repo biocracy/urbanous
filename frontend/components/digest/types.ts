@@ -24,4 +24,5 @@ export interface DigestReportRendererProps {
     onToggle: (url: string) => void;
     onAssess?: (article: Article) => void;
     onDebug?: (article: Article) => void;
+    excludedArticles?: Article[];
 }

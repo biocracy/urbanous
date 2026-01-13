@@ -15,10 +15,12 @@ interface OutletGroupProps {
     onToggle: (url: string) => void;
     onAssess?: (article: Article) => void;
     onDebug?: (article: Article) => void;
+    excludedArticles?: Article[];
 }
 
-export function OutletGroup({ group, isTranslated, selectedUrls, onToggle, onAssess, onDebug }: OutletGroupProps) {
+export function OutletGroup({ group, isTranslated, selectedUrls, onToggle, onAssess, onDebug, excludedArticles = [] }: OutletGroupProps) {
     const [isOpen, setIsOpen] = useState(true);
+    const [isExcludedOpen, setIsExcludedOpen] = useState(false);
 
     return (
         <div className="animate-in fade-in duration-500 slide-in-from-bottom-2">
@@ -54,7 +56,7 @@ export function OutletGroup({ group, isTranslated, selectedUrls, onToggle, onAss
                         <tbody className="divide-y divide-slate-800/50">
                             {group.articles.map((art, idx) => (
                                 <ArticleRow
-                                    key={idx}
+                                    key={'active-' + idx}
                                     article={art}
                                     isTranslated={isTranslated}
                                     isSelected={selectedUrls.has(art.url)}
@@ -63,6 +65,34 @@ export function OutletGroup({ group, isTranslated, selectedUrls, onToggle, onAss
                                     onDebug={onDebug}
                                 />
                             ))}
+
+                            {/* Excluded Section */}
+                            {excludedArticles.length > 0 && (
+                                <>
+                                    <tr className="bg-slate-800/20 border-t border-slate-700/50">
+                                        <td colSpan={5} className="p-0">
+                                            <button
+                                                onClick={() => setIsExcludedOpen(!isExcludedOpen)}
+                                                className="w-full py-2 text-xs font-bold text-slate-500 hover:text-blue-400 hover:bg-slate-800/50 uppercase tracking-wider flex items-center justify-center gap-2 transition-colors"
+                                            >
+                                                {isExcludedOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                                                {isExcludedOpen ? 'Hide' : 'Expand'} {excludedArticles.length} Skipped Articles
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {isExcludedOpen && excludedArticles.map((art, idx) => (
+                                        <ArticleRow
+                                            key={'excluded-' + idx}
+                                            article={art}
+                                            isTranslated={isTranslated}
+                                            isSelected={selectedUrls.has(art.url)}
+                                            onToggle={onToggle}
+                                            onAssess={onAssess}
+                                            onDebug={onDebug}
+                                        />
+                                    ))}
+                                </>
+                            )}
                         </tbody>
                     </table>
                 </div>

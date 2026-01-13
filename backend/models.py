@@ -89,6 +89,11 @@ class NewsDigest(Base):
     selected_article_urls = Column(String, nullable=True) # JSON string of selected URLs
     analysis_source = Column(String, nullable=True) # JSON string of keyword analysis
     analysis_digest = Column(String, nullable=True) # JSON string of keyword analysis
+    
+    # Sharing
+    is_public = Column(Boolean, default=False)
+    public_slug = Column(String, unique=True, nullable=True, index=True)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     user = relationship("User", back_populates="digests")

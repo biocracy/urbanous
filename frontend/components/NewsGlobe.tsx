@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 import * as turf from '@turf/turf';
 import api from '@/lib/api'; // Use the axios instance with Auth interceptor
 import { useAuthStore } from '@/lib/store';
-import { Sliders, X, Save, Key, Loader2, LogOut, StopCircle, Languages, Wrench, Search, Map, Calendar, Settings, ChevronDown, ChevronRight, List, Info, FileText, Sparkles, Coffee } from 'lucide-react';
+import { Sliders, X, Save, Key, Loader2, LogOut, StopCircle, Languages, Wrench, Search, Map as MapIcon, Calendar, Settings, ChevronDown, ChevronRight, List, Info, FileText, Sparkles, Coffee, Share2, Copy, Check, Globe as GlobeIcon } from 'lucide-react';
 import ScraperDebugger from './ScraperDebugger';
 import ReactMarkdown from 'react-markdown';
 import { CAPITALS } from '../utils/capitals';
@@ -37,15 +37,8 @@ const isDateCurrent = (extractedDate: string) => {
 export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
     const globeEl = useRef<any>(null);
 
-    // Initial View: Center on Romania (Lat ~46, Lng ~25)
-    useEffect(() => {
-        if (globeEl.current) {
-            // Slight delay to ensure globe is ready
-            setTimeout(() => {
-                globeEl.current.pointOfView({ lat: 45.9432, lng: 24.9668, altitude: 2.0 }, 2000);
-            }, 500);
-        }
-    }, []);
+    // Initial View managed by onGlobeReady
+
     const [countries, setCountries] = useState({ features: [] });
     const [selectedCountry, setSelectedCountry] = useState<any | null>(null);
     const [cities, setCities] = useState<any[]>([]);
@@ -115,9 +108,12 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
     const [progressLog, setProgressLog] = useState('');
 
     const [isSaving, setIsSaving] = useState(false);
+    const [isSharing, setIsSharing] = useState(false);
+    const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
     const [savedDigests, setSavedDigests] = useState<any[]>([]);
     const [activeSideTab, setActiveSideTab] = useState<'sources' | 'digests'>('sources');
     const [activeModalTab, setActiveModalTab] = useState<'articles' | 'digest' | 'analytics'>('articles');
+    const [isGlobalSidebarOpen, setIsGlobalSidebarOpen] = useState(false);
 
     // Digest Summarization State
     const [selectedArticleUrls, setSelectedArticleUrls] = useState<Set<string>>(new Set());
@@ -192,17 +188,37 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
         // We handle the text in the button, but if there's a global loader, we can set it here.
         // For now, the user asked for text "somewhere". We updated the button text logic below.
         try {
-            const selectedArts = digestData.articles.filter((a: any) => selectedArticleUrls.has(a.url));
+            // Calculate Period Label
+            const end = new Date();
+            const start = new Date();
+            const effectiveTimeframe = digestData.timeframe || selectedTimeframe;
+            if (effectiveTimeframe === '3days') start.setDate(end.getDate() - 3);
+            else if (effectiveTimeframe === '1week') start.setDate(end.getDate() - 7);
+            else start.setDate(end.getDate() - 1);
+
+            const fmt = (d: Date) => `${d.getDate()}.${d.getMonth() + 1}.${d.getFullYear()}`;
+            const periodLabel = `${fmt(start)} - ${fmt(end)}`;
+
+            // Merge existing and excluded to form the full pool
+            const allArts = [...(digestData.articles || []), ...(digestData.excluded_articles || [])];
+            // If we have duplicates (shouldn't happen but safety first), dedup by URL
+            const uniqueArtsMap = new Map();
+            allArts.forEach((a: any) => uniqueArtsMap.set(a.url, a));
+            // Cast to array of any to satisfy type checker if needed, avoiding 'unknown'
+            const uniquePool = Array.from(uniqueArtsMap.values());
+
+            const selectedArts = uniquePool.filter((a: any) => selectedArticleUrls.has(a.url));
+            const excludedArts = uniquePool.filter((a: any) => !selectedArticleUrls.has(a.url));
 
             const res = await api.post('/outlets/digest/summarize', {
                 articles: selectedArts,
                 category: selectedCategory,
-                city: digestData.city || selectedCityName || "Global"
+                city: digestData.city || selectedCityName || "Global",
+                timeframe_label: periodLabel
             });
 
-            // CRITICAL: Update the local digest Data to reflect that ONLY these articles are now part of the report.
-            // This ensures that Citation [1] in text maps to Article [1] in the list.
-            setDigestData((prev: any) => prev ? ({ ...prev, articles: selectedArts }) : null);
+            // CRITICAL: Update the local digest Data to reflect selected vs excluded
+            setDigestData((prev: any) => prev ? ({ ...prev, articles: selectedArts, excluded_articles: excludedArts }) : null);
 
             setDigestSummary(res.data.summary);
 
@@ -249,10 +265,10 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
     const { isAuthenticated } = useAuthStore();
 
     useEffect(() => {
-        if (activeSideTab === 'digests' && isAuthenticated) {
+        if (isAuthenticated && (activeSideTab === 'digests' || isGlobalSidebarOpen)) {
             fetchSavedDigests();
         }
-    }, [activeSideTab, isAuthenticated]);
+    }, [activeSideTab, isGlobalSidebarOpen, isAuthenticated]);
 
     const fetchSavedDigests = async () => {
         try {
@@ -398,6 +414,26 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
     // Actually, backend sets SCORE to 0 if invalid. Let's use that signal for reliability.
     const isArticleValid = (art: any) => art.relevance_score > 0;
 
+    const handleShareDigest = async () => {
+        if (!digestData?.id) {
+            alert("Please save the digest to your library before sharing.");
+            return;
+        }
+        setIsSharing(true);
+        try {
+            // URL: /outlets/digests/{id}/share (Standardized)
+            const res = await api.post(`/outlets/digests/${digestData.id}/share`);
+            const slug = res.data.slug;
+
+            setDigestData((prev: any) => ({ ...prev, is_public: true, public_slug: slug }));
+            setSavedDigests(prev => prev.map(d => d.id === digestData.id ? { ...d, is_public: true, public_slug: slug } : d));
+        } catch (err: any) {
+            alert(`Sharing failed: ${err.message}`);
+        } finally {
+            setIsSharing(false);
+        }
+    };
+
     const handleSaveDigest = async () => {
         if (!digestData) return;
         setIsSaving(true);
@@ -406,7 +442,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             const titleMatch = digestData.digest.match(/^# (.*)$/m);
             const title = titleMatch ? titleMatch[1] : `${selectedCategory} Digest`;
 
-            await api.post('/digests', {
+            const payload = {
                 title: title,
                 category: digestData.category || selectedCategory,
                 city: digestData.city || selectedCityName || "Global",
@@ -414,9 +450,25 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                 summary_markdown: digestSummary || digestData.digest,
                 articles: digestData.articles,
                 selected_article_urls: Array.from(selectedArticleUrls),
-                analysis_source: analyticsKeywords.length > 0 ? analyticsKeywords : digestData.analysis_source
-            });
+                analysis_source: analyticsKeywords.length > 0 ? analyticsKeywords : (digestData.analysis_source || [])
+            };
+
+            let savedItem;
+            if (digestData.id) {
+                // Update existing
+                const res = await api.put(`/digests/${digestData.id}`, payload);
+                savedItem = res.data;
+            } else {
+                // Create new
+                const res = await api.post('/digests', payload);
+                savedItem = res.data;
+            }
+
+            // Sync ID back to current view to prevent duplicates on next save
+            setDigestData((prev: any) => ({ ...prev, id: savedItem.id }));
+
             await fetchSavedDigests();
+            alert("Digest saved!");
             // Show toast? relying on button state for now
         } catch (err) {
             console.error("Failed to save digest", err);
@@ -843,8 +895,18 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             ...digest, // Preserve ID, City, Title, Created_At
             digest: digest.summary_markdown, // Map content to UI prop
         });
+        // Restore State Content
+        setDigestSummary(digest.summary_markdown);
+        setAnalyticsKeywords(digest.analysis_source || []);
+
         setSelectedCategory(digest.category);
-        if (digest.timeframe) setSelectedTimeframe(digest.timeframe); // Also restore timeframe state for date calculation
+        if (digest.timeframe) setSelectedTimeframe(digest.timeframe);
+
+        // Restore Article Selection (if any)
+        if (digest.selected_article_urls && Array.isArray(digest.selected_article_urls)) {
+            setSelectedArticleUrls(new Set(digest.selected_article_urls));
+        }
+
         setActiveModalTab('articles');
     };
 
@@ -1667,6 +1729,12 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
     const globeComponent = useMemo(() => (
         <Globe
             ref={globeEl}
+            onGlobeReady={() => {
+                // Reliable initialization for Romania
+                if (globeEl.current) {
+                    globeEl.current.pointOfView({ lat: 45.9432, lng: 24.9668, altitude: 2.0 });
+                }
+            }}
             globeImageUrl={mapStyle}
             bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
             backgroundImageUrl="//unpkg.com/three-globe/example/img/night-sky.png"
@@ -1911,30 +1979,60 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                 digestData && !isGeneratingDigest && (
                     <div className="absolute inset-0 z-50 bg-slate-950/95 backdrop-blur-sm flex items-center justify-center p-8 animate-in fade-in duration-200">
                         <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-4xl h-[90vh] flex flex-col overflow-hidden">
-                            <div className="p-6 border-b border-slate-700 flex justify-between items-center bg-slate-800/50">
-                                <div>
+                            <div className="p-6 border-b border-slate-700 flex justify-between items-center bg-slate-800/50 relative">
+                                <div className="flex flex-col gap-1 items-start">
+                                    {/* Publication Status Bar (Replaces Debug Strip) */}
+                                    {digestData?.id && (
+                                        <div className="h-5 flex items-center">
+                                            {digestData.is_public && digestData.public_slug ? (
+                                                <div className="font-mono text-[10px] text-slate-500 flex items-center gap-2 animate-in slide-in-from-top-2 fade-in">
+                                                    <span className="opacity-50 tracking-wider">PUBLISHED AT:</span>
+                                                    <button
+                                                        className="flex items-center gap-1.5 bg-blue-950/30 hover:bg-blue-900/40 border border-blue-900/20 px-1.5 py-0.5 rounded transition-all group cursor-pointer"
+                                                        onClick={() => {
+                                                            navigator.clipboard.writeText(`${window.location.origin}/s/${digestData.public_slug}`);
+                                                            setCopiedSlug(digestData.public_slug);
+                                                            setTimeout(() => setCopiedSlug(null), 2000);
+                                                        }}
+                                                        title="Copy Link to Clipboard"
+                                                    >
+                                                        <span className="text-blue-500 font-bold">
+                                                            {window.location.host}/s/{digestData.public_slug}
+                                                        </span>
+                                                        {copiedSlug === digestData.public_slug ? (
+                                                            <Check size={10} className="text-emerald-500" />
+                                                        ) : (
+                                                            <Copy size={10} className="text-blue-400/70 group-hover:text-blue-400" />
+                                                        )}
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <button
+                                                    onClick={handleShareDigest}
+                                                    disabled={isSharing}
+                                                    className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 hover:text-blue-400 transition-colors animate-in fade-in"
+                                                    title="Generate a public link"
+                                                >
+                                                    {isSharing ? <Loader2 size={10} className="animate-spin" /> : <Share2 size={10} />}
+                                                    Create Public Link
+                                                </button>
+                                            )}
+                                        </div>
+                                    )}
+
                                     <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
                                         {digestData?.city || selectedCityData?.name} Digest
                                     </h2>
                                     <div className="flex gap-4 mt-2">
-                                        <button
-                                            onClick={() => setActiveModalTab('articles')}
-                                            className={`text-xs font-bold uppercase tracking-wider pb-1 ${activeModalTab === 'articles' ? 'text-blue-400 border-b-2 border-blue-400' : 'text-slate-500'}`}
-                                        >
-                                            Articles
-                                        </button>
-                                        <button
-                                            onClick={() => setActiveModalTab('digest')}
-                                            className={`text-xs font-bold uppercase tracking-wider pb-1 ${activeModalTab === 'digest' ? 'text-blue-400 border-b-2 border-blue-400' : 'text-slate-500'}`}
-                                        >
-                                            Digest
-                                        </button>
-                                        <button
-                                            onClick={() => setActiveModalTab('analytics')}
-                                            className={`text-xs font-bold uppercase tracking-wider pb-1 ${activeModalTab === 'analytics' ? 'text-blue-400 border-b-2 border-blue-400' : 'text-slate-500'}`}
-                                        >
-                                            Analytics
-                                        </button>
+                                        {['articles', 'digest', 'analytics'].map((tab) => (
+                                            <button
+                                                key={tab}
+                                                onClick={() => setActiveModalTab(tab as any)}
+                                                className={`text-xs font-bold uppercase tracking-wider pb-1 transition-colors ${activeModalTab === tab ? 'text-blue-400 border-b-2 border-blue-400' : 'text-slate-500 hover:text-slate-300'}`}
+                                            >
+                                                {tab}
+                                            </button>
+                                        ))}
                                     </div>
                                 </div>
 
@@ -1948,6 +2046,9 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                                         <Languages size={14} />
                                         {isTranslateActive ? 'Original' : 'Translate'}
                                     </button>
+
+                                    {/* Share Button Removed (Moved to header status) */}
+
                                     <button
                                         onClick={handleDownloadDigest}
                                         className="text-white hover:text-blue-200 bg-slate-700 hover:bg-slate-600 px-4 py-1.5 rounded-full font-bold text-xs transition-colors border border-slate-600"
@@ -2024,6 +2125,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                                         {/* React Renderer (Virtualization Friendly) */}
                                         <DigestReportRenderer
                                             articles={digestData.articles || []}
+                                            excludedArticles={digestData.excluded_articles || []}
                                             category={selectedCategory}
                                             isTranslated={isTranslateActive}
                                             selectedUrls={selectedArticleUrls}
@@ -2677,45 +2779,52 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                                             <span className="text-xs">Generate one and click Save!</span>
                                         </div>
                                     ) : (
-                                        (savedDigests || []).map((digest: any) => {
-                                            const end = new Date(digest.created_at);
-                                            const start = new Date(end);
+                                        (savedDigests || [])
+                                            .filter((d: any) => !selectedCityName || d.city === selectedCityName)
+                                            .map((digest: any) => {
+                                                const end = new Date(digest.created_at);
+                                                const start = new Date(end);
 
-                                            if (digest.timeframe === "24h") start.setDate(end.getDate() - 1);
-                                            else if (digest.timeframe === "3days") start.setDate(end.getDate() - 3);
-                                            else if (digest.timeframe === "1week") start.setDate(end.getDate() - 7);
-                                            else if (digest.timeframe === "1month") start.setDate(end.getDate() - 30);
+                                                if (digest.timeframe === "24h") start.setDate(end.getDate() - 1);
+                                                else if (digest.timeframe === "3days") start.setDate(end.getDate() - 3);
+                                                else if (digest.timeframe === "1week") start.setDate(end.getDate() - 7);
+                                                else if (digest.timeframe === "1month") start.setDate(end.getDate() - 30);
 
-                                            const f = (d: Date) => d.getDate().toString().padStart(2, '0') + "." + (d.getMonth() + 1).toString().padStart(2, '0');
-                                            const y = (d: Date) => d.getFullYear();
-                                            const dateRange = `${f(start)} - ${f(end)}.${y(end)}`;
+                                                const f = (d: Date) => d.getDate().toString().padStart(2, '0') + "." + (d.getMonth() + 1).toString().padStart(2, '0');
+                                                const y = (d: Date) => d.getFullYear();
+                                                const dateRange = `${f(start)} - ${f(end)}.${y(end)}`;
 
-                                            const title = digest.title || "";
-                                            const cat = digest.category || "";
-                                            const showCategory = cat && !title.toLowerCase().includes(cat.toLowerCase());
+                                                const title = digest.title || "";
+                                                const cat = digest.category || "";
+                                                const showCategory = cat && !title.toLowerCase().includes(cat.toLowerCase());
 
-                                            return (
-                                                <div
-                                                    key={digest.id}
-                                                    onClick={() => handleLoadDigest(digest)}
-                                                    className="bg-slate-800/50 hover:bg-slate-800 border border-slate-700 hover:border-blue-500 p-3 rounded cursor-pointer transition-all group"
-                                                >
-                                                    <div className="flex justify-between items-start mb-1">
-                                                        <h4 className="font-bold text-slate-200 line-clamp-1 group-hover:text-blue-400">{title}</h4>
-                                                        <button onClick={(e) => handleDeleteDigest(e, digest.id)} className="text-slate-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">✕</button>
-                                                    </div>
-                                                    <div className="flex flex-col gap-0.5 text-[10px] text-slate-500 font-medium mt-1">
-                                                        <div className="flex items-center gap-2 uppercase font-bold">
-                                                            {digest.city && <span className="text-blue-400">{digest.city}</span>}
-                                                            {showCategory && <span>• {cat}</span>}
+                                                return (
+                                                    <div
+                                                        key={digest.id}
+                                                        onClick={() => handleLoadDigest(digest)}
+                                                        className="bg-slate-800/50 hover:bg-slate-800 border border-slate-700 hover:border-blue-500 p-3 rounded cursor-pointer transition-all group"
+                                                    >
+                                                        <div className="flex justify-between items-start mb-1">
+                                                            <h4 className="font-bold text-slate-200 line-clamp-1 group-hover:text-blue-400">{title}</h4>
+                                                            <button onClick={(e) => handleDeleteDigest(e, digest.id)} className="text-slate-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">✕</button>
                                                         </div>
-                                                        <div className="text-slate-400">
-                                                            {dateRange}
+                                                        <div className="flex flex-col gap-0.5 text-[10px] text-slate-500 font-medium mt-1">
+                                                            <div className="flex items-center gap-2 uppercase font-bold">
+                                                                {digest.city && <span className="text-blue-400">{digest.city}</span>}
+                                                                {showCategory && <span>• {cat}</span>}
+                                                                {digest.is_public && (
+                                                                    <span className="flex items-center gap-0.5 text-emerald-400 bg-emerald-900/30 px-1 rounded border border-emerald-800/50 text-[9px] transform scale-90" title="Public Link Active">
+                                                                        <GlobeIcon size={8} /> Public
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            <div className="text-slate-400">
+                                                                {dateRange}
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                </div>
-                                            );
-                                        }))}
+                                                );
+                                            }))}
                                 </div>
                             )}
                         </div>
@@ -2737,6 +2846,84 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                     />
                 )
             }
+            {/* Right Sidebar - Global Digests */}
+            <div className={`fixed right-0 top-20 z-40 transition-all duration-300 ease-in-out ${isGlobalSidebarOpen ? 'w-80' : 'w-0'} h-[calc(100vh-100px)]`}>
+                {/* Toggle Handle - Custom Tall Arrow */}
+                <button
+                    onClick={() => setIsGlobalSidebarOpen(!isGlobalSidebarOpen)}
+                    className={`absolute -left-5 top-1/2 -translate-y-1/2 bg-slate-900 border border-slate-600 border-r-0 rounded-l-lg 
+                        h-24 w-5 flex items-center justify-center hover:bg-slate-800 hover:text-blue-400 text-slate-500 shadow-[0_0_15px_rgba(0,0,0,0.5)] transition-all group overflow-hidden`}
+                    title="Toggle Global Digests"
+                >
+                    <div className={`transition-transform duration-500 ${isGlobalSidebarOpen ? 'rotate-180' : ''}`}>
+                        <svg width="10" height="40" viewBox="0 0 10 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M8 2L2 20L8 38" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                    </div>
+                </button>
+
+                {/* Content Panel */}
+                <div className="w-full h-full bg-slate-900/95 backdrop-blur border-l border-slate-700 shadow-2xl overflow-hidden flex flex-col">
+                    <div className="p-4 border-b border-slate-700 bg-slate-900 sticky top-0">
+                        <h3 className="font-bold text-white text-lg flex items-center gap-2">
+                            <List size={18} className="text-blue-400" />
+                            Global Stream
+                        </h3>
+                        <p className="text-xs text-slate-500 mt-1">Latest digests from all cities</p>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+                        {(savedDigests || []).length === 0 ? (
+                            <div className="text-center text-slate-500 py-8 text-sm">
+                                No digests found.
+                            </div>
+                        ) : (
+                            (savedDigests || []).map((digest: any) => {
+                                const end = new Date(digest.created_at);
+                                const start = new Date(end);
+                                if (digest.timeframe === "24h") start.setDate(end.getDate() - 1);
+                                else if (digest.timeframe === "3days") start.setDate(end.getDate() - 3);
+                                else if (digest.timeframe === "1week") start.setDate(end.getDate() - 7);
+                                else if (digest.timeframe === "1month") start.setDate(end.getDate() - 30);
+
+                                const f = (d: Date) => d.getDate().toString().padStart(2, '0') + "." + (d.getMonth() + 1).toString().padStart(2, '0');
+                                const y = (d: Date) => d.getFullYear();
+                                const dateRange = `${f(start)} - ${f(end)}.${y(end)}`;
+                                const title = digest.title || "";
+                                const cat = digest.category || "";
+                                const showCategory = cat && !title.toLowerCase().includes(cat.toLowerCase());
+
+                                return (
+                                    <div
+                                        key={digest.id}
+                                        onClick={() => handleLoadDigest(digest)}
+                                        className="bg-slate-800/50 hover:bg-slate-800 border border-slate-700 hover:border-blue-500 p-3 rounded cursor-pointer transition-all group mb-2"
+                                    >
+                                        <div className="flex justify-between items-start mb-1">
+                                            <h4 className="font-bold text-slate-200 line-clamp-2 text-sm group-hover:text-blue-400">{title}</h4>
+                                        </div>
+                                        <div className="flex flex-col gap-0.5 text-[10px] text-slate-500 font-medium mt-1">
+                                            <div className="flex items-center gap-2 uppercase font-bold flex-wrap">
+                                                {digest.city && <span className="text-blue-400 bg-blue-900/20 px-1 rounded">{digest.city}</span>}
+                                                {showCategory && <span className="text-slate-400">• {cat}</span>}
+                                                {digest.is_public && (
+                                                    <span className="flex items-center gap-0.5 text-emerald-400 bg-emerald-900/30 px-1 rounded border border-emerald-800/50 text-[9px] transform scale-90" title="Public Link Active">
+                                                        <GlobeIcon size={8} /> Public
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="text-slate-600 font-mono mt-0.5">
+                                                {dateRange}
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })
+                        )}
+                    </div>
+                </div>
+            </div>
+
             {/* Support / Donation Button */}
             <a
                 href="https://buymeacoffee.com/urbanous"

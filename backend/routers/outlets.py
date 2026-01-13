@@ -20,6 +20,8 @@ import scraper_engine # New Import
 
 from datetime import datetime, timedelta
 import re
+import secrets
+import string
 
 
 # Common Headers to bypass simple bot protections
@@ -650,6 +652,11 @@ class DigestRead(BaseModel):
     id: int
     title: str
     category: str
+    city: Optional[str] = None
+    
+    is_public: bool = False
+    public_slug: Optional[str] = None
+    
     created_at: str
 
 @router.get("/outlets/", response_model=List[dict])
@@ -669,6 +676,9 @@ async def get_saved_digests(db: Session = Depends(get_db)):
             id=d.id,
             title=d.title,
             category=d.category,
+            city=d.city,
+            is_public=d.is_public,
+            public_slug=d.public_slug,
             created_at=d.created_at.isoformat()
         ) for d in digests
     ]
@@ -677,10 +687,11 @@ class DigestDetail(BaseModel):
     id: int
     title: str
     category: str
+    city: Optional[str] = None
     summary_markdown: str
-    articles: List[ArticleMetadata]
-    analysis_source: Optional[List[KeywordData]] = []
-    analysis_digest: Optional[List[KeywordData]] = []
+    articles: List[Dict[str, Any]]
+    analysis_source: Optional[List[Dict[str, Any]]] = []
+    analysis_digest: Optional[List[Dict[str, Any]]] = []
     created_at: str
 
 @router.get("/outlets/digests/{id}", response_model=DigestDetail)
@@ -1336,6 +1347,8 @@ class DigestCreate(BaseModel):
 class DigestRead(DigestCreate):
     id: int
     created_at: datetime
+    is_public: bool = False
+    public_slug: Optional[str] = None
     
     class Config:
         from_attributes = True
@@ -1379,7 +1392,59 @@ async def save_digest(
         articles=json.loads(db_digest.articles_json),
         selected_article_urls=json.loads(db_digest.selected_article_urls) if db_digest.selected_article_urls else None,
         analysis_source=json.loads(db_digest.analysis_source) if db_digest.analysis_source else [],
-        created_at=db_digest.created_at
+        created_at=db_digest.created_at,
+        is_public=db_digest.is_public,
+        public_slug=db_digest.public_slug
+    )
+
+@router.put("/digests/{digest_id}", response_model=DigestRead)
+async def update_digest(
+    digest_id: int,
+    digest: DigestCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Update an existing digest (overwrite content)."""
+    stmt = select(NewsDigest).where(NewsDigest.id == digest_id, NewsDigest.user_id == current_user.id)
+    result = await db.execute(stmt)
+    db_digest = result.scalars().first()
+    
+    if not db_digest:
+        raise HTTPException(status_code=404, detail="Digest not found")
+    
+    import json
+    
+    db_digest.title = digest.title
+    db_digest.category = digest.category
+    db_digest.city = digest.city
+    db_digest.timeframe = digest.timeframe
+    db_digest.summary_markdown = digest.summary_markdown
+    db_digest.articles_json = json.dumps(digest.articles)
+    
+    # Update conditionals
+    if digest.selected_article_urls:
+        db_digest.selected_article_urls = json.dumps(digest.selected_article_urls)
+    if digest.analysis_source:
+        db_digest.analysis_source = json.dumps(digest.analysis_source)
+    if digest.analysis_digest:
+        db_digest.analysis_digest = json.dumps(digest.analysis_digest)
+        
+    await db.commit()
+    await db.refresh(db_digest)
+    
+    return DigestRead(
+        id=db_digest.id,
+        title=db_digest.title,
+        category=db_digest.category,
+        city=db_digest.city,
+        timeframe=db_digest.timeframe,
+        summary_markdown=db_digest.summary_markdown,
+        articles=json.loads(db_digest.articles_json),
+        selected_article_urls=json.loads(db_digest.selected_article_urls) if db_digest.selected_article_urls else None,
+        analysis_source=json.loads(db_digest.analysis_source) if db_digest.analysis_source else [],
+        created_at=db_digest.created_at,
+        is_public=db_digest.is_public,
+        public_slug=db_digest.public_slug
     )
 
 @router.get("/digests", response_model=List[DigestRead])
@@ -1427,6 +1492,64 @@ async def delete_digest(
     await db.commit()
     return {"status": "success", "message": "Digest deleted"}
 
+def generate_slug(length=8):
+    alphabet = string.ascii_lowercase + string.digits
+    return ''.join(secrets.choice(alphabet) for i in range(length))
+
+@router.post("/outlets/digests/{digest_id}/share")
+async def share_digest(digest_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Enable sharing for a digest and return its public slug."""
+    stmt = select(NewsDigest).where(NewsDigest.id == digest_id, NewsDigest.user_id == current_user.id)
+    result = await db.execute(stmt)
+    digest = result.scalars().first()
+    
+    if not digest:
+        raise HTTPException(status_code=404, detail="Digest not found")
+    
+    if not digest.public_slug:
+        # Generate unique slug
+        while True:
+            slug = generate_slug()
+            stmt_slug = select(NewsDigest).where(NewsDigest.public_slug == slug)
+            res_slug = await db.execute(stmt_slug)
+            exists = res_slug.scalars().first()
+            if not exists:
+                digest.public_slug = slug
+                break
+    
+    digest.is_public = True
+    await db.commit()
+    await db.refresh(digest)
+    return {"slug": digest.public_slug, "is_public": True}
+
+@router.get("/digests/public/{slug}", response_model=DigestDetail)
+async def get_public_digest(slug: str, db: Session = Depends(get_db)):
+    """Get a public digest by slug (No Auth required)."""
+    stmt = select(NewsDigest).where(NewsDigest.public_slug == slug, NewsDigest.is_public == True)
+    result = await db.execute(stmt)
+    digest = result.scalars().first()
+    
+    if not digest:
+        raise HTTPException(status_code=404, detail="Digest not found or private")
+    
+    # Helper to parse JSON fields safely
+    def safe_json(field):
+        import json
+        try: return json.loads(field) if field else []
+        except: return []
+
+    return DigestDetail(
+        id=digest.id,
+        title=digest.title,
+        category=digest.category,
+        city=digest.city,
+        summary_markdown=digest.summary_markdown,
+        articles=safe_json(digest.articles_json),
+        analysis_source=safe_json(digest.analysis_source),
+        analysis_digest=safe_json(digest.analysis_digest),
+        created_at=digest.created_at.isoformat()
+    )
+
 # --- AI RELEVANCE CHECK ---
 async def verify_relevance_with_ai(title: str, url: str, category: str, api_key: str) -> bool:
     """
@@ -1468,6 +1591,7 @@ class SummarizeRequest(BaseModel):
     articles: List[dict]
     category: str
     city: str
+    timeframe_label: Optional[str] = None
 
 @router.post("/outlets/digest/summarize")
 async def summarize_selected_articles(req: SummarizeRequest, current_user: User = Depends(get_current_user)):
@@ -1577,7 +1701,7 @@ async def summarize_selected_articles(req: SummarizeRequest, current_user: User 
         from datetime import date
         date_range_str = date.today().strftime("%d.%m.%Y")
         
-    report_title = f"# {req.city}: {req.category} Report ({date_range_str})"
+    report_title = f"# {req.city}: {req.category} Report ({req.timeframe_label or date_range_str})"
 
     if len(chunks) > 1:
         synthesis_prompt = f"""
@@ -1931,13 +2055,25 @@ async def generate_digest_stream(req: DigestRequest, current_user: User = Depend
         yield json.dumps({"type": "log", "message": "Ranking & Scoring Articles..."}) + "\n"
         
         # 0. Timeframe Calculation
+        # 0. Timeframe Calculation
         from datetime import datetime, timedelta
         now = datetime.now()
+        
+        # Primary Cutoff (Green vs Red Date)
         cutoff_date = now - timedelta(days=1) # Default 24h
+        
+        # Hard Cutoff (5x Timeframe) - Articles older than this are DISCARDED
+        hard_cutoff_date = now - timedelta(days=5) # 24h -> 5 days
+        
         if req.timeframe == "3days":
             cutoff_date = now - timedelta(days=3)
+            hard_cutoff_date = now - timedelta(days=14) # 3d -> 2 weeks
         elif req.timeframe == "1week":
             cutoff_date = now - timedelta(days=7)
+            hard_cutoff_date = now - timedelta(days=30) # 7d -> 1 month
+            
+        with open("stream_debug.log", "a") as f: 
+             f.write(f"DEBUG: Timeframe {req.timeframe}. Hard Cutoff: {hard_cutoff_date.date()}\n")
             
         yield json.dumps({"type": "log", "message": f"Timeframe: {req.timeframe} (Cutoff: {cutoff_date.date()})"}) + "\n"
 
@@ -2020,16 +2156,23 @@ async def generate_digest_stream(req: DigestRequest, current_user: User = Depend
              if any(term in title_lower for term in SUSPICIOUS_TERMS) or any(term in url_lower for term in SUSPICIOUS_TERMS):
                   topic_score -= 100
              
-             # Date Logic
+             # Date Logic (STRICT FILTER)
              date_score = 0
              is_within_timeframe = False
              
              if article.date_str:
                   try:
-                      d_obj = datetime.strptime(article.date_str, "%Y-%m-%d")
-                      if d_obj >= cutoff_date:
-                          date_score = 30
-                          is_within_timeframe = True
+                       # STRICT LIFESPAN CHECK: Discard if older than Hard Cutoff
+                       d_obj = datetime.strptime(article.date_str, "%Y-%m-%d")
+                       
+                       if d_obj < hard_cutoff_date:
+                           # Article is too old for this digest scope
+                           continue
+
+                       # Standard Green/Red Scoring
+                       if d_obj >= cutoff_date:
+                           date_score = 30
+                           is_within_timeframe = True
                   except: pass
             
              total_score = topic_score 

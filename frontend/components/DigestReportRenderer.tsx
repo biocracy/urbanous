@@ -4,31 +4,52 @@ import React, { useState, useMemo } from 'react';
 import { Article, DigestReportRendererProps } from './digest/types';
 import { OutletGroup } from './digest/OutletGroup';
 
-export default function DigestReportRenderer({ articles, category, isTranslated = false, selectedUrls, onToggle, onAssess, onDebug }: DigestReportRendererProps) {
+export default function DigestReportRenderer({ articles, category, isTranslated = false, selectedUrls, onToggle, onAssess, onDebug, excludedArticles }: DigestReportRendererProps) {
     const [displayCount, setDisplayCount] = useState(20);
 
     // Group Articles by Outlet
     const groupedArticles = useMemo(() => {
-        const groups: { [key: string]: Article[] } = {};
+        const groups: { [key: string]: { active: Article[], excluded: Article[] } } = {};
+
         articles.forEach(art => {
-            if (!groups[art.source]) groups[art.source] = [];
-            groups[art.source].push(art);
+            if (!groups[art.source]) groups[art.source] = { active: [], excluded: [] };
+            groups[art.source].active.push(art);
         });
+
+        if (excludedArticles) {
+            excludedArticles.forEach(art => {
+                if (!groups[art.source]) groups[art.source] = { active: [], excluded: [] };
+                groups[art.source].excluded.push(art);
+            });
+        }
 
         // Convert to array and sort outlets by highest score (max relevance in group)
         return Object.entries(groups)
-            .map(([source, arts]) => ({
-                source,
-                articles: arts.sort((a, b) => {
+            .map(([source, data]) => {
+                const sortFn = (a: Article, b: Article) => {
                     const d1 = a.date_str || "1970-01-01";
                     const d2 = b.date_str || "1970-01-01";
                     if (d1 !== d2) return d2.localeCompare(d1); // Newest date first
                     return b.relevance_score - a.relevance_score; // Tiebreaker
-                }),
-                maxScore: Math.max(...arts.map(a => a.relevance_score))
-            }))
+                };
+
+                const activeSorted = data.active.sort(sortFn);
+                const excludedSorted = data.excluded.sort(sortFn);
+
+                // Calculate max score for sorting the OUTLET order
+                // We consider both active and excluded, so the outlet stays relevant even if items are unchecked.
+                const maxActive = activeSorted.length > 0 ? Math.max(...activeSorted.map(a => a.relevance_score)) : 0;
+                const maxExcluded = excludedSorted.length > 0 ? Math.max(...excludedSorted.map(a => a.relevance_score)) : 0;
+
+                return {
+                    source,
+                    articles: activeSorted,
+                    excludedArticles: excludedSorted, // Pass to child
+                    maxScore: Math.max(maxActive, maxExcluded)
+                };
+            })
             .sort((a, b) => b.maxScore - a.maxScore);
-    }, [articles]);
+    }, [articles, excludedArticles]);
 
     const visibleGroups = groupedArticles.slice(0, displayCount);
 
@@ -47,6 +68,7 @@ export default function DigestReportRenderer({ articles, category, isTranslated 
                     onToggle={onToggle}
                     onAssess={onAssess}
                     onDebug={onDebug}
+                    excludedArticles={group.excludedArticles}
                 />
             ))}
 
