@@ -750,6 +750,9 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                             } else {
                                 currentDigestState.articles = [...msg.articles];
                             }
+
+                            // Show modal immediately when data starts arriving (Incremental UX)
+                            setShowDigestModal(true);
                             currentDigestState.category = msg.category;
 
                             const now = Date.now();
@@ -1737,8 +1740,6 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                                 try {
                                     const assessment = await handleAssessArticle({ url: artUrl, title: freshTitle });
                                     if (assessment) {
-                                        // Show modal immediately when data starts arriving (Incremental UX)
-                                        setShowDigestModal(true);
                                         setDigestData((prev: any) => {
                                             if (!prev?.articles) return prev;
                                             const newArts = prev.articles.map((a: any) => {
