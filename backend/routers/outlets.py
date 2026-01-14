@@ -1947,11 +1947,46 @@ async def generate_digest_stream(req: DigestRequest, current_user: User = Depend
                          # Pass queue_logger which is Awaitable (not a generator)
                          # Pass current_user.gemini_api_key for AI Navigation
                          res = await smart_scrape_outlet(outlet, req.category, req.timeframe, log_bus=queue_logger, api_key=current_user.gemini_api_key, scraper_rule_config=rule_config)
-                         
+                                                 
                          if res.get("articles"):
+                              new_arts = res["articles"]
+                              
+                              # INCREMENTAL AI VERIFICATION (Fixes Timeout Issue)
+                              if req.category == "Politics" and current_user.gemini_api_key:
+                                   await stream_queue.put({"type": "log", "message": f"🤖 AI Verifying {len(new_arts)} items from {outlet.name}..."})
+                                   
+                                   # Create title map for batch verification
+                                   # We use a temp ID 0..N for mapping back
+                                   titles_map = {i: a.title for i, a in enumerate(new_arts)}
+                                   
+                                   try:
+                                        # Call the debug function we fixed earlier
+                                        verdicts, err_msg, raw_ai_log = await batch_verify_titles_debug(
+                                             titles_map, 
+                                             POLITICS_OPERATIONAL_DEFINITION, # Ensure this is available in scope
+                                             current_user.gemini_api_key
+                                        )
+                                        
+                                        # Log Raw AI output to stream for debugging
+                                        if raw_ai_log:
+                                             short_log = raw_ai_log.replace('\n', ' ')[:200]
+                                             await stream_queue.put({"type": "log", "message": f"🤖 AI RAW: {short_log}..."})
+
+                                        # Apply Verdicts
+                                        for i, art in enumerate(new_arts):
+                                             k = str(i) # keys returned as strings
+                                             if k in verdicts:
+                                                  v = verdicts[k]
+                                                  is_verified = v.get("verdict", False)
+                                                  art.ai_verdict = "VERIFIED" if is_verified else "REJECTED"
+                                                  if v.get("translated"):
+                                                       art.title_translated = v.get("translated")
+                                   except Exception as e:
+                                        await stream_queue.put({"type": "log", "message": f"⚠️ AI Check Error: {e}"})
+
                               # INCREMENTAL SEND
-                              await stream_queue.put({"type": "data", "articles": res["articles"]})
-                              await stream_queue.put({"type": "log", "message": f"Found {len(res['articles'])} articles from {outlet.name}"})
+                              await stream_queue.put({"type": "data", "articles": new_arts})
+                              await stream_queue.put({"type": "log", "message": f"Found {len(new_arts)} articles from {outlet.name}"})
                          
                          if res.get("timeline_events"):
                               await stream_queue.put({"type": "timeline", "source": outlet.name, "events": res["timeline_events"]})
@@ -1980,7 +2015,7 @@ async def generate_digest_stream(req: DigestRequest, current_user: User = Depend
         all_timeline_events = {} # Map[Source, Events]
         
         # Consumer Loop
-        yield json.dumps({"type": "log", "message": "🔵 STREAM CONNECTED (v0.106)"}) + "\n"
+        yield json.dumps({"type": "log", "message": "🔵 STREAM CONNECTED (v0.107 - INCREMENTAL AI)"}) + "\n"
         while True:
             item = await stream_queue.get()
             if item is None:
