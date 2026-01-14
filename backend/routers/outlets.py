@@ -2074,7 +2074,13 @@ async def generate_digest_stream(req: DigestRequest, current_user: User = Depend
         }) + "\n"
         
         while True:
-            item = await stream_queue.get()
+            try:
+                # Keep-alive: If no data for 20s (e.g. valid long processing), send a ping
+                item = await asyncio.wait_for(stream_queue.get(), timeout=20.0)
+            except asyncio.TimeoutError:
+                yield json.dumps({"type": "ping"}) + "\n"
+                continue
+
             if item is None:
                 break
             
