@@ -1401,7 +1401,8 @@ async def save_digest(
         print(f"CRITICAL: Save Digest failed: {e}")
         import traceback
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Failed to save digest: {str(e)}")
+        # EXPOSE ERROR DETAILS TO FRONTEND
+        raise HTTPException(status_code=500, detail=f"SAVE ERROR: {str(e)} Type: {type(e).__name__}")
 
 @router.put("/digests/{digest_id}", response_model=DigestRead)
 async def update_digest(
@@ -1679,11 +1680,18 @@ async def summarize_selected_articles(req: SummarizeRequest, current_user: User 
         
         try:
             response = await model.generate_content_async(prompt)
-            # Add a header for the chunk
-            return f"\n### Analysis of Sources {start_idx}-{end_idx}\n{response.text}"
+            # Handle triggered safety filters (returns empty text)
+            try:
+                return f"\n### Analysis of Sources {start_idx}-{end_idx}\n{response.text}"
+            except ValueError: 
+                # e.g. "The candidate content is empty"
+                print(f"Chunk {chunk_idx} blocked by safety filters.")
+                return f"\n### Analysis of Sources {start_idx}-{end_idx}\n(Analysis Redacted: Content flagged by Safety Filters)"
         except Exception as e:
             print(f"Chunk {chunk_idx} error: {e}")
-            return f"\n### Analysis of Sources {start_idx}-{end_idx}\n(Data processing error for this section)"
+            import traceback
+            traceback.print_exc()
+            return f"\n### Analysis of Sources {start_idx}-{end_idx}\n(Processing Error: {str(e)})"
 
     # Run chunks in parallel
     tasks = [process_chunk(i, c) for i, c in enumerate(chunks)]
