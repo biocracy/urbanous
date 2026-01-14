@@ -2419,8 +2419,116 @@ async def generate_digest_stream(req: DigestRequest, current_user: User = Depend
                         """
                     return rows
 
-                # Outlet Header
                 table_html += f"""
+                <div style="margin-top: 32px; margin-bottom: 16px; border-bottom: 1px solid #334155; padding-bottom: 8px;">
+                    <h3 style="margin: 0; font-size: 1.4rem; color: #f8fafc;">
+                        <a href="{outlet.url}" target="_blank" style="color: #60a5fa; text-decoration: none; font-weight: bold;">{outlet.name}</a>
+                        <span style="color: #94a3b8; font-size: 1rem; font-weight: normal; margin-left: 10px;">({outlet.city})</span>
+                        <span class="scraper-debug-trigger" data-url="{outlet.url}" style="cursor: pointer; font-size: 0.8em; margin-left: 8px; vertical-align: middle; opacity: 0.5;" title="Debug Scraper Rules">🔧</span>
+                    </h3>
+                </div>
+                """
+                    
+                # Table Header
+                table_html += """
+                <table style="width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.95rem; margin-bottom: 24px; border: 1px solid #334155; border-radius: 6px; overflow: hidden;">
+                    <thead style="background-color: #1e293b; color: #e2e8f0;">
+                        <tr>
+                            <th style="padding: 12px 16px; text-align: left; font-weight: 600; border-bottom: 1px solid #334155;">Assess</th>
+                            <th style="padding: 12px 16px; text-align: center; font-weight: 600; border-bottom: 1px solid #334155;">AI Check</th>
+                            <th style="padding: 12px 16px; text-align: center; font-weight: 600; border-bottom: 1px solid #334155;">Date</th>
+                            <th style="padding: 12px 16px; text-align: center; font-weight: 600; border-bottom: 1px solid #334155;">Topic</th>
+                            <th style="padding: 12px 16px; text-align: left; font-weight: 600; border-bottom: 1px solid #334155;">Article</th>
+                        </tr>
+                    </thead>
+                    <tbody style="background-color: #0f172a;">
+                """
+
+                # 1. Render Fresh Articles (Main Body)
+                table_html += render_article_rows(fresh_articles)
+                table_html += "</tbody>"
+
+                # 2. Render Stale Articles (Collapsible)
+                if stale_articles:
+                    table_html += f"""
+                    <tbody style="border-top: 2px solid #334155;">
+                        <tr>
+                            <td colspan="5" style="padding: 0;">
+                                <details style="background-color: #0f172a;">
+                                    <summary style="padding: 12px 16px; cursor: pointer; color: #94a3b8; font-size: 0.85rem; font-weight: 600; user-select: none; background-color: #1e293b; border-bottom: 1px solid #334155;">
+                                        🔻 Show {len(stale_articles)} Older / Undated Articles
+                                    </summary>
+                                    <table style="width: 100%; border-collapse: separate; border-spacing: 0;">
+                                        {render_article_rows(stale_articles)}
+                                    </table>
+                                </details>
+                            </td>
+                        </tr>
+                    </tbody>
+                    """
+                
+                table_html += "</table>"
+                    
+                
+            table_html += "</tbody></table>"
+            
+            try:
+                with open("stream_debug.log", "a") as logf:
+                    logf.write(f"\n--- NEW STREAM START ---\n")
+                    
+                    # Send Partial Updates (Split Payload)
+                    yield json.dumps({"type": "log", "message": "Sending Digest components..."}) + "\n"
+                    logf.write("DEBUG: Sending Partial Digest HTML...\n")
+                    
+                    # 1. HTML Content
+                    html_size_mb = len(table_html) / 1024 / 1024
+                    yield json.dumps({"type": "log", "message": f"📦 Generating HTML Digest ({html_size_mb:.2f} MB)..."}) + "\n"
+                    logf.write(f"DEBUG: Sending Partial Digest HTML ({html_size_mb:.2f} MB)...\n")
+                    
+                    if html_size_mb > 15:
+                         yield json.dumps({"type": "log", "message": "⚠️ Warning: Digest is very large, browser may lag."}) + "\n"
+
+                    yield json.dumps({"type": "partial_digest", "html": table_html}, default=str) + "\n"
+                    
+                    # 2. Analysis Data
+                    logf.write("DEBUG: Sending Partial Analysis...\n")
+                    yield json.dumps({"type": "partial_analysis", "source": [k.dict() for k in (analysis_source or [])]}, default=str) + "\n"
+
+                    # 3. Articles (Chunked)
+                    article_chunk_size = 50
+                    total_articles = len(filtered_articles)
+                    logf.write(f"DEBUG: Sending {total_articles} articles in chunks of {article_chunk_size}...\n")
+                    
+                    for i in range(0, total_articles, article_chunk_size):
+                         chunk = filtered_articles[i:i+article_chunk_size]
+                         logf.write(f"DEBUG: Sending Article Chunk {i//article_chunk_size + 1}...\n")
+                         yield json.dumps({
+                             "type": "partial_articles", 
+                             "articles": [a.dict() for a in chunk], 
+                             "category": req.category
+                         }, default=str) + "\n"
+                         
+                         await asyncio.sleep(0.01)
+
+                    # 4. Completion Signal
+                    logf.write("DEBUG: Sending DONE signal...\n")
+                    yield json.dumps({"type": "done"}) + "\n"
+                    logf.write("DEBUG: Stream Finished Successfully.\n")
+                
+            except Exception as e:
+                # Inner Exception (Stream Error)
+                with open("stream_debug.log", "a") as logf:
+                    logf.write(f"CRITICAL STREAM ERROR: {e}\n")
+                    import traceback
+                    traceback.print_exc(file=logf)
+                
+                print(f"CRITICAL STREAM ERROR: {e}")
+                yield json.dumps({"type": "error", "message": f"Server Stream Error: {str(e)}"}) + "\n"
+        
+        except Exception as e:
+            # Outer Exception (Post-Processing Crash)
+            print(f"DEBUG: Post-Processing Crash: {e}")
+            import traceback
             traceback.print_exc()
             
             # Send error to frontend so it stops waiting
@@ -2430,15 +2538,6 @@ async def generate_digest_stream(req: DigestRequest, current_user: User = Depend
             # If we crashed but sent partial articles, send DONE to render what we have
             if len(all_articles) > 0:
                  yield json.dumps({"type": "done"}) + "\n"
-            
-        except Exception as e:
-            with open("stream_debug.log", "a") as logf:
-                logf.write(f"CRITICAL STREAM ERROR: {e}\n")
-                import traceback
-                traceback.print_exc(file=logf)
-            
-            print(f"CRITICAL STREAM ERROR: {e}")
-            yield json.dumps({"type": "error", "message": f"Server Stream Error: {str(e)}"}) + "\n"
 
     # yield json.dumps({"type": "log", "message": "Processing..."}) + "\n" # OLD PLACEHOLDER
     
