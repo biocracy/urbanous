@@ -587,13 +587,13 @@ async def batch_verify_titles_debug(titles_map: Dict[int, str], definition: str,
     
     try:
         # Try multiple models in order of preference to ensure compatibility
+        # Based on Debug Logs (Lib 0.8.6), these are the available models:
         candidate_models = [
-            "gemini-1.5-flash", 
-            "gemini-1.5-flash-001", 
-            "gemini-1.5-flash-latest",
-            "gemini-1.5-pro",
-            "gemini-pro", 
-            "gemini-1.0-pro"
+            "gemini-2.0-flash", 
+            "gemini-flash-latest",
+            "gemini-2.0-flash-lite-preview-02-05", 
+            "gemini-pro-latest",
+            "gemini-1.5-flash-latest" # Keep as backup
         ]
         
         # Log Library Version
@@ -2064,7 +2064,7 @@ async def generate_digest_stream(req: DigestRequest, current_user: User = Depend
         all_timeline_events = {} # Map[Source, Events]
         
         # Consumer Loop
-        yield json.dumps({"type": "log", "message": "🔵 STREAM CONNECTED (v0.110 - MODEL DISCOVERY)"}) + "\n"
+        yield json.dumps({"type": "log", "message": "🔵 STREAM CONNECTED (v0.111 - GEMINI 2.0)"}) + "\n"
         while True:
             item = await stream_queue.get()
             if item is None:
