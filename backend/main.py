@@ -47,4 +47,4 @@ app.include_router(feedback.router, tags=["Feedback System"])
 
 @app.get("/")
 def read_root():
-    return {"message": "Welcome to Urbanous API"}
+    return {"message": "Welcome to Urbanous API", "version": "v0.106"}
