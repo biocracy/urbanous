@@ -2760,7 +2760,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                                 <>
                                     {isDiscovering && <div className="text-center text-blue-400 mb-4 animate-pulse">Discovering landscape...</div>}
 
-                                    {!digestData && !isDiscovering && (
+                                    {(!digestData || isGeneratingDigest) && !isDiscovering && (
                                         <div className="space-y-2">
                                             {/* Filters & Header */}
                                             <div className="flex items-center justify-between gap-4 mb-4">
@@ -3159,7 +3159,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
             {/* Version Indicator */}
             <div className="absolute bottom-2 right-2 z-[100] text-[10px] text-white/30 font-mono hover:text-white/80 cursor-default select-none transition-colors">
-                v0.104
+                v0.106
             </div>
 
         </div >

@@ -1980,6 +1980,7 @@ async def generate_digest_stream(req: DigestRequest, current_user: User = Depend
         all_timeline_events = {} # Map[Source, Events]
         
         # Consumer Loop
+        yield json.dumps({"type": "log", "message": "🔵 STREAM CONNECTED (v0.106)"}) + "\n"
         while True:
             item = await stream_queue.get()
             if item is None:
