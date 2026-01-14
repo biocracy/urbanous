@@ -2064,7 +2064,15 @@ async def generate_digest_stream(req: DigestRequest, current_user: User = Depend
         all_timeline_events = {} # Map[Source, Events]
         
         # Consumer Loop
-        yield json.dumps({"type": "log", "message": "🔵 STREAM CONNECTED (v0.112 - FIELD FIX)"}) + "\n"
+        yield json.dumps({"type": "log", "message": "🔵 STREAM CONNECTED (v0.113 - DATE FIX)"}) + "\n"
+        
+        # SEND EXPECTED METADATA (Fixes "Unknown" User)
+        yield json.dumps({
+            "type": "meta",
+            "owner_id": current_user.id,
+            "owner_username": current_user.username
+        }) + "\n"
+        
         while True:
             item = await stream_queue.get()
             if item is None:
@@ -2081,6 +2089,32 @@ async def generate_digest_stream(req: DigestRequest, current_user: User = Depend
                 
                 # IMMEDIATE PARTIAL YIELD per user request for incremental updates
                 try:
+                     # CALCULATE FRESHNESS LOCALLY FOR INCREMENTAL UPDATE (Fixes Red Dates)
+                     # We must replicate the cutoff logic here because the final loop hasn't run yet.
+                     from datetime import datetime, timedelta
+                     now = datetime.now()
+                     cutoff_date = now - timedelta(days=1)
+                     if req.timeframe == "3days": cutoff_date = now - timedelta(days=3)
+                     elif req.timeframe == "1week": cutoff_date = now - timedelta(days=7)
+                     elif req.timeframe == "1month": cutoff_date = now - timedelta(days=30)
+                     
+                     for art in new_articles:
+                         if art.date_str:
+                             try:
+                                 d_obj = datetime.strptime(art.date_str, "%Y-%m-%d")
+                                 is_fresh = d_obj >= cutoff_date
+                                 
+                                 # Ensure scores dict exists
+                                 if not art.scores: art.scores = {}
+                                 
+                                 art.scores["is_fresh"] = is_fresh
+                                 art.scores["date"] = 30 if is_fresh else 0
+                                 
+                                 if is_fresh and "is_fresh" not in art.scores:
+                                      # Force update if missing
+                                      art.scores["is_fresh"] = True
+                             except: pass
+
                      # Convert Pydantic models to dicts for JSON serialization
                      serializable_new = [a.dict() for a in new_articles]
                      yield json.dumps({
