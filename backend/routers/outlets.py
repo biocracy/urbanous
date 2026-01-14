@@ -585,6 +585,7 @@ async def batch_verify_titles_debug(titles_map: Dict[int, str], definition: str,
     STRICTLY RETURN JSON ONLY.
     """
     
+    try:
         # Try multiple models in order of preference to ensure compatibility
         candidate_models = ["gemini-1.5-flash", "gemini-1.5-flash-001", "gemini-1.5-flash-002", "gemini-pro"]
         
