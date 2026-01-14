@@ -1344,6 +1344,8 @@ class DigestRead(DigestCreate):
     created_at: datetime
     is_public: bool = False
     public_slug: Optional[str] = None
+    owner_id: int
+    owner_username: Optional[str] = None
     
     class Config:
         from_attributes = True
@@ -1389,7 +1391,9 @@ async def save_digest(
         analysis_source=json.loads(db_digest.analysis_source) if db_digest.analysis_source else [],
         created_at=db_digest.created_at,
         is_public=db_digest.is_public,
-        public_slug=db_digest.public_slug
+        public_slug=db_digest.public_slug,
+        owner_id=db_digest.user_id,
+        owner_username=current_user.username
     )
 
 @router.put("/digests/{digest_id}", response_model=DigestRead)
@@ -1439,7 +1443,9 @@ async def update_digest(
         analysis_source=json.loads(db_digest.analysis_source) if db_digest.analysis_source else [],
         created_at=db_digest.created_at,
         is_public=db_digest.is_public,
-        public_slug=db_digest.public_slug
+        public_slug=db_digest.public_slug,
+        owner_id=db_digest.user_id,
+        owner_username=current_user.username
     )
 
 @router.get("/digests", response_model=List[DigestRead])
@@ -1465,8 +1471,13 @@ async def list_digests(
             articles=json.loads(d.articles_json) if d.articles_json else [],
             selected_article_urls=json.loads(d.selected_article_urls) if d.selected_article_urls else None,
             analysis_source=json.loads(d.analysis_source) if d.analysis_source else [],
-            created_at=d.created_at
-        ) for d in digests
+            created_at=d.created_at,
+            is_public=d.is_public,
+            public_slug=d.public_slug,
+            owner_id=d.user_id,
+            owner_username=d.user.username if d.user else "Unknown"
+        )
+        for d in digests
     ]
 
 @router.delete("/digests/{digest_id}")
