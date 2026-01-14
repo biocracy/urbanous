@@ -586,7 +586,8 @@ async def batch_verify_titles_debug(titles_map: Dict[int, str], definition: str,
     """
     
     try:
-        model = genai.GenerativeModel('gemini-2.0-flash')
+        # Switch to stable 1.5 flash if 2.0 is causing issues
+        model = genai.GenerativeModel('gemini-1.5-flash')
         response = await model.generate_content_async(prompt)
         text = response.text.replace("```json", "").replace("```", "").strip()
         
@@ -2189,6 +2190,10 @@ async def generate_digest_stream(req: DigestRequest, current_user: User = Depend
             # 3. Filter out rejections OR Penalize
             
             candidates_to_verify = unique_articles # For now verify all that passed basic filters
+        
+            # LOG API KEY STATUS
+            has_key = bool(current_user.gemini_api_key)
+            yield json.dumps({"type": "log", "message": f"🔍 AI Check Prepared: {len(candidates_to_verify)} candidates. API Key Present: {has_key}"}) + "\n"
             
             if candidates_to_verify and current_user.gemini_api_key:
                  yield json.dumps({"type": "log", "message": f"🤖 AI Pre-Filtering {len(candidates_to_verify)} titles..."}) + "\n"
