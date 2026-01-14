@@ -762,6 +762,19 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                             // Show modal implicitly by having digestData populated
                             currentDigestState.category = msg.category;
 
+                            // AUTO-SELECT LOGIC (Incremental)
+                            msg.articles.forEach((a: any) => {
+                                const s = a.scores || {};
+                                // Use backend provided freshness
+                                const isFresh = s.is_fresh === true;
+                                const isVerified = a.ai_verdict === "VERIFIED";
+                                if (isFresh && isVerified) {
+                                    localSelectedIds.add(a.url);
+                                }
+                            });
+                            // Update UI Selection State dynamically
+                            setSelectedArticleUrls(new Set(localSelectedIds));
+
                             const now = Date.now();
                             if (now - lastDataUpdate > 200) {
                                 setDigestData({ ...currentDigestState });
@@ -3168,7 +3181,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
             {/* Version Indicator */}
             <div className="absolute bottom-2 right-2 z-[100] text-[10px] text-white/30 font-mono hover:text-white/80 cursor-default select-none transition-colors">
-                v0.114
+                v0.115
             </div>
 
         </div >
