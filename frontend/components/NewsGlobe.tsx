@@ -661,6 +661,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
         setErrorMessage(null);
         setDigestData(null);
         setSelectedArticleUrls(new Set());
+        const localSelectedIds = new Set<string>(); // Accumulate auto-selections locally
         setDigestSummary("");
         setProgressLog('Connecting to stream...');
 
@@ -777,23 +778,17 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                                 lastDataUpdate = now;
                             }
                         }
+                        else if (msg.type === 'ping') {
+                            // Keep-alive, do nothing
+                            // console.log("Ping received");
+                        }
                         else if (msg.type === 'done') {
                             console.log("DIGEST_DEBUG: Stream 'done' message received. Finalizing.");
                             // Final Update
                             setDigestData({ ...currentDigestState });
 
-                            // Auto-Select Fresh & Verified
-                            const autoSelected = new Set<string>(
-                                currentDigestState.articles
-                                    .filter((a: any) => {
-                                        const s = a.scores || {};
-                                        const isFresh = s.is_fresh || (a.relevance_score > 0 && s.date > 0);
-                                        const isVerified = a.ai_verdict === "VERIFIED";
-                                        return isFresh && isVerified;
-                                    })
-                                    .map((a: any) => a.url)
-                            );
-                            setSelectedArticleUrls(autoSelected);
+                            // Final Sync of Selection State
+                            setSelectedArticleUrls(new Set(localSelectedIds));
 
                             setActiveModalTab('articles');
                             setShowOutletPanel(true);
@@ -2256,13 +2251,18 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                                                 <div className="flex gap-2">
                                                     <button
                                                         onClick={handleGenerateBackendSummary}
-                                                        disabled={isSummarizing || selectedArticleUrls.size === 0}
+                                                        disabled={isSummarizing || isGeneratingDigest || selectedArticleUrls.size === 0}
                                                         className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded text-xs transition-all disabled:opacity-50 flex items-center gap-2 min-w-[180px] justify-center"
                                                     >
                                                         {isSummarizing ? (
                                                             <>
                                                                 <Loader2 className="animate-spin shrink-0" size={14} />
                                                                 <span className="truncate max-w-[200px]">{analyzingTickerText || "Analyzing..."}</span>
+                                                            </>
+                                                        ) : isGeneratingDigest ? (
+                                                            <>
+                                                                <Loader2 className="animate-spin shrink-0" size={14} />
+                                                                <span className="truncate">Gathering Articles...</span>
                                                             </>
                                                         ) : "Summarize Selection"}
                                                     </button>
@@ -3168,7 +3168,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
             {/* Version Indicator */}
             <div className="absolute bottom-2 right-2 z-[100] text-[10px] text-white/30 font-mono hover:text-white/80 cursor-default select-none transition-colors">
-                v0.113
+                v0.114
             </div>
 
         </div >
