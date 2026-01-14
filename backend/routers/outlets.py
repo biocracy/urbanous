@@ -2022,503 +2022,405 @@ async def generate_digest_stream(req: DigestRequest, current_user: User = Depend
             except Exception as e:
                  print(f"Master Timeline Error: {e}")
         
-        await task # Ensure clean exit check
+            await task # Ensure clean exit check
 
-        # ... (Rest of logic: Scoring, Rescue, AI)
-        
-        # COPY OF THE DIGEST LOGIC (REFACTORED)
-        
-        yield json.dumps({"type": "log", "message": "Ranking & Scoring Articles..."}) + "\n"
-        
-        # 0. Timeframe Calculation
-        # 0. Timeframe Calculation
-        from datetime import datetime, timedelta
-        now = datetime.now()
-        
-        # Primary Cutoff (Green vs Red Date)
-        cutoff_date = now - timedelta(days=1) # Default 24h
-        
-        # Hard Cutoff (5x Timeframe) - Articles older than this are DISCARDED
-        hard_cutoff_date = now - timedelta(days=5) # 24h -> 5 days
-        
-        if req.timeframe == "3days":
-            cutoff_date = now - timedelta(days=3)
-            hard_cutoff_date = now - timedelta(days=14) # 3d -> 2 weeks
-        elif req.timeframe == "1week":
-            cutoff_date = now - timedelta(days=7)
-            hard_cutoff_date = now - timedelta(days=30) # 7d -> 1 month
+            # ... (Rest of logic: Scoring, Rescue, AI)
             
-        with open("stream_debug.log", "a") as f: 
-             f.write(f"DEBUG: Timeframe {req.timeframe}. Hard Cutoff: {hard_cutoff_date.date()}\n")
+            # COPY OF THE DIGEST LOGIC (REFACTORED)
             
-        yield json.dumps({"type": "log", "message": f"Timeframe: {req.timeframe} (Cutoff: {cutoff_date.date()})"}) + "\n"
-
-        candidates_for_ai = []
-        filtered_articles = [] # Final list
-        analysis_source = [] # We skip detailed keyword analysis for stream to save time/quota
-
-        total_scraped = len(all_articles)
-        yield json.dumps({"type": "log", "message": f"Scoring {total_scraped} raw articles..."}) + "\n"
-        
-        # Helper lists
-        BLOCKED_DOMAINS = ["google.com", "apple.com", "youronlinechoices", "facebook.com", "twitter.com", "instagram.com", "tiktok.com", "youtube.com"]
-        SUSPICIOUS_TERMS = [
-            "recipe", "retet", "receta", "recette", "rezept", "ricett", "mancare", "food", "kitchen", "bucatarie", "essen", "cucina",
-            "horoscop", "horoscope", "horoskop", "zodiac", "zodiaque", "astrology",
-            "can-can", "cancan", "paparazzi", "gossip", "tabloid", "klatsch", "potins", "cookie", "gdpr", "privacy", "termeni", "conditii"
-        ]
-        NOISE_TERMS = [
-            "apa calda", "apa rece", "intrerupere", "avarie", "curent", "electricitate",
-            "trafic", "restrictii", "accident", "incendiu", "minor", "program",
-            "meteo", "vremea", "prognoza", "cod galben", "cod portocaliu"
-        ]
-
-        # DEDUPLICATION SETS
-        seen_urls = set()
-        seen_titles = set()
-        unique_articles = []
-        
-        for article in all_articles:
-             # URL Normalization for Dedupe
-             norm_url = article.url.split("?")[0].rstrip("/")
-             if norm_url in seen_urls: continue
-             
-             # Title Dedupe (Simple lowercasing)
-             norm_title = article.title.lower().strip()
-             if norm_title in seen_titles: continue
-             
-             seen_urls.add(norm_url)
-             seen_titles.add(norm_title)
-             
-             # SPAM BLOCK
-             if any(d in article.url for d in BLOCKED_DOMAINS): continue
-             # CATEGORY BLOCK
-             if "/category/" in article.url or "/page/" in article.url or "/tag/" in article.url or "/eticheta/" in article.url or "/author/" in article.url or "/autor/" in article.url: continue
+            yield json.dumps({"type": "log", "message": "Ranking & Scoring Articles..."}) + "\n"
             
-             # Find Source Outlet for strict filtering
-             source_outlet = next((o for o in outlets if o.name == article.source), None)
-             if source_outlet and "#" in article.url and article.url.split("#")[0] == source_outlet.url: continue
+            # 0. Timeframe Calculation
+            # 0. Timeframe Calculation
+            from datetime import datetime, timedelta
+            now = datetime.now()
+            
+            # Primary Cutoff (Green vs Red Date)
+            cutoff_date = now - timedelta(days=1) # Default 24h
+            
+            # Hard Cutoff (5x Timeframe) - Articles older than this are DISCARDED
+            hard_cutoff_date = now - timedelta(days=5) # 24h -> 5 days
+            
+            if req.timeframe == "3days":
+                cutoff_date = now - timedelta(days=3)
+                hard_cutoff_date = now - timedelta(days=14) # 3d -> 2 weeks
+            elif req.timeframe == "1week":
+                cutoff_date = now - timedelta(days=7)
+                hard_cutoff_date = now - timedelta(days=30) # 7d -> 1 month
+                
+            with open("stream_debug.log", "a") as f: 
+                 f.write(f"DEBUG: Timeframe {req.timeframe}. Hard Cutoff: {hard_cutoff_date.date()}\n")
+                
+            yield json.dumps({"type": "log", "message": f"Timeframe: {req.timeframe} (Cutoff: {cutoff_date.date()})"}) + "\n"
 
-             # SCORING
-             topic_score = 0
-             title_lower = article.title.lower()
-             url_lower = article.url.lower()
-             
-             # ... (reusing existing scoring logic) ...
-             # Simple heuristic for category matching
-             if req.category.lower() in title_lower or req.category.lower() in url_lower:
-                 topic_score += 30
+            candidates_for_ai = []
+            filtered_articles = [] # Final list
+            analysis_source = [] # We skip detailed keyword analysis for stream to save time/quota
+
+            total_scraped = len(all_articles)
+            yield json.dumps({"type": "log", "message": f"Scoring {total_scraped} raw articles..."}) + "\n"
+            
+            # Helper lists
+            BLOCKED_DOMAINS = ["google.com", "apple.com", "youronlinechoices", "facebook.com", "twitter.com", "instagram.com", "tiktok.com", "youtube.com"]
+            SUSPICIOUS_TERMS = [
+                "recipe", "retet", "receta", "recette", "rezept", "ricett", "mancare", "food", "kitchen", "bucatarie", "essen", "cucina",
+                "horoscop", "horoscope", "horoskop", "zodiac", "zodiaque", "astrology",
+                "can-can", "cancan", "paparazzi", "gossip", "tabloid", "klatsch", "potins", "cookie", "gdpr", "privacy", "termeni", "conditii"
+            ]
+            NOISE_TERMS = [
+                "apa calda", "apa rece", "intrerupere", "avarie", "curent", "electricitate",
+                "trafic", "restrictii", "accident", "incendiu", "minor", "program",
+                "meteo", "vremea", "prognoza", "cod galben", "cod portocaliu"
+            ]
+
+            # DEDUPLICATION SETS
+            seen_urls = set()
+            seen_titles = set()
+            unique_articles = []
+            
+            for article in all_articles:
+                 # URL Normalization for Dedupe
+                 norm_url = article.url.split("?")[0].rstrip("/")
+                 if norm_url in seen_urls: continue
                  
-             # Contextual URL Boost
-             cat_stem = req.category.lower()[:4] 
-             if f"/{cat_stem}" in url_lower:
-                  topic_score += 20
-                  
-             # Generic "Admin" boost
-             if req.category in ["Politics", "Admin"]:
-                 if any(k in title_lower for k in ["primar", "consiliu", "presedinte", "ministru", "guvern", "parlament"]):
-                     topic_score += 40
-                 elif any(k in title_lower for k in ["scandal", "acuzatii", "demisie", "alegeri"]):
-                     topic_score += 50
-                 elif "sibi" in title_lower:
-                     topic_score += 10
-             
-             # EXPLICIT PENALTIES
-             if req.category.lower() not in ["local", "general", "all"]:
-                  if any(n in title_lower for n in NOISE_TERMS):
-                      topic_score -= 50
+                 # Title Dedupe (Simple lowercasing)
+                 norm_title = article.title.lower().strip()
+                 if norm_title in seen_titles: continue
+                 
+                 seen_urls.add(norm_url)
+                 seen_titles.add(norm_title)
+                 
+                 # SPAM BLOCK
+                 if any(d in article.url for d in BLOCKED_DOMAINS): continue
+                 # CATEGORY BLOCK
+                 if "/category/" in article.url or "/page/" in article.url or "/tag/" in article.url or "/eticheta/" in article.url or "/author/" in article.url or "/autor/" in article.url: continue
+                
+                 # Find Source Outlet for strict filtering
+                 source_outlet = next((o for o in outlets if o.name == article.source), None)
+                 if source_outlet and "#" in article.url and article.url.split("#")[0] == source_outlet.url: continue
 
-             # Penalize Off-Topic
-             if any(term in title_lower for term in SUSPICIOUS_TERMS) or any(term in url_lower for term in SUSPICIOUS_TERMS):
-                  topic_score -= 100
-             
-             # Date Logic (STRICT FILTER)
-             date_score = 0
-             is_within_timeframe = False
-             
-             if article.date_str:
-                  try:
-                       # STRICT LIFESPAN CHECK: Discard if older than Hard Cutoff
-                       d_obj = datetime.strptime(article.date_str, "%Y-%m-%d")
-                       
-                       if d_obj < hard_cutoff_date:
-                           # Article is too old for this digest scope
-                           continue
+                 # SCORING
+                 topic_score = 0
+                 title_lower = article.title.lower()
+                 url_lower = article.url.lower()
+                 
+                 # ... (reusing existing scoring logic) ...
+                 # Simple heuristic for category matching
+                 if req.category.lower() in title_lower or req.category.lower() in url_lower:
+                     topic_score += 30
+                     
+                 # Contextual URL Boost
+                 cat_stem = req.category.lower()[:4] 
+                 if f"/{cat_stem}" in url_lower:
+                      topic_score += 20
+                      
+                 # Generic "Admin" boost
+                 if req.category in ["Politics", "Admin"]:
+                     if any(k in title_lower for k in ["primar", "consiliu", "presedinte", "ministru", "guvern", "parlament"]):
+                         topic_score += 40
+                     elif any(k in title_lower for k in ["scandal", "acuzatii", "demisie", "alegeri"]):
+                         topic_score += 50
+                     elif "sibi" in title_lower:
+                         topic_score += 10
+                 
+                 # EXPLICIT PENALTIES
+                 if req.category.lower() not in ["local", "general", "all"]:
+                      if any(n in title_lower for n in NOISE_TERMS):
+                          topic_score -= 50
 
-                       # Standard Green/Red Scoring
-                       if d_obj >= cutoff_date:
-                           date_score = 30
-                           is_within_timeframe = True
-                  except: pass
-            
-             total_score = topic_score 
-             
-             # Date Bonus/Penalty
-             if is_within_timeframe:
-                 date_score = 30
-                 total_score += date_score
-             elif article.date_str:
-                 # INVALID DATE (Old) -> Strict Rejection as requested
+                 # Penalize Off-Topic
+                 if any(term in title_lower for term in SUSPICIOUS_TERMS) or any(term in url_lower for term in SUSPICIOUS_TERMS):
+                      topic_score -= 100
+                 
+                 # Date Logic (STRICT FILTER)
                  date_score = 0
-                 total_score = 0 
-             else:
-                 # Undated -> Allow (maybe?) or Strict? 
-                 # User said "check the dates... mark ones outside with red".
-                 # Implies strictly checking KNOWN dates.
-                 # If date is unknown, we can't be sure it's outside.
-                 # Let's keep undated as "neutral" (0 bonus) but ALLOWED if topic is high to avoid empty report again.
-                 date_score = 0
-             
-             article.relevance_score = int(total_score)
-             # Inject Metadata for Frontend
-             article.scores = {
-                 "topic": topic_score, 
-                 "date": date_score, 
-                 "is_fresh": is_within_timeframe,
-                 "is_old": (article.date_str and not is_within_timeframe)
-             }
-             
-             # Filter thresholds (Keep permissive but transparent)
-             # User wants EVERYTHING in the table
-             unique_articles.append(article)
+                 is_within_timeframe = False
+                 
+                 if article.date_str:
+                      try:
+                           # STRICT LIFESPAN CHECK: Discard if older than Hard Cutoff
+                           d_obj = datetime.strptime(article.date_str, "%Y-%m-%d")
+                           
+                           if d_obj < hard_cutoff_date:
+                               # Article is too old for this digest scope
+                               continue
 
-        # AI TITLE PRE-FILTER
-        # Filter logic:
-        # 1. Take top candidates (e.g. all unique_articles which passed heuristic, or top N)
-        # 2. Batch verify titles
-        # 3. Filter out rejections OR Penalize
-        
-        candidates_to_verify = unique_articles # For now verify all that passed basic filters
-        
-        if candidates_to_verify and current_user.gemini_api_key:
-             yield json.dumps({"type": "log", "message": f"🤖 AI Pre-Filtering {len(candidates_to_verify)} titles..."}) + "\n"
-             
-             # Prepare batch (Assign IDs for stability)
-             titles_map = {i: art.title for i, art in enumerate(candidates_to_verify)}
-             
-             # Chunking (Gemini has limits, maybe 50 at a time)
-             chunk_size = 10 # Keep small for reliability
-             parallel_limit = 5 # Process 5 batches concurrently
-             verified_results = {}
-             
-             title_ids = list(titles_map.keys())
-             
-             # Pre-calculate all batches
-             all_batches = []
-             for i in range(0, len(title_ids), chunk_size):
-                 chunk_ids = title_ids[i:i+chunk_size]
-                 chunk_map = {k: titles_map[k] for k in chunk_ids}
-                 all_batches.append(chunk_map)
-            
-             total_batches = len(all_batches)
-             
-             # Process in Parallel Groups
-             for i in range(0, total_batches, parallel_limit):
-                 batch_group = all_batches[i:i+parallel_limit]
+                           # Standard Green/Red Scoring
+                           if d_obj >= cutoff_date:
+                               date_score = 30
+                               is_within_timeframe = True
+                      except: pass
+                
+                 total_score = topic_score 
                  
-                 # Prepare Tasks
-                 user_lang = current_user.preferred_language if current_user.preferred_language else "English"
-                 tasks = [
-                     batch_verify_titles_debug(b, POLITICS_OPERATIONAL_DEFINITION, current_user.gemini_api_key, user_lang)
-                     for b in batch_group
-                 ]
-                 
-                 # Process Results as they complete
-                 completed_in_group = 0
-                 for task in asyncio.as_completed(tasks):
-                     res, err = await task
-                     completed_in_group += 1
-                     
-                     if err:
-                          yield json.dumps({"type": "log", "message": f"⚠️ Batch AI Error: {err}"}) + "\n"
-                     else:
-                          verified_results.update(res)
-                     
-                     
-                     # Granular Heartbeat
-                     current_total = i + completed_in_group
-                     msg = f"Verified batches {current_total}/{total_batches} ({len(verified_results)} verified)..."
-                     yield json.dumps({"type": "log", "message": msg}) + "\n"
-                     
-                     try:
-                         with open("stream_debug.log", "a") as f: f.write(f"DEBUG: {msg}\n")
-                     except: pass
-             
-             with open("stream_debug.log", "a") as f: f.write("DEBUG: Exited AI loop normally.\n")
-             
-             # Apply verdicts & Translation
-             with open("stream_debug.log", "a") as f: f.write(f"DEBUG: Processing verdicts for {len(candidates_to_verify)} candidates...\n")
-             
-             for i, art in enumerate(candidates_to_verify):
-                 if i % 50 == 0:
-                      with open("stream_debug.log", "a") as f: f.write(f"DEBUG: Applied verdicts for {i} articles...\n")
-                 
-                 # Result keys are strings in JSON
-                 data = verified_results.get(str(i), verified_results.get(i))
-                 
-                 # Handle new Dict vs old Bool structure (Just in case)
-                 verdict = False
-                 translated = None
-                 
-                 if isinstance(data, bool):
-                     verdict = data
-                 elif isinstance(data, dict):
-                     verdict = data.get("verdict", False)
-                     translated = data.get("translated")
-                 
-                 # Store Translation
-                 if translated:
-                     art.translated_title = translated
-
-                 if verdict is True:
-                     # CONFIRMED POLITICS
-                     art.relevance_score += 20 # Bonus
-                     art.ai_verdict = "VERIFIED"
-                 elif verdict is False:
-                     # CONFIRMED NOT POLITICS
-                     art.relevance_score -= 10 # Penalty but keep
-                     art.ai_verdict = "REJECTED"
+                 # Date Bonus/Penalty
+                 if is_within_timeframe:
+                     date_score = 30
+                     total_score += date_score
+                 elif article.date_str:
+                     # INVALID DATE (Old) -> Strict Rejection as requested
+                     date_score = 0
+                     total_score = 0 
                  else:
-                     # Error/Missing
-                     art.ai_verdict = "UNKNOWN"
-        else:
-             yield json.dumps({"type": "log", "message": "⚠️ Skipping AI Filter (No API Key or No Candidates)"}) + "\n"
-        
-        # POST-TRANSLATION DEDUPLICATION
-        # Remove duplicates that became identical after translation
-        final_articles = []
-        seen_final_titles = set()
-        
-        for art in unique_articles:
-            # Use translated title for check if available
-            check_title = (art.translated_title or art.title).lower().strip()
-            # Remove basic punctuation for fuzzy match
-            import string
-            check_title = check_title.translate(str.maketrans('', '', string.punctuation))
-            
-            if check_title in seen_final_titles:
-                 continue
-            
-            seen_final_titles.add(check_title)
-            final_articles.append(art)
-            
-        filtered_articles = final_articles
-        
-        with open("stream_debug.log", "a") as f: f.write(f"DEBUG: AI Loop Done. Filtering {len(filtered_articles)} articles (Deduped from {len(unique_articles)}).\n")
+                     # Undated -> Allow (maybe?) or Strict? 
+                     # User said "check the dates... mark ones outside with red".
+                     # Implies strictly checking KNOWN dates.
+                     # If date is unknown, we can't be sure it's outside.
+                     # Let's keep undated as "neutral" (0 bonus) but ALLOWED if topic is high to avoid empty report again.
+                     date_score = 0
+                 
+                 article.relevance_score = int(total_score)
+                 # Inject Metadata for Frontend
+                 article.scores = {
+                     "topic": topic_score, 
+                     "date": date_score, 
+                     "is_fresh": is_within_timeframe,
+                     "is_old": (article.date_str and not is_within_timeframe)
+                 }
+                 
+                 # Filter thresholds (Keep permissive but transparent)
+                 # User wants EVERYTHING in the table
+                 unique_articles.append(article)
 
-        # FINAL COMPILE
-        yield json.dumps({"type": "log", "message": "Compiling HTML Digest..."}) + "\n"
-        with open("stream_debug.log", "a") as f: f.write("DEBUG: Starting Table Generation...\n")
-        
-        # Create HTML Table
-        
-        start_str = cutoff_date.strftime("%b %d")
-        end_str = now.strftime("%b %d")
-        period_label = f"{start_str} - {end_str}"
-        table_html = f"<h1 style='color: #e2e8f0; border-bottom: 2px solid #3b82f6; padding-bottom: 10px; margin-bottom: 20px;'>Deep Analysis: {req.category} <span style='font-size:0.6em; color:#94a3b8;'>({period_label})</span></h1>"
-        
-        # Grouping
-        outlet_articles_map = {o.name: [] for o in outlets}
-        for article in filtered_articles:
-            if article.source in outlet_articles_map:
-                outlet_articles_map[article.source].append(article)
-        
-        # Sort Outlets
-        sorted_outlets = sorted(outlets, key=lambda o: max([a.relevance_score for a in outlet_articles_map[o.name]] or [0]), reverse=True)
-        
-        for outlet in sorted_outlets:
-            arts = outlet_articles_map.get(outlet.name, [])
-            if not arts: continue
+            # AI TITLE PRE-FILTER
+            # Filter logic:
+            # 1. Take top candidates (e.g. all unique_articles which passed heuristic, or top N)
+            # 2. Batch verify titles
+            # 3. Filter out rejections OR Penalize
             
-            # Split Articles into Fresh and Stale
-            fresh_articles = []
-            stale_articles = []
+            candidates_to_verify = unique_articles # For now verify all that passed basic filters
             
-            for art in arts:
-                if art.scores.get('is_fresh'):
-                    fresh_articles.append(art)
-                else:
-                    stale_articles.append(art)
-            
-            # Helper for Date Sorting
-            def get_sort_key(x):
-                # Primary: Date (Newest First)
-                # Secondary: Relevance Score (Highest First)
-                d_val = datetime.min
-                if x.date_str:
-                    try:
-                        # Attempt to parse standard format
-                        d_val = datetime.strptime(x.date_str, "%Y-%m-%d")
-                    except:
-                        pass # Keep as min date if parsing fails
-                        
-                return (d_val, x.relevance_score)
-
-            # Sort both lists
-            try:
-                fresh_articles.sort(key=get_sort_key, reverse=True)
-                stale_articles.sort(key=get_sort_key, reverse=True)
-            except Exception as e:
-                # Log but continue if sorting fails
-                print(f"Sorting Error: {e}")
-                pass
-
-            # Helper to Render Rows
-            def render_article_rows(article_list):
-                rows = ""
-                for art in article_list:
-                    s = art.scores
-                    topic_display = f"{s.get('topic', 0)}"
-                    date_color = "#4ade80" if s.get('is_fresh') else "#7f1d1d"
-                    date_display = f"<span style='color: {date_color}; font-weight: bold;'>{art.date_str}</span>" if art.date_str else f"<span style='color: #94a3b8;'>N/A</span>"
-                    date_display += f"""<span class="scraper-debug-trigger" data-url="{art.url}" style="cursor: pointer; margin-left: 6px; font-size: 0.8em; opacity: 0.6;" title="Debug Date Extraction">🔧</span>"""
-
-                    # Score Styling
-                    if art.relevance_score > 80:
-                        score_bg = "#052e16"; score_text = "#4ade80"; score_border = "#15803d"
-                    elif art.relevance_score > 50:
-                        score_bg = "#422006"; score_text = "#facc15"; score_border = "#a16207"
-                    else:
-                        score_bg = "#450a0a"; score_text = "#f87171"; score_border = "#b91c1c"
-                    
-                    safe_url = html.escape(art.url); safe_title = html.escape(art.title)
-                    
-                    # Translation Logic
-                    title_html = f'<span class="title-original">{safe_title}</span>'
-                    if art.translated_title:
-                        safe_trans = html.escape(art.translated_title)
-                        title_html += f'<span class="title-translated" style="display: none; color: #fbbf24; font-style: italic;">{safe_trans}</span>' # Yellow styling for translation
-
-                    # Manual Assess Button
-                    score_badge = f"""
-                    <button class="politics-assess-trigger" data-url="{safe_url}" data-title="{safe_title}"
-                            style="display: inline-flex; align-items: center; gap: 4px; background-color: #1e293b; color: #94a3b8; border: 1px solid #334155; padding: 4px 8px; border-radius: 6px; font-weight: bold; font-size: 0.7rem; cursor: pointer; transition: all 0.2s;"
-                            onmouseover="this.style.backgroundColor='#334155'; this.style.color='white';"
-                            onmouseout="this.style.backgroundColor='#1e293b'; this.style.color='#94a3b8';">
-                        🤖 Assess
-                    </button>
-                    """
-                    
-                    # AI Status Column Logic
-                    verdict_icon = "❓"
-                    if hasattr(art, 'ai_verdict'):
-                        if art.ai_verdict == "PASS": verdict_icon = "✅"
-                        elif art.ai_verdict == "FAIL": verdict_icon = "⚠️"
-                    
-                    rows += f"""
-                    <tr style="border-bottom: 1px solid #1e293b; transition: background-color 0.2s;">
-                        <td style="padding: 12px 16px; border-bottom: 1px solid #1e293b;">{score_badge}</td>
-                        <td style="padding: 12px 16px; text-align: center; border-bottom: 1px solid #1e293b;">{verdict_icon}</td>
-                        <td style="padding: 12px 16px; text-align: center; border-bottom: 1px solid #1e293b; white-space: nowrap;">{date_display}</td>
-                        <td style="padding: 12px 16px; text-align: center; border-bottom: 1px solid #1e293b;">{topic_display}</td>
-                        <td style="padding: 12px 16px; border-bottom: 1px solid #1e293b;">
-                            <a href="{safe_url}" target="_blank" style="color: #e2e8f0; text-decoration: none; font-weight: 500; display: block; margin-bottom: 4px;">{title_html}</a>
-                        </td>
-                    </tr>
-                    """
-                return rows
-
-            # Outlet Header
-            table_html += f"""
-            <div style="margin-top: 32px; margin-bottom: 16px; border-bottom: 1px solid #334155; padding-bottom: 8px;">
-                <h3 style="margin: 0; font-size: 1.4rem; color: #f8fafc;">
-                    <a href="{outlet.url}" target="_blank" style="color: #60a5fa; text-decoration: none; font-weight: bold;">{outlet.name}</a>
-                    <span style="color: #94a3b8; font-size: 1rem; font-weight: normal; margin-left: 10px;">({outlet.city})</span>
-                    <span class="scraper-debug-trigger" data-url="{outlet.url}" style="cursor: pointer; font-size: 0.8em; margin-left: 8px; vertical-align: middle; opacity: 0.5;" title="Debug Scraper Rules">🔧</span>
-                </h3>
-            </div>
-            """
+            if candidates_to_verify and current_user.gemini_api_key:
+                 yield json.dumps({"type": "log", "message": f"🤖 AI Pre-Filtering {len(candidates_to_verify)} titles..."}) + "\n"
+                 
+                 # Prepare batch (Assign IDs for stability)
+                 titles_map = {i: art.title for i, art in enumerate(candidates_to_verify)}
+                 
+                 # Chunking (Gemini has limits, maybe 50 at a time)
+                 chunk_size = 10 # Keep small for reliability
+                 parallel_limit = 5 # Process 5 batches concurrently
+                 verified_results = {}
+                 
+                 title_ids = list(titles_map.keys())
+                 
+                 # Pre-calculate all batches
+                 all_batches = []
+                 for i in range(0, len(title_ids), chunk_size):
+                     chunk_ids = title_ids[i:i+chunk_size]
+                     chunk_map = {k: titles_map[k] for k in chunk_ids}
+                     all_batches.append(chunk_map)
                 
-            # Table Header
-            table_html += """
-            <table style="width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.95rem; margin-bottom: 24px; border: 1px solid #334155; border-radius: 6px; overflow: hidden;">
-                <thead style="background-color: #1e293b; color: #e2e8f0;">
-                    <tr>
-                        <th style="padding: 12px 16px; text-align: left; font-weight: 600; border-bottom: 1px solid #334155;">Assess</th>
-                        <th style="padding: 12px 16px; text-align: center; font-weight: 600; border-bottom: 1px solid #334155;">AI Check</th>
-                        <th style="padding: 12px 16px; text-align: center; font-weight: 600; border-bottom: 1px solid #334155;">Date</th>
-                        <th style="padding: 12px 16px; text-align: center; font-weight: 600; border-bottom: 1px solid #334155;">Topic</th>
-                        <th style="padding: 12px 16px; text-align: left; font-weight: 600; border-bottom: 1px solid #334155;">Article</th>
-                    </tr>
-                </thead>
-                <tbody style="background-color: #0f172a;">
-            """
-
-            # 1. Render Fresh Articles (Main Body)
-            table_html += render_article_rows(fresh_articles)
-            table_html += "</tbody>"
-
-            # 2. Render Stale Articles (Collapsible)
-            if stale_articles:
-                table_html += f"""
-                <tbody style="border-top: 2px solid #334155;">
-                    <tr>
-                        <td colspan="5" style="padding: 0;">
-                            <details style="background-color: #0f172a;">
-                                <summary style="padding: 12px 16px; cursor: pointer; color: #94a3b8; font-size: 0.85rem; font-weight: 600; user-select: none; background-color: #1e293b; border-bottom: 1px solid #334155;">
-                                    🔻 Show {len(stale_articles)} Older / Undated Articles
-                                </summary>
-                                <table style="width: 100%; border-collapse: separate; border-spacing: 0;">
-                                    {render_article_rows(stale_articles)}
-                                </table>
-                            </details>
-                        </td>
-                    </tr>
-                </tbody>
-                """
-            
-            table_html += "</table>"
-                
-            
-            table_html += "</tbody></table>"
-            
-        try:
-            with open("stream_debug.log", "a") as logf:
-                logf.write(f"\n--- NEW STREAM START ---\n")
-                
-                # Send Partial Updates (Split Payload)
-                yield json.dumps({"type": "log", "message": "Sending Digest components..."}) + "\n"
-                logf.write("DEBUG: Sending Partial Digest HTML...\n")
-                
-                # 1. HTML Content
-                html_size_mb = len(table_html) / 1024 / 1024
-                yield json.dumps({"type": "log", "message": f"📦 Generating HTML Digest ({html_size_mb:.2f} MB)..."}) + "\n"
-                logf.write(f"DEBUG: Sending Partial Digest HTML ({html_size_mb:.2f} MB)...\n")
-                
-                if html_size_mb > 15:
-                     yield json.dumps({"type": "log", "message": "⚠️ Warning: Digest is very large, browser may lag."}) + "\n"
-
-                yield json.dumps({"type": "partial_digest", "html": table_html}, default=str) + "\n"
-                
-                # 2. Analysis Data
-                logf.write("DEBUG: Sending Partial Analysis...\n")
-                yield json.dumps({"type": "partial_analysis", "source": [k.dict() for k in (analysis_source or [])]}, default=str) + "\n"
-
-                # 3. Articles (Chunked)
-                article_chunk_size = 50
-                total_articles = len(filtered_articles)
-                logf.write(f"DEBUG: Sending {total_articles} articles in chunks of {article_chunk_size}...\n")
-                
-                for i in range(0, total_articles, article_chunk_size):
-                     chunk = filtered_articles[i:i+article_chunk_size]
-                     logf.write(f"DEBUG: Sending Article Chunk {i//article_chunk_size + 1}...\n")
-                     yield json.dumps({
-                         "type": "partial_articles", 
-                         "articles": [a.dict() for a in chunk], 
-                         "category": req.category
-                     }, default=str) + "\n"
+                 total_batches = len(all_batches)
+                 
+                 # Process in Parallel Groups
+                 for i in range(0, total_batches, parallel_limit):
+                     batch_group = all_batches[i:i+parallel_limit]
                      
-                     await asyncio.sleep(0.01)
+                     # Prepare Tasks
+                     user_lang = current_user.preferred_language if current_user.preferred_language else "English"
+                     tasks = [
+                         batch_verify_titles_debug(b, POLITICS_OPERATIONAL_DEFINITION, current_user.gemini_api_key, user_lang)
+                         for b in batch_group
+                     ]
+                     
+                     # Process Results as they complete
+                     completed_in_group = 0
+                     for task in asyncio.as_completed(tasks):
+                         res, err = await task
+                         completed_in_group += 1
+                         
+                         if err:
+                              yield json.dumps({"type": "log", "message": f"⚠️ Batch AI Error: {err}"}) + "\n"
+                         else:
+                              verified_results.update(res)
+                         
+                         
+                         # Granular Heartbeat
+                         current_total = i + completed_in_group
+                         msg = f"Verified batches {current_total}/{total_batches} ({len(verified_results)} verified)..."
+                         yield json.dumps({"type": "log", "message": msg}) + "\n"
+                         
+                         try:
+                             with open("stream_debug.log", "a") as f: f.write(f"DEBUG: {msg}\n")
+                         except: pass
+                 
+                 with open("stream_debug.log", "a") as f: f.write("DEBUG: Exited AI loop normally.\n")
+                 
+                 # Apply verdicts & Translation
+                 with open("stream_debug.log", "a") as f: f.write(f"DEBUG: Processing verdicts for {len(candidates_to_verify)} candidates...\n")
+                 
+                 for i, art in enumerate(candidates_to_verify):
+                     if i % 50 == 0:
+                          with open("stream_debug.log", "a") as f: f.write(f"DEBUG: Applied verdicts for {i} articles...\n")
+                     
+                     # Result keys are strings in JSON
+                     data = verified_results.get(str(i), verified_results.get(i))
+                     
+                     # Handle new Dict vs old Bool structure (Just in case)
+                     verdict = False
+                     translated = None
+                     
+                     if isinstance(data, bool):
+                         verdict = data
+                     elif isinstance(data, dict):
+                         verdict = data.get("verdict", False)
+                         translated = data.get("translated")
+                     
+                     # Store Translation
+                     if translated:
+                         art.translated_title = translated
 
-                # 4. Completion Signal
-                logf.write("DEBUG: Sending DONE signal...\n")
-                yield json.dumps({"type": "done"}) + "\n"
-                logf.write("DEBUG: Stream Finished Successfully.\n")
-        
-        except Exception as e:
-            # Catch failures in Post-Processing (Scoring/AI/Table)
-            print(f"DEBUG: Post-Processing Crash: {e}")
-            import traceback
+                     if verdict is True:
+                         # CONFIRMED POLITICS
+                         art.relevance_score += 20 # Bonus
+                         art.ai_verdict = "VERIFIED"
+                     elif verdict is False:
+                         # CONFIRMED NOT POLITICS
+                         art.relevance_score -= 10 # Penalty but keep
+                         art.ai_verdict = "REJECTED"
+                     else:
+                         # Error/Missing
+                         art.ai_verdict = "UNKNOWN"
+            else:
+                 yield json.dumps({"type": "log", "message": "⚠️ Skipping AI Filter (No API Key or No Candidates)"}) + "\n"
+            
+            # POST-TRANSLATION DEDUPLICATION
+            # Remove duplicates that became identical after translation
+            final_articles = []
+            seen_final_titles = set()
+            
+            for art in unique_articles:
+                # Use translated title for check if available
+                check_title = (art.translated_title or art.title).lower().strip()
+                # Remove basic punctuation for fuzzy match
+                import string
+                check_title = check_title.translate(str.maketrans('', '', string.punctuation))
+                
+                if check_title in seen_final_titles:
+                     continue
+                
+                seen_final_titles.add(check_title)
+                final_articles.append(art)
+                
+            filtered_articles = final_articles
+            
+            with open("stream_debug.log", "a") as f: f.write(f"DEBUG: AI Loop Done. Filtering {len(filtered_articles)} articles (Deduped from {len(unique_articles)}).\n")
+
+            # FINAL COMPILE
+            yield json.dumps({"type": "log", "message": "Compiling HTML Digest..."}) + "\n"
+            with open("stream_debug.log", "a") as f: f.write("DEBUG: Starting Table Generation...\n")
+            
+            # Create HTML Table
+            
+            start_str = cutoff_date.strftime("%b %d")
+            end_str = now.strftime("%b %d")
+            period_label = f"{start_str} - {end_str}"
+            table_html = f"<h1 style='color: #e2e8f0; border-bottom: 2px solid #3b82f6; padding-bottom: 10px; margin-bottom: 20px;'>Deep Analysis: {req.category} <span style='font-size:0.6em; color:#94a3b8;'>({period_label})</span></h1>"
+            
+            # Grouping
+            outlet_articles_map = {o.name: [] for o in outlets}
+            for article in filtered_articles:
+                if article.source in outlet_articles_map:
+                    outlet_articles_map[article.source].append(article)
+            
+            # Sort Outlets
+            sorted_outlets = sorted(outlets, key=lambda o: max([a.relevance_score for a in outlet_articles_map[o.name]] or [0]), reverse=True)
+            
+            for outlet in sorted_outlets:
+                arts = outlet_articles_map.get(outlet.name, [])
+                if not arts: continue
+                
+                # Split Articles into Fresh and Stale
+                fresh_articles = []
+                stale_articles = []
+                
+                for art in arts:
+                    if art.scores.get('is_fresh'):
+                        fresh_articles.append(art)
+                    else:
+                        stale_articles.append(art)
+                
+                # Helper for Date Sorting
+                def get_sort_key(x):
+                    # Primary: Date (Newest First)
+                    # Secondary: Relevance Score (Highest First)
+                    d_val = datetime.min
+                    if x.date_str:
+                        try:
+                            # Attempt to parse standard format
+                            d_val = datetime.strptime(x.date_str, "%Y-%m-%d")
+                        except:
+                            pass # Keep as min date if parsing fails
+                            
+                    return (d_val, x.relevance_score)
+
+                # Sort both lists
+                try:
+                    fresh_articles.sort(key=get_sort_key, reverse=True)
+                    stale_articles.sort(key=get_sort_key, reverse=True)
+                except Exception as e:
+                    # Log but continue if sorting fails
+                    print(f"Sorting Error: {e}")
+                    pass
+
+                # Helper to Render Rows
+                def render_article_rows(article_list):
+                    rows = ""
+                    for art in article_list:
+                        s = art.scores
+                        topic_display = f"{s.get('topic', 0)}"
+                        date_color = "#4ade80" if s.get('is_fresh') else "#7f1d1d"
+                        date_display = f"<span style='color: {date_color}; font-weight: bold;'>{art.date_str}</span>" if art.date_str else f"<span style='color: #94a3b8;'>N/A</span>"
+                        date_display += f"""<span class="scraper-debug-trigger" data-url="{art.url}" style="cursor: pointer; margin-left: 6px; font-size: 0.8em; opacity: 0.6;" title="Debug Date Extraction">🔧</span>"""
+
+                        # Score Styling
+                        if art.relevance_score > 80:
+                            score_bg = "#052e16"; score_text = "#4ade80"; score_border = "#15803d"
+                        elif art.relevance_score > 50:
+                            score_bg = "#422006"; score_text = "#facc15"; score_border = "#a16207"
+                        else:
+                            score_bg = "#450a0a"; score_text = "#f87171"; score_border = "#b91c1c"
+                        
+                        safe_url = html.escape(art.url); safe_title = html.escape(art.title)
+                        
+                        # Translation Logic
+                        title_html = f'<span class="title-original">{safe_title}</span>'
+                        if art.translated_title:
+                            safe_trans = html.escape(art.translated_title)
+                            title_html += f'<span class="title-translated" style="display: none; color: #fbbf24; font-style: italic;">{safe_trans}</span>' # Yellow styling for translation
+
+                        # Manual Assess Button
+                        score_badge = f"""
+                        <button class="politics-assess-trigger" data-url="{safe_url}" data-title="{safe_title}"
+                                style="display: inline-flex; align-items: center; gap: 4px; background-color: #1e293b; color: #94a3b8; border: 1px solid #334155; padding: 4px 8px; border-radius: 6px; font-weight: bold; font-size: 0.7rem; cursor: pointer; transition: all 0.2s;"
+                                onmouseover="this.style.backgroundColor='#334155'; this.style.color='white';"
+                                onmouseout="this.style.backgroundColor='#1e293b'; this.style.color='#94a3b8';">
+                            🤖 Assess
+                        </button>
+                        """
+                        
+                        # AI Status Column Logic
+                        verdict_icon = "❓"
+                        if hasattr(art, 'ai_verdict'):
+                            if art.ai_verdict == "VERIFIED": verdict_icon = "✅"
+                            elif art.ai_verdict == "REJECTED": verdict_icon = "❌"
+                            elif art.ai_verdict == "UNKNOWN": verdict_icon = "❓"
+                        
+                        rows += f"""
+                        <tr style="border-bottom: 1px solid #1e293b; transition: background-color 0.2s;">
+                            <td style="padding: 12px 16px; border-bottom: 1px solid #1e293b;">{score_badge}</td>
+                            <td style="padding: 12px 16px; text-align: center; border-bottom: 1px solid #1e293b;">{verdict_icon}</td>
+                            <td style="padding: 12px 16px; text-align: center; border-bottom: 1px solid #1e293b; white-space: nowrap;">{date_display}</td>
+                            <td style="padding: 12px 16px; text-align: center; border-bottom: 1px solid #1e293b;">{topic_display}</td>
+                            <td style="padding: 12px 16px; border-bottom: 1px solid #1e293b;">
+                                <a href="{safe_url}" target="_blank" style="color: #e2e8f0; text-decoration: none; font-weight: 500; display: block; margin-bottom: 4px;">{title_html}</a>
+                            </td>
+                        </tr>
+                        """
+                    return rows
+
+                # Outlet Header
+                table_html += f"""
             traceback.print_exc()
             
             # Send error to frontend so it stops waiting
