@@ -298,11 +298,13 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
     }, [activeSideTab, isGlobalSidebarOpen, isAuthenticated]);
 
     const fetchSavedDigests = async () => {
+        if (!currentUser) return;
         try {
             const res = await api.get('/digests');
+            console.log("DIGEST_DEBUG: Fetched Saved Digests:", res.data);
             setSavedDigests(res.data);
         } catch (err) {
-            console.error("Failed to load digests", err);
+            console.error("Failed to fetch digests", err);
         }
     };
     // Scraper Debugger State
@@ -664,6 +666,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
         const localSelectedIds = new Set<string>(); // Accumulate auto-selections locally
         setDigestSummary("");
         setProgressLog('Connecting to stream...');
+        setProgress({ current: 0, total: selectedOutletIds.length });
 
         try {
             // Retrieve token from storage/api helper if needed
@@ -731,6 +734,15 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                                 setProgressLog(`> ${msg.message}`);
                                 lastLogUpdate = now;
                                 console.log("DIGEST_DEBUG: Log:", msg.message);
+                            }
+
+                            // Progress detection (Heuristic based on logs)
+                            if (msg.message.includes("Scraping") || msg.message.includes("Fetched")) {
+                                // Increment progress (approximate, capped at total)
+                                setProgress(prev => ({ ...prev, current: Math.min(prev.current + 0.5, prev.total) }));
+                            }
+                            if (msg.message.includes("AI Verifying")) {
+                                setProgress(prev => ({ ...prev, current: Math.min(prev.current + 0.5, prev.total) }));
                             }
                         }
                         // --- New Partial Handlers ---
@@ -2273,10 +2285,14 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                                                                 <span className="truncate max-w-[200px]">{analyzingTickerText || "Analyzing..."}</span>
                                                             </>
                                                         ) : isGeneratingDigest ? (
-                                                            <>
-                                                                <Loader2 className="animate-spin shrink-0" size={14} />
-                                                                <span className="truncate">Gathering Articles...</span>
-                                                            </>
+                                                            <div className="relative w-full h-full flex items-center justify-center">
+                                                                <div
+                                                                    className="absolute left-0 top-0 bottom-0 bg-blue-500/30 transition-all duration-500"
+                                                                    style={{ width: `${(progress.total > 0 ? (progress.current / progress.total) * 100 : 0)}%` }}
+                                                                />
+                                                                <Loader2 className="animate-spin shrink-0 z-10 mr-2" size={14} />
+                                                                <span className="truncate z-10 relative">Gathering {Math.round((progress.current / progress.total) * 100) || 0}%...</span>
+                                                            </div>
                                                         ) : "Summarize Selection"}
                                                     </button>
                                                 </div>
@@ -3181,7 +3197,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
             {/* Version Indicator */}
             <div className="absolute bottom-2 right-2 z-[100] text-[10px] text-white/30 font-mono hover:text-white/80 cursor-default select-none transition-colors">
-                v0.116
+                v0.117
             </div>
 
         </div >
