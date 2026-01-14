@@ -13,6 +13,7 @@ router = APIRouter()
 class UserCreate(BaseModel):
     email: str
     password: str
+    username: str | None = None
     gemini_api_key: str | None = None
 
 class Token(BaseModel):
@@ -41,10 +42,12 @@ async def register(user: UserCreate, background_tasks: BackgroundTasks, db: Sess
     
     db_user = User(
         email=user.email,
+        username=user.username,
         hashed_password=hashed_pw,
         gemini_api_key=user.gemini_api_key,
         is_verified=False,
-        verification_token=verification_token
+        verification_token=verification_token,
+        is_username_visible=True # Default to visible
     )
     db.add(db_user)
     await db.commit()
@@ -146,11 +149,15 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
 class UserSettingsUpdate(BaseModel):
     api_key: str | None = None
     preferred_language: str | None = None
+    username: str | None = None
+    is_username_visible: bool | None = None
 
 @router.get("/users/me")
 async def read_users_me(current_user: User = Depends(get_current_user)):
     return {
         "email": current_user.email,
+        "username": current_user.username,
+        "is_username_visible": current_user.is_username_visible,
         "gemini_api_key": current_user.gemini_api_key, 
         "preferred_language": current_user.preferred_language, # New Field
         "created_at": current_user.created_at
@@ -167,6 +174,17 @@ async def update_user_settings(settings: UserSettingsUpdate, current_user: User 
             user_in_db.gemini_api_key = settings.api_key
         if settings.preferred_language is not None:
             user_in_db.preferred_language = settings.preferred_language
+            
+        if settings.username is not None:
+            # Check Uniqueness
+            if settings.username != user_in_db.username:
+                existing = await db.execute(select(User).where(User.username == settings.username))
+                if existing.scalars().first():
+                     raise HTTPException(status_code=400, detail="Username already taken")
+                user_in_db.username = settings.username
+        
+        if settings.is_username_visible is not None:
+            user_in_db.is_username_visible = settings.is_username_visible
             
         await db.commit()
         return {"status": "Updated Settings"}

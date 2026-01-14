@@ -10,6 +10,7 @@ import ScraperDebugger from './ScraperDebugger';
 import ReactMarkdown from 'react-markdown';
 import { CAPITALS } from '../utils/capitals';
 import DigestReportRenderer from './DigestReportRenderer';
+import SettingsModal from './SettingsModal';
 import UIMarquee from './UIMarquee';
 
 // Dynamically import Globe to avoid SSR issues
@@ -115,6 +116,31 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
     const [activeSideTab, setActiveSideTab] = useState<'sources' | 'digests'>('sources');
     const [activeModalTab, setActiveModalTab] = useState<'articles' | 'digest' | 'analytics'>('articles');
     const [isGlobalSidebarOpen, setIsGlobalSidebarOpen] = useState(false);
+
+    // Global Stream Filters
+    const [globalStreamTab, setGlobalStreamTab] = useState<'stream' | 'my'>('stream');
+
+    // Auth & User State
+    const [currentUser, setCurrentUser] = useState<any>(null); // Load from /users/me
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+    // Refresh user when settings close (to update username in UI if changed)
+    useEffect(() => {
+        if (!isSettingsOpen) {
+            api.get('/users/me').then(res => setCurrentUser(res.data)).catch(err => console.error("Auth Error", err));
+        }
+    }, [isSettingsOpen]);
+
+    // Helper: Mask Username
+    const getOwnerName = (digest: any) => {
+        if (!digest.owner_id) return "Unknown";
+        if (currentUser && digest.owner_id === currentUser.id) return currentUser.username || "Me";
+        if (digest.owner_is_visible) return digest.owner_username || "Anonymous";
+        // Mask: u****e
+        const u = digest.owner_username || "user";
+        if (u.length <= 2) return u[0] + "*";
+        return u[0] + "*".repeat(u.length - 2) + u[u.length - 1];
+    };
 
     // Digest Summarization State
     const [selectedArticleUrls, setSelectedArticleUrls] = useState<Set<string>>(new Set());
@@ -2167,8 +2193,8 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                                             <h2 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-indigo-400">
                                                 News Digest: {selectedCategory}
                                             </h2>
-                                            <p className="text-gray-400 text-sm mt-1">
-                                                Timeframe: <span className="text-white font-medium">
+                                            <p className="text-gray-400 text-sm mt-1 flex items-center gap-4">
+                                                <span>Timeframe: <span className="text-white font-medium">
                                                     {(() => {
                                                         const now = new Date();
                                                         const start = new Date();
@@ -2179,7 +2205,9 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                                                         const fmt = (d: Date) => `${d.getDate()}.${d.getMonth() + 1}.${d.getFullYear()}`;
                                                         return `${fmt(start)} - ${fmt(now)}`;
                                                     })()}
-                                                </span>
+                                                </span></span>
+                                                <span className="w-1 h-1 bg-slate-600 rounded-full"></span>
+                                                <span>Ordered by: <span className="text-blue-400 font-medium">{getOwnerName(digestData)}</span></span>
                                             </p>
 
                                             <div className="mt-4 flex items-center justify-between bg-slate-800/50 p-3 rounded-lg border border-white/5">
@@ -2852,6 +2880,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                                         </div>
                                     ) : (
                                         (savedDigests || [])
+                                            // Left Sidebar: Strictly City filtered (as requested)
                                             .filter((d: any) => !selectedCityName || d.city === selectedCityName)
                                             .map((digest: any) => {
                                                 const end = new Date(digest.created_at);
@@ -2878,7 +2907,13 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                                                     >
                                                         <div className="flex justify-between items-start mb-1">
                                                             <h4 className="font-bold text-slate-200 line-clamp-1 group-hover:text-blue-400">{title}</h4>
-                                                            <button onClick={(e) => handleDeleteDigest(e, digest.id)} className="text-slate-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">✕</button>
+                                                            {/* Delete only if Owner */}
+                                                            {currentUser && digest.owner_id === currentUser.id && (
+                                                                <button onClick={(e) => handleDeleteDigest(e, digest.id)} className="text-slate-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">✕</button>
+                                                            )}
+                                                        </div>
+                                                        <div className="text-[10px] text-slate-500 mb-1">
+                                                            by <span className="text-slate-400 font-medium">{getOwnerName(digest)}</span>
                                                         </div>
                                                         <div className="flex flex-col gap-0.5 text-[10px] text-slate-500 font-medium mt-1">
                                                             <div className="flex items-center gap-2 uppercase font-bold">
@@ -2936,18 +2971,39 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
                 {/* Content Panel */}
                 <div className="w-full h-full bg-slate-900/95 backdrop-blur border-l border-slate-700 shadow-2xl overflow-hidden flex flex-col">
-                    <div className="p-4 border-b border-slate-700 bg-slate-900 sticky top-0">
-                        <h3 className="font-bold text-white text-lg flex items-center gap-2">
+                    <div className="p-4 border-b border-slate-700 bg-slate-900 sticky top-0 z-10">
+                        <h3 className="font-bold text-white text-lg flex items-center gap-2 mb-2">
                             <List size={18} className="text-blue-400" />
                             Global Stream
                         </h3>
-                        <p className="text-xs text-slate-500 mt-1">Latest digests from all cities</p>
+
+                        <div className="flex bg-slate-800 rounded p-1">
+                            <button
+                                onClick={() => setGlobalStreamTab('stream')}
+                                className={`flex-1 text-xs font-bold py-1.5 rounded transition-all ${globalStreamTab === 'stream' ? 'bg-slate-700 text-blue-400 shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
+                            >
+                                Stream
+                            </button>
+                            <button
+                                onClick={() => setGlobalStreamTab('my')}
+                                className={`flex-1 text-xs font-bold py-1.5 rounded transition-all ${globalStreamTab === 'my' ? 'bg-slate-700 text-blue-400 shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
+                            >
+                                My Digests
+                            </button>
+                        </div>
                     </div>
 
                     <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-                        {(savedDigests || []).length === 0 ? (
+                        {(savedDigests || [])
+                            .filter((d: any) => {
+                                if (globalStreamTab === 'my') {
+                                    return currentUser && d.owner_id === currentUser.id;
+                                }
+                                return true; // Show all
+                            })
+                            .length === 0 ? (
                             <div className="text-center text-slate-500 py-8 text-sm">
-                                No digests found.
+                                {globalStreamTab === 'my' ? "You haven't saved any digests." : "No digests found."}
                             </div>
                         ) : (
                             (savedDigests || []).map((digest: any) => {
@@ -2995,6 +3051,20 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                     </div>
                 </div>
             </div>
+
+            {/* Settings Button (Top Right Fixed) */}
+            {!digestData && (
+                <button
+                    onClick={() => setIsSettingsOpen(true)}
+                    className="fixed top-4 right-4 z-40 p-2 bg-slate-900/80 backdrop-blur border border-slate-700 rounded-full text-slate-400 hover:text-white hover:bg-slate-800 transition-all shadow-xl"
+                    title="User Settings"
+                >
+                    <Settings size={20} />
+                </button>
+            )}
+
+            {/* Settings Modal */}
+            <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
 
             {/* Global Analytics Tooltip */}
             {activeTooltip && activeTooltip.rect && (
@@ -3063,6 +3133,11 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                 <Coffee className="w-5 h-5" />
                 <span className="hidden group-hover:block whitespace-nowrap">Support Us</span>
             </a>
+
+            {/* Version Indicator */}
+            <div className="absolute bottom-2 right-2 z-[100] text-[10px] text-white/30 font-mono hover:text-white/80 cursor-default select-none transition-colors">
+                v0.1
+            </div>
 
         </div >
 

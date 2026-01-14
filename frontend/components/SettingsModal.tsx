@@ -11,6 +11,8 @@ interface SettingsModalProps {
 }
 
 export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
+    const [username, setUsername] = useState('');
+    const [isPrivacyEnabled, setIsPrivacyEnabled] = useState(true);
     const [apiKey, setApiKey] = useState('');
     const [email, setEmail] = useState('');
     const [preferredLanguage, setPreferredLanguage] = useState('English');
@@ -35,6 +37,8 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             })
                 .then(res => {
                     setEmail(res.data.email);
+                    setUsername(res.data.username || '');
+                    setIsPrivacyEnabled(res.data.is_username_visible !== false);
                     setApiKey(res.data.gemini_api_key || '');
                     setPreferredLanguage(res.data.preferred_language || 'English');
                     setIsLoading(false);
@@ -65,6 +69,8 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         try {
             // Using new unified endpoint
             await api.put('/users/me/settings', {
+                username: username,
+                is_username_visible: isPrivacyEnabled,
                 api_key: apiKey,
                 preferred_language: preferredLanguage
             });
@@ -74,7 +80,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 onClose();
             }, 1000);
         } catch (err: any) {
-            setMessage({ type: 'error', text: 'Failed to save settings' });
+            setMessage({ type: 'error', text: 'Failed to save: ' + (err.response?.data?.detail || err.message) });
         } finally {
             setIsSaving(false);
         }
@@ -99,7 +105,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 </div>
 
                 {/* Body */}
-                <div className="p-6 space-y-6">
+                <div className="p-6 space-y-6 max-h-[80vh] overflow-y-auto custom-scrollbar">
                     {isLoading ? (
                         <div className="flex justify-center py-8 text-blue-400">
                             <Loader2 className="w-8 h-8 animate-spin" />
@@ -125,7 +131,30 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                                         <div className="text-slate-300 font-mono text-sm">{email}</div>
                                     </div>
 
-                                    <div>
+                                    <div className="space-y-2 pt-2 border-t border-slate-800">
+                                        <label className="text-sm font-bold text-slate-400 uppercase tracking-wider">Profile</label>
+                                        <input
+                                            type="text"
+                                            value={username}
+                                            onChange={(e) => setUsername(e.target.value)}
+                                            placeholder="Enter public username..."
+                                            className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-white focus:ring-1 focus:ring-blue-500 outline-none text-sm"
+                                        />
+                                        <p className="text-[10px] text-slate-500">Displayed on your shared digests.</p>
+                                    </div>
+
+                                    <div className="flex items-center justify-between bg-slate-950 p-3 rounded-lg border border-slate-800">
+                                        <div>
+                                            <div className="font-bold text-slate-300 text-sm">Public Visibility</div>
+                                            <div className="text-[10px] text-slate-500">Show my username on public digests</div>
+                                        </div>
+                                        <label className="relative inline-flex items-center cursor-pointer">
+                                            <input type="checkbox" checked={isPrivacyEnabled} onChange={e => setIsPrivacyEnabled(e.target.checked)} className="sr-only peer" />
+                                            <div className="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                                        </label>
+                                    </div>
+
+                                    <div className="pt-2 border-t border-slate-800">
                                         <label className="block text-xs uppercase text-slate-500 font-bold mb-2">Gemini API Key</label>
                                         <input
                                             type="text"

@@ -28,3 +28,19 @@ export interface DigestReportRendererProps {
     spamUrls?: Set<string>;
     excludedArticles?: Article[];
 }
+
+export interface Digest {
+    id: number;
+    title: string;
+    category: string;
+    city?: string;
+    timeframe?: string;
+    created_at: string;
+    is_public?: boolean;
+    public_slug?: string;
+
+    // Ownership
+    owner_id: number;
+    owner_username?: string;
+    owner_is_visible: boolean;
+}

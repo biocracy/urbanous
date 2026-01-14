@@ -658,6 +658,10 @@ class DigestRead(BaseModel):
     public_slug: Optional[str] = None
     
     created_at: str
+    
+    owner_id: int
+    owner_username: Optional[str] = None
+    owner_is_visible: bool = True
 
 @router.get("/outlets/", response_model=List[dict])
 async def get_all_outlets(db: Session = Depends(get_db)):
@@ -668,9 +672,12 @@ async def get_all_outlets(db: Session = Depends(get_db)):
 
 @router.get("/outlets/digests/saved", response_model=List[DigestRead])
 async def get_saved_digests(db: Session = Depends(get_db)):
-    """Returns list of saved digests."""
-    result = await db.execute(select(NewsDigest).order_by(NewsDigest.created_at.desc()))
-    digests = result.scalars().all()
+    """Returns list of ALL saved digests (Global Stream)."""
+    # Join with User to get owner details
+    stmt = select(NewsDigest, User).join(User, NewsDigest.user_id == User.id).order_by(NewsDigest.created_at.desc())
+    result = await db.execute(stmt)
+    rows = result.all() # Returns list of (NewsDigest, User)
+    
     return [
         DigestRead(
             id=d.id,
@@ -679,8 +686,12 @@ async def get_saved_digests(db: Session = Depends(get_db)):
             city=d.city,
             is_public=d.is_public,
             public_slug=d.public_slug,
-            created_at=d.created_at.isoformat()
-        ) for d in digests
+            created_at=d.created_at.isoformat(),
+            owner_id=user.id,
+            owner_username=user.username,
+            owner_is_visible=user.is_username_visible
+        )
+        for d, user in rows
     ]
 
 class DigestDetail(BaseModel):
@@ -693,14 +704,21 @@ class DigestDetail(BaseModel):
     analysis_source: Optional[List[Dict[str, Any]]] = []
     analysis_digest: Optional[List[Dict[str, Any]]] = []
     created_at: str
+    owner_id: int
+    owner_username: Optional[str] = None
+    owner_is_visible: bool = True
 
 @router.get("/outlets/digests/{id}", response_model=DigestDetail)
 async def get_digest_detail(id: int, db: Session = Depends(get_db)):
     """Returns full details of a saved digest."""
-    result = await db.execute(select(NewsDigest).where(NewsDigest.id == id))
-    digest = result.scalars().first()
-    if not digest:
+    stmt = select(NewsDigest, User).join(User, NewsDigest.user_id == User.id).where(NewsDigest.id == id)
+    result = await db.execute(stmt)
+    row = result.first()
+    
+    if not row:
         raise HTTPException(status_code=404, detail="Digest not found")
+        
+    digest, user = row
     
     articles = []
     if digest.articles_json:
@@ -728,11 +746,15 @@ async def get_digest_detail(id: int, db: Session = Depends(get_db)):
         id=digest.id,
         title=digest.title,
         category=digest.category,
+        city=digest.city,
         summary_markdown=digest.summary_markdown,
         articles=articles,
         analysis_source=analysis_source,
         analysis_digest=analysis_digest,
-        created_at=digest.created_at.isoformat()
+        created_at=digest.created_at.isoformat(),
+        owner_id=user.id,
+        owner_username=user.username,
+        owner_is_visible=user.is_username_visible
     )
 
 
@@ -1406,14 +1428,18 @@ async def delete_digest(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Delete a saved digest."""
-    stmt = select(NewsDigest).where(NewsDigest.id == digest_id, NewsDigest.user_id == current_user.id)
+    """Delete a saved digest. Only the owner can delete it."""
+    stmt = select(NewsDigest).where(NewsDigest.id == digest_id)
     result = await db.execute(stmt)
     digest = result.scalar_one_or_none()
     
     if not digest:
         raise HTTPException(status_code=404, detail="Digest not found")
         
+    # Strict Permission Check
+    if digest.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to delete this digest")
+    
     await db.delete(digest)
     await db.commit()
     return {"status": "success", "message": "Digest deleted"}
