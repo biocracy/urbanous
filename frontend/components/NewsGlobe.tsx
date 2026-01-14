@@ -724,12 +724,13 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                         // console.log("DIGEST_DEBUG: Parsed message type:", msg.type);
 
                         if (msg.type === 'log') {
+                            console.log("DIGEST_DEBUG: Log:", msg.message); // Always log to console
+
                             // Throttle log updates to prevent UI/WebGL thrashing (max 5fps)
                             const now = Date.now();
                             if (now - lastLogUpdate > 200 || msg.message.includes("Done") || msg.message.includes("Error")) {
                                 setProgressLog(`> ${msg.message}`);
                                 lastLogUpdate = now;
-                                console.log("DIGEST_DEBUG: Log:", msg.message);
                             }
                         }
                         // --- New Partial Handlers ---
