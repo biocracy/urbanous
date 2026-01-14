@@ -1925,39 +1925,44 @@ async def generate_digest_stream(req: DigestRequest, current_user: User = Depend
                 with open("stream_debug.log", "a") as f: f.write("DEBUG: Worker Started.\n")
                 all_raw_articles = []
                 for outlet in outlets:
-                     with open("stream_debug.log", "a") as f: f.write(f"DEBUG: Processing {outlet.name}...\n")
-                     # Find Rule
-                     from urllib.parse import urlparse
-                     domain = urlparse(outlet.url).netloc.replace("www.", "").lower()
-                     rule_config = rules_map.get(domain)
+                     try:
+                         with open("stream_debug.log", "a") as f: f.write(f"DEBUG: Processing {outlet.name}...\n")
+                         # Find Rule
+                         from urllib.parse import urlparse
+                         domain = urlparse(outlet.url).netloc.replace("www.", "").lower()
+                         rule_config = rules_map.get(domain)
 
-                     # Fallback check (e.g. root domain)
-                     if not rule_config:
-                         parts = domain.split('.')
-                         if len(parts) > 2:
-                             root = ".".join(parts[-2:])
-                             rule_config = rules_map.get(root)
+                         # Fallback check (e.g. root domain)
+                         if not rule_config:
+                             parts = domain.split('.')
+                             if len(parts) > 2:
+                                 root = ".".join(parts[-2:])
+                                 rule_config = rules_map.get(root)
 
-                     # Verbose Log to Stream
-                     has_rule = "YES" if rule_config else "NO"
-                     # Log specifically for problematic outlets or all? 
-                     # Start with generic but helpful log
-                     await stream_queue.put({"type": "log", "message": f"Processing {outlet.name} (Rule: {has_rule})..."})
+                         # Verbose Log to Stream
+                         has_rule = "YES" if rule_config else "NO"
+                         await stream_queue.put({"type": "log", "message": f"Processing {outlet.name} (Rule: {has_rule})..."})
 
-                     # Pass queue_logger which is Awaitable (not a generator)
-                     # Pass current_user.gemini_api_key for AI Navigation
-                     res = await smart_scrape_outlet(outlet, req.category, req.timeframe, log_bus=queue_logger, api_key=current_user.gemini_api_key, scraper_rule_config=rule_config)
-                     
-                     if res.get("articles"):
-                          all_raw_articles.extend(res["articles"])
-                          await stream_queue.put({"type": "log", "message": f"Found {len(res['articles'])} articles from {outlet.name}"})
-                     
-                     if res.get("timeline_events"):
-                          await stream_queue.put({"type": "timeline", "source": outlet.name, "events": res["timeline_events"]})
+                         # Pass queue_logger which is Awaitable (not a generator)
+                         # Pass current_user.gemini_api_key for AI Navigation
+                         res = await smart_scrape_outlet(outlet, req.category, req.timeframe, log_bus=queue_logger, api_key=current_user.gemini_api_key, scraper_rule_config=rule_config)
+                         
+                         if res.get("articles"):
+                              # INCREMENTAL SEND
+                              await stream_queue.put({"type": "data", "articles": res["articles"]})
+                              await stream_queue.put({"type": "log", "message": f"Found {len(res['articles'])} articles from {outlet.name}"})
+                         
+                         if res.get("timeline_events"):
+                              await stream_queue.put({"type": "timeline", "source": outlet.name, "events": res["timeline_events"]})
+
+                     except Exception as e:
+                         print(f"DEBUG: Error processing outlet {outlet.name}: {e}")
+                         await stream_queue.put({"type": "log", "message": f"⚠️ Error processing {outlet.name}: {str(e)}"})
+                         # Continue to next outlet!
                 
-                # Signal phase change or return data
-                print(f"DEBUG: WORKER FINISHED. Sending {len(all_raw_articles)} articles.")
-                await stream_queue.put({"type": "data", "articles": all_raw_articles})
+                # Signal phase change
+                print(f"DEBUG: WORKER FINISHED.")
+                # No longer sending bulk data here
             except Exception as e:
                 print(f"DEBUG: WORKER ERROR: {e}")
                 tb_str = traceback.format_exc()
@@ -1984,9 +1989,10 @@ async def generate_digest_stream(req: DigestRequest, current_user: User = Depend
             elif item["type"] == "error":
                 yield json.dumps(item) + "\n"
             elif item["type"] == "data":
-                all_articles = item["articles"]
-                print(f"DEBUG: CONSUMER RECEIVED {len(all_articles)} ARTICLES")
-                yield json.dumps({"type": "log", "message": f"Processing {len(all_articles)} raw items..."}) + "\n"
+                new_articles = item["articles"]
+                all_articles.extend(new_articles)
+                print(f"DEBUG: CONSUMER RECEIVED {len(new_articles)} NEW ARTICLES (Total: {len(all_articles)})")
+                yield json.dumps({"type": "log", "message": f"Accumulated {len(all_articles)} items..."}) + "\n"
             elif item["type"] == "timeline":
                 all_timeline_events[item["source"]] = item["events"]
         
