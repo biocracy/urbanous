@@ -585,14 +585,32 @@ async def batch_verify_titles_debug(titles_map: Dict[int, str], definition: str,
     STRICTLY RETURN JSON ONLY.
     """
     
-    try:
-        # Switch to stable 1.5 flash if 2.0 is causing issues
-        model = genai.GenerativeModel('gemini-1.5-flash-latest')
-        response = await model.generate_content_async(prompt)
+        # Try multiple models in order of preference to ensure compatibility
+        candidate_models = ["gemini-1.5-flash", "gemini-1.5-flash-001", "gemini-1.5-flash-002", "gemini-pro"]
+        
+        response = None
+        used_model = None
+        last_error = None
+        
+        for m_name in candidate_models:
+            try:
+                model = genai.GenerativeModel(m_name)
+                response = await model.generate_content_async(prompt)
+                used_model = m_name
+                break # Success
+            except Exception as e:
+                print(f"DEBUG: Model {m_name} failed: {e}")
+                last_error = e
+                continue
+        
+        if not response:
+             error_str = str(last_error) if last_error else "No models available"
+             return {}, f"All models failed. Last error: {error_str}", ""
+
         text = response.text.replace("```json", "").replace("```", "").strip()
         
         with open("debug_ai.log", "a") as f:
-             f.write(f"\n--- BATCH ---\nResponse: {text[:200]}...\n")
+             f.write(f"\n--- BATCH ({used_model}) ---\nResponse: {text[:200]}...\n")
 
         # Robust Parsing
         try:
@@ -604,7 +622,7 @@ async def batch_verify_titles_debug(titles_map: Dict[int, str], definition: str,
             if match:
                 result_map = json.loads(match.group(0))
             else:
-                raise ValueError(f"Could not extract JSON. Raw: {text[:100]}")
+                raise ValueError(f"Could not extract JSON from {used_model}. Raw: {text[:100]}")
 
         # Convert all keys to strings for consistent comparison
         # And ensure value structure
@@ -2018,7 +2036,7 @@ async def generate_digest_stream(req: DigestRequest, current_user: User = Depend
         all_timeline_events = {} # Map[Source, Events]
         
         # Consumer Loop
-        yield json.dumps({"type": "log", "message": "🔵 STREAM CONNECTED (v0.108 - LOG FIX)"}) + "\n"
+        yield json.dumps({"type": "log", "message": "🔵 STREAM CONNECTED (v0.109 - ROBUST AI & UI)"}) + "\n"
         while True:
             item = await stream_queue.get()
             if item is None:

@@ -1737,6 +1737,8 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                                 try {
                                     const assessment = await handleAssessArticle({ url: artUrl, title: freshTitle });
                                     if (assessment) {
+                                        // Show modal immediately when data starts arriving (Incremental UX)
+                                        setShowDigestModal(true);
                                         setDigestData((prev: any) => {
                                             if (!prev?.articles) return prev;
                                             const newArts = prev.articles.map((a: any) => {
@@ -3159,7 +3161,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
             {/* Version Indicator */}
             <div className="absolute bottom-2 right-2 z-[100] text-[10px] text-white/30 font-mono hover:text-white/80 cursor-default select-none transition-colors">
-                v0.108
+                v0.109
             </div>
 
         </div >
