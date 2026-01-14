@@ -738,13 +738,18 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                                 console.log("DIGEST_DEBUG: Log:", msg.message);
                             }
 
-                            // Progress detection (Heuristic based on logs)
-                            if (msg.message.includes("Scraping") || msg.message.includes("Fetched")) {
-                                // Increment progress (approximate, capped at total)
-                                setProgress(prev => ({ ...prev, current: Math.min(prev.current + 0.5, prev.total) }));
-                            }
-                            if (msg.message.includes("AI Verifying")) {
-                                setProgress(prev => ({ ...prev, current: Math.min(prev.current + 0.5, prev.total) }));
+                            // Progress detection (Unique Outlets)
+                            // Log format: "Processing {outlet.name}..." or "Found X articles from {outlet.name}"
+                            if (msg.message.includes("Processing") || msg.message.includes("from")) {
+                                // Extract potential outlet name (simple heuristic: generic match or rely on server to act rationally)
+                                // Better approach: The server should send explicit "progress" events. 
+                                // Fallback: Increment only on "Processing" which happens once per outlet start.
+                                if (msg.message.includes("Processing")) {
+                                    setProgress(prev => {
+                                        const next = prev.current + 1;
+                                        return { ...prev, current: Math.min(next, prev.total) };
+                                    });
+                                }
                             }
                         }
                         // --- New Partial Handlers ---
@@ -3199,7 +3204,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
             {/* Version Indicator */}
             <div className="absolute bottom-2 right-2 z-[100] text-[10px] text-white/30 font-mono hover:text-white/80 cursor-default select-none transition-colors">
-                v0.117
+                v0.118
             </div>
 
         </div >
