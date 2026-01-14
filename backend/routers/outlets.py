@@ -1992,17 +1992,35 @@ async def generate_digest_stream(req: DigestRequest, current_user: User = Depend
                 new_articles = item["articles"]
                 all_articles.extend(new_articles)
                 print(f"DEBUG: CONSUMER RECEIVED {len(new_articles)} NEW ARTICLES (Total: {len(all_articles)})")
+                
+                # IMMEDIATE PARTIAL YIELD per user request for incremental updates
+                try:
+                     # Convert Pydantic models to dicts for JSON serialization
+                     serializable_new = [a.dict() for a in new_articles]
+                     yield json.dumps({
+                         "type": "partial_articles", 
+                         "articles": serializable_new, 
+                         "category": req.category
+                     }, default=str) + "\n"
+                     yield json.dumps({"type": "log", "message": f"Streaming {len(new_articles)} new items to frontend..."}) + "\n"
+                except Exception as e:
+                     print(f"Serialization Error: {e}")
+                     yield json.dumps({"type": "log", "message": "⚠️ Error streaming partial batch."}) + "\n"
+
                 yield json.dumps({"type": "log", "message": f"Accumulated {len(all_articles)} items..."}) + "\n"
             elif item["type"] == "timeline":
                 all_timeline_events[item["source"]] = item["events"]
         
         print(f"DEBUG: CONSUMER EXITED LOOP. Total Articles: {len(all_articles)}")
         
-        # Generate Master Timeline
+        # --- POST-PROCESSING SAFETY WRAPPER ---
+        # Wrap ALL scoring/filtering/AI logic to catch silent crashes (e.g. from bad dates/NoneTypes)
         try:
-             scraper_engine.generate_master_timeline(all_timeline_events)
-        except Exception as e:
-             print(f"Master Timeline Error: {e}")
+            # Generate Master Timeline
+            try:
+                 scraper_engine.generate_master_timeline(all_timeline_events)
+            except Exception as e:
+                 print(f"Master Timeline Error: {e}")
         
         await task # Ensure clean exit check
 
@@ -2496,6 +2514,20 @@ async def generate_digest_stream(req: DigestRequest, current_user: User = Depend
                 logf.write("DEBUG: Sending DONE signal...\n")
                 yield json.dumps({"type": "done"}) + "\n"
                 logf.write("DEBUG: Stream Finished Successfully.\n")
+        
+        except Exception as e:
+            # Catch failures in Post-Processing (Scoring/AI/Table)
+            print(f"DEBUG: Post-Processing Crash: {e}")
+            import traceback
+            traceback.print_exc()
+            
+            # Send error to frontend so it stops waiting
+            yield json.dumps({"type": "log", "message": f"⚠️ Digest Generation Warning: {str(e)}"}) + "\n"
+            yield json.dumps({"type": "error", "message": "Partial Digest Only (Server Error)"}) + "\n"
+            
+            # If we crashed but sent partial articles, send DONE to render what we have
+            if len(all_articles) > 0:
+                 yield json.dumps({"type": "done"}) + "\n"
             
         except Exception as e:
             with open("stream_debug.log", "a") as logf:
