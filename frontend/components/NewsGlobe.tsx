@@ -98,7 +98,8 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
     const [selectedCategory, setSelectedCategory] = useState<string>('Politics');
     const [selectedTimeframe, setSelectedTimeframe] = useState<string>('24h');
     const [analyticsMode, setAnalyticsMode] = useState<'source' | 'digest'>('source');
-    const [activeTooltip, setActiveTooltip] = useState<{ word: string, align: 'left' | 'right' | 'center', placement: 'top' | 'bottom' } | null>(null);
+    const [activeTooltip, setActiveTooltip] = useState<{ word: string, data: any, rect: DOMRect | null, placement: 'top' | 'bottom' } | null>(null);
+    const [isTooltipLocked, setIsTooltipLocked] = useState(false);
     const hoverTimeout = useRef<NodeJS.Timeout | null>(null);
     const [selectedOutletIds, setSelectedOutletIds] = useState<number[]>([]);
     const [isGeneratingDigest, setIsGeneratingDigest] = useState(false);
@@ -117,6 +118,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
     // Digest Summarization State
     const [selectedArticleUrls, setSelectedArticleUrls] = useState<Set<string>>(new Set());
+    const [spamUrls, setSpamUrls] = useState<Set<string>>(new Set());
     const [digestSummary, setDigestSummary] = useState<string>("");
     const [isSummarizing, setIsSummarizing] = useState(false);
 
@@ -321,95 +323,6 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             digest: newDigestHtml
         });
     }
-
-    // Live Rule Update Handler
-    const handleRuleSaved = async (domain: string) => {
-        if (!digestData || !digestData.articles) return;
-
-        const relevantArticles = digestData.articles.filter((art: any) => {
-            try {
-                return new URL(art.url).hostname.replace('www.', '') === domain;
-            } catch (e) { return false; }
-        });
-
-        if (relevantArticles.length === 0) return;
-
-        const updatedArticles = [...digestData.articles];
-        let newDigestHtml = digestData.digest;
-
-        for (const art of relevantArticles) {
-            try {
-                // Apply Rule Test
-                const response = await api.post('/scraper/test', { url: art.url });
-
-                if (response.data.status === 'success' && response.data.extracted_date) {
-                    const idx = updatedArticles.findIndex(a => a.url === art.url);
-                    if (idx !== -1) {
-                        const newDate = response.data.extracted_date;
-                        const isFresh = isDateCurrent(newDate);
-
-                        updatedArticles[idx] = {
-                            ...updatedArticles[idx],
-                            date_str: newDate,
-                            scores: {
-                                ...updatedArticles[idx].scores,
-                                is_fresh: isFresh,
-                                is_old: !isFresh
-                            },
-                            relevance_score: isFresh ? updatedArticles[idx].relevance_score : 0
-                        };
-
-                        // HTML Patch
-                        if (typeof document !== 'undefined') {
-                            try {
-                                const tempDiv = document.createElement('div');
-                                tempDiv.innerHTML = newDigestHtml;
-                                const trigger = tempDiv.querySelector(`.scraper-debug-trigger[data-url="${CSS.escape(art.url)}"]`);
-
-                                if (trigger && trigger.previousElementSibling) {
-                                    trigger.previousElementSibling.textContent = newDate;
-                                    trigger.previousElementSibling.className = ""; // remove spin
-                                    // Color logic
-                                    const dateEl = trigger.previousElementSibling as HTMLElement;
-                                    dateEl.style.color = isFresh ? "#4ade80" : "#7f1d1d";
-
-                                    // PROMOTION LOGIC: Move to top table if fresh
-                                    if (isFresh) {
-                                        const row = trigger.closest('tr');
-                                        if (row) {
-                                            const currentTable = row.closest('table');
-                                            // Assume first table is "Relevant"/Fresh
-                                            const mainTable = tempDiv.querySelector('table');
-
-                                            if (currentTable && mainTable && currentTable !== mainTable) {
-                                                // It's in a secondary table (Older?), move it!
-                                                const tbody = mainTable.querySelector('tbody') || mainTable;
-                                                // Insert at top or bottom? User said "promoted", maybe bottom of fresh is fine.
-                                                // Or top? Let's append for now.
-                                                tbody.appendChild(row);
-
-                                                // Optional: Add a highlight effect class effectively?
-                                                // Can't easily animate via string injection, but the move is enough.
-                                            }
-                                        }
-                                    }
-                                }
-                                newDigestHtml = tempDiv.innerHTML;
-                            } catch (e) { console.warn("HTML Patch failed", e); }
-                        }
-                    }
-                }
-            } catch (e) {
-                console.warn("Failed to re-scrape", art.url, e);
-            }
-        }
-
-        setDigestData({
-            ...digestData,
-            articles: updatedArticles,
-            digest: newDigestHtml
-        });
-    };
 
     // Actually, backend sets SCORE to 0 if invalid. Let's use that signal for reliability.
     const isArticleValid = (art: any) => art.relevance_score > 0;
@@ -1118,6 +1031,21 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
     // Clustering Logic (Simple Distance)
     // const CLUSTER_THRESHOLD = 2.5; // Degrees // Removed, using state variable
 
+    // OPTIMIZATION: Memoize Outlet Lookup to avoid O(N*M) in render loop
+    const outletLookup = useMemo(() => {
+        const map = new Map<string, any>();
+        const nameMap = new Map<string, any>();
+        allOutlets.forEach((o: any) => {
+            try {
+                const d = new URL(o.url).hostname.replace('www.', '');
+                map.set(d, o);
+            } catch { }
+            if (o.name) nameMap.set(o.name, o);
+        });
+        return { byDomain: map, byName: nameMap };
+    }, [allOutlets]);
+
+
     const clusters = useMemo(() => {
         if (cities.length === 0) return [];
 
@@ -1135,21 +1063,23 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
         const sorted = [...cities].sort((a, b) => parseInt(b.pop || 0) - parseInt(a.pop || 0));
 
         // 1.5 Calculate Active Cities from Digest (Live Mode)
+        // 1.5 Calculate Active Cities from Digest (Live Mode)
         const activeDigestCities = new Set<string>();
         if (digestData?.articles && allOutlets.length > 0) {
-            console.log(`[NewsGlobe] Mapping ${digestData.articles.length} articles against ${allOutlets.length} outlets.`);
+            // Optimized Lookup O(N) instead of O(N*M)
+            const { byDomain, byName } = outletLookup;
+
             digestData.articles.forEach((art: any) => {
                 try {
                     let outlet = null;
                     if (art.url) {
-                        const artDomain = new URL(art.url).hostname.replace('www.', '');
-                        outlet = allOutlets.find((o: any) => {
-                            try { return new URL(o.url).hostname.replace('www.', '') === artDomain; } catch { return false; }
-                        });
+                        try {
+                            const artDomain = new URL(art.url).hostname.replace('www.', '');
+                            outlet = byDomain.get(artDomain);
+                        } catch { }
                     }
                     if (!outlet && art.source) {
-                        // Loose match on source name
-                        outlet = allOutlets.find((o: any) => o.name === art.source);
+                        outlet = byName.get(art.source);
                     }
                     if (outlet && outlet.city) {
                         activeDigestCities.add(outlet.city);
@@ -1271,7 +1201,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             }
         });
         return newClusters;
-    }, [cities, discoveredCities, clusterThreshold, markerScale, digestData, allOutlets]); // Updated deps
+    }, [cities, discoveredCities, clusterThreshold, markerScale, digestData, allOutlets, outletLookup]); // Updated deps
 
     // 2. Generate Render Objects based on Expanded State (Fast)
     useEffect(() => {
@@ -1660,44 +1590,162 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
         }
     };
 
-    const handleRulesUpdated = async (domain: string) => {
-        if (!digestData?.articles) return;
+    const handleRulesUpdated = async (domain: string, result?: any, config?: any) => {
+        console.log("handleRulesUpdated CALLED", { domain, result, config });
 
-        // Find all articles from this domain
-        const candidates = digestData.articles.filter((art: any) => {
-            try {
-                return new URL(art.url).hostname.replace('www.', '') === domain;
-            } catch { return false; }
-        });
-
-        console.log(`Starting batch update for ${candidates.length} sources from ${domain}...`);
-        let successCount = 0;
-        let failCount = 0;
-
-        // Trigger updates in background
-        const batchSize = 3;
-        for (let i = 0; i < candidates.length; i += batchSize) {
-            const batch = candidates.slice(i, i + batchSize);
-            await Promise.all(batch.map(async (art: any) => {
-                try {
-                    // Use the Test endpoint to apply the newly saved rule
-                    const res = await api.post('/scraper/test', { url: art.url });
-                    if (res.data.status === 'success' && res.data.extracted_date) {
-                        updateLocalArticleDate(art.url, res.data.extracted_date);
-                        successCount++;
-                    } else {
-                        // Success but no date found (or null)
-                        failCount++; // Technically not a failure, but no update.
-                    }
-                } catch (e: any) {
-                    // Expected for dead links or blocked sites (400 Bad Request)
-                    const msg = e.response?.data?.detail || e.message;
-                    console.warn(`Skipping date update for ${art.url}: ${msg}`);
-                    failCount++;
-                }
-            }));
+        if (!digestData?.articles) {
+            console.warn("handleRulesUpdated: digestData/articles missing!");
+            return;
         }
-        console.log(`Batch update complete. Updated: ${successCount}, Skipped/Failed: ${failCount}`);
+
+        const updateList = async (list: any[]) => {
+            if (!list) return [];
+            const updatedList = [...list];
+            let changesMade = false;
+
+            // Determine active target URL from either debugger state
+            const targetUrl = debuggerConfig?.url || debugTarget?.url;
+
+            console.log(`handleRulesUpdated: Scanning ${updatedList.length} articles target=${targetUrl}`);
+
+            for (let i = 0; i < updatedList.length; i++) {
+                const art = updatedList[i];
+                let shouldUpdate = false;
+                let isDebugTarget = false;
+
+                // Match by URL (Guarantee target update)
+                if (targetUrl && art.url === targetUrl) {
+                    shouldUpdate = true;
+                    isDebugTarget = true;
+                    console.log("handleRulesUpdated: MATCHED TARGET URL", art.url);
+                }
+                // Match by Domain (Broad update)
+                else {
+                    try {
+                        const artDomain = new URL(art.url).hostname.replace('www.', '');
+                        if (artDomain === domain) shouldUpdate = true;
+                    } catch (e) { /* ignore invalid urls */ }
+                }
+
+                if (!shouldUpdate) continue;
+
+                console.log(`handleRulesUpdated: Updating ${art.url} (Target=${isDebugTarget})`);
+
+                try {
+                    let responseData;
+
+                    if (isDebugTarget && result) {
+                        responseData = result;
+                    } else {
+                        // For others, re-test using the new config
+                        const testPayload: any = { url: art.url };
+                        if (config) testPayload.rule_config = config;
+
+                        // We do this sequentially here for simplicity, or could parallelize like before
+                        // But for "Live Update" of one debugged article, sequential is fine.
+                        // If updating 100 articles, this might be slow. 
+                        // But usually the user just wants to see the ONE they fixed.
+                        const resp = await api.post('/scraper/test', testPayload);
+                        responseData = resp.data;
+                    }
+
+                    if (responseData && (responseData.extracted_date || responseData.extracted_title)) {
+                        console.log("DEBUG TITLE UPDATE:", {
+                            url: art.url,
+                            extractedTitle: responseData.extracted_title,
+                            oldTitle: art.title,
+                            extractedDate: responseData.extracted_date
+                        });
+
+                        const newDate = responseData.extracted_date;
+                        const newTitle = responseData.extracted_title || art.title;
+
+                        // Check if actually changed
+                        const isTitleChanged = newTitle && newTitle !== art.title;
+                        const isDateChanged = newDate && newDate !== art.date_str;
+
+                        // Update
+                        updatedList[i] = {
+                            ...art,
+                            title: newTitle,
+                            date_str: newDate,
+                        };
+
+
+                        if (isTitleChanged) {
+                            // Reset AI verdicts if title changed
+                            updatedList[i].ai_verdict = null;
+                            updatedList[i].translated_title = null;
+
+                            // Background Assessment
+                            // We create a self-contained updater that runs after the main update
+                            const artUrl = art.url;
+                            const freshTitle = newTitle;
+
+                            // We don't await this to keep the UI snappy
+                            // But we must chain it to update state LATER
+                            assessQueue.push(async () => {
+                                try {
+                                    const assessment = await handleAssessArticle({ url: artUrl, title: freshTitle });
+                                    if (assessment) {
+                                        setDigestData((prev: any) => {
+                                            if (!prev?.articles) return prev;
+                                            const newArts = prev.articles.map((a: any) => {
+                                                if (a.url === artUrl) {
+                                                    return {
+                                                        ...a,
+                                                        ai_verdict: assessment,
+                                                        // If we have a translation from assessment? (API usually returns it in labels or reasoning?)
+                                                        // Actually assess_article returns { is_politics, confidence, reasoning, labels }
+                                                        // It DOES NOT return translated_title. That's a different endpoint usually?
+                                                        // Wait, checking ArticleRow... it uses ai_verdict for "Is Politics".
+                                                        // Translation is usually separate. 
+                                                        // For now, updating ai_verdict is what "AI-title check" likely refers to (politics check).
+                                                    };
+                                                }
+                                                return a;
+                                            });
+                                            return { ...prev, articles: newArts };
+                                        });
+                                    }
+                                } catch (e) { console.error("Background Assessment Failed", e); }
+                            });
+                        }
+
+                        // Update Local Date Helper if needed
+                        if (newDate) updateLocalArticleDate(art.url, newDate);
+
+                        changesMade = true;
+                    }
+                } catch (e) {
+                    console.warn(`Update failed for ${art.url}`, e);
+                }
+            }
+            return changesMade ? updatedList : list;
+        };
+
+        const assessQueue: (() => Promise<void>)[] = [];
+        const updatedArticles = await updateList(digestData.articles);
+        const updatedExcluded = await updateList(digestData.excluded_articles || []);
+
+        // 1. Immediate Update (Titles)
+        if (updatedArticles !== digestData.articles || updatedExcluded !== digestData.excluded_articles) {
+            setDigestData({
+                ...digestData,
+                articles: updatedArticles,
+                excluded_articles: updatedExcluded
+            });
+            console.log("handleRulesUpdated: State Updated (Titles)!");
+        } else {
+            console.log("handleRulesUpdated: No changes detected.");
+        }
+
+        // 2. Follow-up Update (AI Assessment)
+        if (assessQueue.length > 0) {
+            console.log(`handleRulesUpdated: Processing ${assessQueue.length} background assessments...`);
+            // Run them
+            assessQueue.forEach(fn => fn());
+        }
     };
 
     const handleAssessArticle = async (article: any) => {
@@ -1720,6 +1768,46 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             console.error(err);
             alert(`Assessment process failed: ${err.response?.data?.detail || err.message}`);
             return null;
+        }
+    };
+
+    const handleReportSpam = async (article: any) => {
+        if (!article.url) return;
+        const url = article.url;
+
+        // Toggle Logic
+        if (spamUrls.has(url)) {
+            // UNFLAG (Undo)
+            try {
+                await api.delete(`/feedback/spam?url=${encodeURIComponent(url)}`);
+                const newSpam = new Set(spamUrls);
+                newSpam.delete(url);
+                setSpamUrls(newSpam);
+            } catch (err) {
+                console.error("Failed to unflag spam", err);
+            }
+        } else {
+            // FLAG (Report)
+            try {
+                await api.post('/feedback/spam', {
+                    url: url,
+                    title: article.title,
+                    reason: 'technical_junk'
+                });
+                const newSpam = new Set(spamUrls);
+                newSpam.add(url);
+                setSpamUrls(newSpam);
+
+                // Auto-Deselect
+                if (selectedArticleUrls.has(url)) {
+                    const newSelected = new Set(selectedArticleUrls);
+                    newSelected.delete(url);
+                    setSelectedArticleUrls(newSelected);
+                }
+            } catch (err: any) {
+                console.error("Spam report failed", err);
+                throw err;
+            }
         }
     };
 
@@ -2132,6 +2220,8 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                                             onToggle={handleToggleSelection}
                                             onAssess={handleAssessArticle}
                                             onDebug={handleDebugArticle}
+                                            onReportSpam={handleReportSpam}
+                                            spamUrls={spamUrls}
                                         />
                                     </div>
                                 ) : activeModalTab === 'digest' ? (
@@ -2314,67 +2404,30 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                                                                 className={`relative group cursor-help px-4 py-2 rounded-xl border ${bg} transition-all duration-300 hover:scale-110 hover:shadow-xl hover:z-20`}
                                                                 style={{ fontSize: `${Math.max(0.75, scale)}rem` }}
                                                                 onMouseEnter={(e) => {
+                                                                    if (isTooltipLocked) return;
                                                                     if (hoverTimeout.current) clearTimeout(hoverTimeout.current);
                                                                     const rect = e.currentTarget.getBoundingClientRect();
-                                                                    const align = rect.left < 200 ? 'left' : (rect.right > window.innerWidth - 300 ? 'right' : 'center');
                                                                     const placement = rect.top < 300 ? 'bottom' : 'top';
-                                                                    setActiveTooltip({ word: kw.word, align, placement });
+                                                                    setActiveTooltip({ word: kw.word, data: kw, rect, placement });
                                                                 }}
                                                                 onMouseLeave={() => {
+                                                                    if (isTooltipLocked) return;
                                                                     hoverTimeout.current = setTimeout(() => setActiveTooltip(null), 150);
+                                                                }}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    if (activeTooltip?.word === kw.word && isTooltipLocked) {
+                                                                        setIsTooltipLocked(false);
+                                                                        setActiveTooltip(null);
+                                                                    } else {
+                                                                        const rect = e.currentTarget.getBoundingClientRect();
+                                                                        const placement = rect.top < 300 ? 'bottom' : 'top';
+                                                                        setActiveTooltip({ word: kw.word, data: kw, rect, placement });
+                                                                        setIsTooltipLocked(true);
+                                                                    }
                                                                 }}
                                                             >
                                                                 {displayWord}
-
-                                                                {/* Interactive Tooltip */}
-                                                                {activeTooltip && activeTooltip.word === kw.word && (
-                                                                    <div
-                                                                        className={`absolute w-80 bg-slate-900/95 backdrop-blur-md border border-slate-500/50 rounded-xl shadow-2xl p-4 z-[100] text-xs text-left cursor-auto animate-in fade-in zoom-in-95 duration-200 
-                                                                            ${activeTooltip.placement === 'bottom' ? 'top-[calc(100%+8px)]' : 'bottom-[calc(100%+8px)]'}
-                                                                            ${activeTooltip.align === 'left' ? 'left-0' : activeTooltip.align === 'right' ? 'right-0' : 'left-1/2 -translate-x-1/2'}
-                                                                        `}
-                                                                        style={{ fontSize: '0.75rem' }}
-                                                                        onMouseEnter={() => {
-                                                                            if (hoverTimeout.current) clearTimeout(hoverTimeout.current);
-                                                                        }}
-                                                                        onMouseLeave={() => {
-                                                                            hoverTimeout.current = setTimeout(() => setActiveTooltip(null), 150);
-                                                                        }}
-                                                                    >
-                                                                        {/* Invisible Bridge */}
-                                                                        <div className={`absolute left-0 w-full h-4 bg-transparent ${activeTooltip.placement === 'bottom' ? '-top-3' : '-bottom-3'}`}></div>
-
-                                                                        <div className="flex justify-between items-start border-b border-slate-700/50 pb-2 mb-3">
-                                                                            <div className="font-bold text-white text-base">{displayWord}</div>
-                                                                            <div className="flex flex-col items-end gap-1">
-                                                                                <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${kw.sentiment === 'Positive' ? 'bg-green-900/50 text-green-400 border border-green-800' : kw.sentiment === 'Negative' ? 'bg-red-900/50 text-red-400 border border-red-800' : 'bg-slate-700/50 text-slate-400 border border-slate-600'}`}>
-                                                                                    {kw.sentiment}
-                                                                                </span>
-                                                                                <span className="text-[10px] text-slate-500 font-mono">Imp: {kw.importance}</span>
-                                                                            </div>
-                                                                        </div>
-
-                                                                        <div className="space-y-2">
-                                                                            <div className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-1">
-                                                                                Found in {kw.sources?.length || 0} sources
-                                                                            </div>
-                                                                            <ul className="space-y-2 max-h-40 overflow-y-auto custom-scrollbar pr-1">
-                                                                                {kw.sources && kw.sources.length > 0 ? (
-                                                                                    kw.sources.map((src: any, idx: number) => (
-                                                                                        <li key={idx} className="flex flex-col gap-0.5 bg-slate-800/30 p-2 rounded hover:bg-slate-800/50 transition-colors">
-                                                                                            <a href={src.url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 hover:underline font-medium line-clamp-2 leading-tight">
-                                                                                                {src.title}
-                                                                                            </a>
-                                                                                            <span className="text-[10px] text-slate-500">{src.source}</span>
-                                                                                        </li>
-                                                                                    ))
-                                                                                ) : (
-                                                                                    <li className="text-slate-600 italic">No direct sources mapped.</li>
-                                                                                )}
-                                                                            </ul>
-                                                                        </div>
-                                                                    </div>
-                                                                )}
                                                             </div>
                                                         );
                                                     })}
@@ -2392,16 +2445,33 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                                                                 </div>
                                                                 <div className="p-4 space-y-3 overflow-y-auto custom-scrollbar flex-1">
                                                                     {sentimentKeywords.map((kw: any, i: number) => (
-                                                                        <div key={i} className="bg-slate-800/40 p-3 rounded border border-white/5 hover:bg-slate-800 transition-colors group relative">
-                                                                            {/* Tooltip for Column View */}
-                                                                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 bg-slate-900 border border-slate-700 rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 text-xs text-left">
-                                                                                <div className="font-bold text-white mb-1">Sources:</div>
-                                                                                <ul className="space-y-1">
-                                                                                    {kw.sources?.slice(0, 3).map((src: any, idx: number) => (
-                                                                                        <li key={idx} className="line-clamp-1 text-slate-400">• {src.title || src.url}</li>
-                                                                                    ))}
-                                                                                </ul>
-                                                                            </div>
+                                                                        <div
+                                                                            key={i}
+                                                                            className={`bg-slate-800/40 p-3 rounded border border-white/5 hover:bg-slate-800 transition-colors group relative cursor-help ${activeTooltip?.word === kw.word && isTooltipLocked ? 'bg-slate-700 border-white/30' : ''}`}
+                                                                            onMouseEnter={(e) => {
+                                                                                if (isTooltipLocked) return;
+                                                                                if (hoverTimeout.current) clearTimeout(hoverTimeout.current);
+                                                                                const rect = e.currentTarget.getBoundingClientRect();
+                                                                                const placement = rect.top < 300 ? 'bottom' : 'top';
+                                                                                setActiveTooltip({ word: kw.word, data: kw, rect, placement });
+                                                                            }}
+                                                                            onMouseLeave={() => {
+                                                                                if (isTooltipLocked) return;
+                                                                                hoverTimeout.current = setTimeout(() => setActiveTooltip(null), 150);
+                                                                            }}
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                if (activeTooltip?.word === kw.word && isTooltipLocked) {
+                                                                                    setIsTooltipLocked(false);
+                                                                                    setActiveTooltip(null);
+                                                                                } else {
+                                                                                    const rect = e.currentTarget.getBoundingClientRect();
+                                                                                    const placement = rect.top < 300 ? 'bottom' : 'top';
+                                                                                    setActiveTooltip({ word: kw.word, data: kw, rect, placement });
+                                                                                    setIsTooltipLocked(true);
+                                                                                }
+                                                                            }}
+                                                                        >
                                                                             <div className="flex justify-between items-start mb-1">
                                                                                 <div className="font-bold text-slate-200">
                                                                                     {isAnalyticsTranslated && kw.translation ? kw.translation : kw.word}
@@ -2426,11 +2496,13 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                                             )
                                         )}
                                     </div>
-                                )}
+                                )
+                                }
                             </div>
                         </div>
                     </div>
-                )}
+                )
+            }
 
             {globeComponent}
             {
@@ -2841,7 +2913,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                         initialUrl={debugTarget.url}
                         domain={debugTarget.domain}
 
-                        onSave={handleRuleSaved}
+                        onSave={handleRulesUpdated}
                         onSaving={handleRuleSaving}
                     />
                 )
@@ -2923,6 +2995,62 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                     </div>
                 </div>
             </div>
+
+            {/* Global Analytics Tooltip */}
+            {activeTooltip && activeTooltip.rect && (
+                <div
+                    className="fixed z-[9999] w-80 bg-slate-950 backdrop-blur-xl border border-slate-700 rounded-xl shadow-[0_0_50px_rgba(0,0,0,0.8)] p-4 text-xs text-left cursor-auto animate-in fade-in zoom-in-95 duration-200"
+                    style={{
+                        top: activeTooltip.placement === 'bottom'
+                            ? activeTooltip.rect.bottom + 8
+                            : activeTooltip.rect.top - 8 - (200),
+                        left: activeTooltip.rect.left + (activeTooltip.rect.width / 2) - 160,
+                    }}
+                    onMouseEnter={() => {
+                        if (hoverTimeout.current) clearTimeout(hoverTimeout.current);
+                    }}
+                    onMouseLeave={() => {
+                        if (isTooltipLocked) return;
+                        hoverTimeout.current = setTimeout(() => {
+                            setActiveTooltip(null);
+                            setIsTooltipLocked(false);
+                        }, 150);
+                    }}
+                >
+                    <div className="flex justify-between items-start border-b border-slate-800 pb-2 mb-3">
+                        <div className="font-bold text-white text-base">
+                            {isAnalyticsTranslated && activeTooltip.data?.translation ? activeTooltip.data.translation : activeTooltip.word}
+                            {isTooltipLocked && <span className="ml-2 text-[10px] text-blue-400 border border-blue-900 bg-blue-950/50 px-1 rounded align-middle">LOCKED</span>}
+                        </div>
+                        <div className="flex flex-col items-end gap-1">
+                            <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${activeTooltip.data?.sentiment === 'Positive' ? 'bg-green-900/50 text-green-400 border border-green-800' : activeTooltip.data?.sentiment === 'Negative' ? 'bg-red-900/50 text-red-400 border border-red-800' : 'bg-slate-800 text-slate-400 border border-slate-700'}`}>
+                                {activeTooltip.data?.sentiment}
+                            </span>
+                            <span className="text-[10px] text-slate-500 font-mono">Imp: {activeTooltip.data?.importance}</span>
+                        </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        <div className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-1">
+                            Found in {activeTooltip.data?.sources?.length || 0} sources
+                        </div>
+                        <ul className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar pr-1">
+                            {activeTooltip.data?.sources && activeTooltip.data.sources.length > 0 ? (
+                                activeTooltip.data.sources.map((src: any, idx: number) => (
+                                    <li key={idx} className="flex flex-col gap-0.5 bg-slate-900/50 p-2 rounded hover:bg-slate-900 transition-colors border border-white/5">
+                                        <a href={src.url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 hover:underline font-medium line-clamp-2 leading-tight">
+                                            {src.title}
+                                        </a>
+                                        <span className="text-[10px] text-slate-500">{src.source}</span>
+                                    </li>
+                                ))
+                            ) : (
+                                <li className="text-slate-600 italic">No direct sources mapped.</li>
+                            )}
+                        </ul>
+                    </div>
+                </div>
+            )}
 
             {/* Support / Donation Button */}
             <a

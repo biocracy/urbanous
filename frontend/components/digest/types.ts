@@ -24,5 +24,7 @@ export interface DigestReportRendererProps {
     onToggle: (url: string) => void;
     onAssess?: (article: Article) => void;
     onDebug?: (article: Article) => void;
+    onReportSpam?: (article: Article) => void;
+    spamUrls?: Set<string>;
     excludedArticles?: Article[];
 }

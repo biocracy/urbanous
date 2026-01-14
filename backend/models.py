@@ -118,3 +118,15 @@ class ScraperRule(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
 # Keep Category if needed for tagging digests, but for now String category is simpler.
+
+class SpamFeedback(Base):
+    __tablename__ = "spam_feedback"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    domain = Column(String, index=True) # e.g. "epitesti.ro"
+    url = Column(String, index=True) # e.g. "https://..."
+    title = Column(String, nullable=True)
+    reason = Column(String, nullable=True) # e.g. "category_page", "ads"
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+

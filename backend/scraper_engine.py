@@ -13,6 +13,7 @@ class ScraperRule(BaseModel):
     domain: str
     date_selectors: Optional[List[str]] = None      # CSS Selectors e.g. ["span.post-date", "time.pub"]
     date_regex: Optional[List[str]] = None          # Specific Regexes to run on full text or specific elements
+    title_selectors: Optional[List[str]] = None     # CSS Selectors for Title (e.g. h1.entry-title)
     use_json_ld: bool = True                        # Check Schema.org JSON-LD
     use_data_layer: bool = False                    # Check for window.dataLayer variables (common in news)
     data_layer_var: Optional[str] = None            # Specific JS variable name (default "dataLayer")
@@ -399,26 +400,51 @@ def extract_article_links(html: str, base_url: str) -> List[Dict[str, str]]:
     candidates = []
     seen_urls = set()
     
-    for a in soup.find_all('a', href=True):
-        href = a['href']
-        full_url = urljoin(base_url, href)
-        
-        # Basic Validation
-        if full_url in seen_urls: continue
-        if not is_valid_article_url(full_url): continue
-        if full_url == base_url or full_url + "/" == base_url: continue # Skip self
-        
-        title = a.get_text(strip=True)
-        # Allow numeric titles if explicitly whitelisted or generally allowed
-        # (Filtering "Bad Titles" happens later in AI step or specific rule)
-        
-        # Special logic for Vremya: Numeric titles are valid
-        # if title.isdigit(): ... (Accepted)
+    raw_links = soup.find_all('a', href=True)
+    with open("stream_debug.log", "a") as f: f.write(f"EXTRACT_ENGINE: Found {len(raw_links)} raw links in {base_url}\n")
+    
+    import traceback
+    
+    for a in raw_links:
+        try:
+            href = a.get('href', None)
+            if not href: continue
+            
+            full_url = urljoin(base_url, href)
+            
+            # Helper to log immediate crash
+            with open("stream_debug.log", "a") as f: 
+                 # f.write(f"CHECKING: {full_url}\n") 
+                 pass
+            
+            # Basic Validation
+            if full_url in seen_urls: continue
+            
+            # IS VALID CHECK (Wrapped)
+            try:
+                if not is_valid_article_url(full_url): 
+                    # Log handled inside is_valid_article_url
+                    continue
+            except Exception as e:
+                with open("stream_debug.log", "a") as f: f.write(f"CRASH_IN_VALIDATION: {full_url} -> {e}\n")
+                continue
+                
+            if full_url == base_url or full_url + "/" == base_url: 
+                 with open("stream_debug.log", "a") as f: f.write(f"REJECT_SELF: {full_url}\n")
+                 continue # Skip self
+            
+            title = a.get_text(strip=True)
 
-        if len(title) < 2: continue # purely empty links
-        
-        candidates.append({'url': full_url, 'title': title})
-        seen_urls.add(full_url)
+            if len(title) < 2: 
+                 with open("stream_debug.log", "a") as f: f.write(f"REJECT_EMPTY_TITLE: {full_url}\n")
+                 continue 
+            
+            candidates.append({'url': full_url, 'title': title})
+            seen_urls.add(full_url)
+        except Exception as e:
+            with open("stream_debug.log", "a") as f: 
+                 f.write(f"CRASH_IN_LOOP: {e}\n")
+                 traceback.print_exc(file=f)
         
     return candidates
 
@@ -444,7 +470,11 @@ def detect_content_type(html: str) -> str:
     
     # B. Title/Keyword Check (Noise Filter)
     title = soup.title.string.lower() if soup.title else ""
-    noise_keywords = ["donate", "support", "pidtrymka", "contact", "region", "rubric", "category", "donat"]
+    noise_keywords = [
+        "donate", "support", "pidtrymka", "contact", "rubric", "donat",
+        "termeni", "conditii", "gdpr", "confidentialitate",
+        "index", "homepage", "arhiva", "login", "register"
+    ]
     if any(k in title for k in noise_keywords):
         return "category" # Treat as category/page to reject
         
@@ -479,50 +509,89 @@ def is_valid_article_url(url: str) -> bool:
     """
     Strict filter to reject non-article pages (categories, feeds, ads, etc.).
     """
+    import re
     if not url: return False
     
     url_lower = url.lower()
     
+    # DEBUG LOGGING
+    with open("stream_debug.log", "a") as f:
+         # f.write(f"VALIDATING: {url}\n") 
+         pass
+         
+    # 0. Protocol Check
+    if not (url_lower.startswith('http://') or url_lower.startswith('https://')):
+        with open("stream_debug.log", "a") as f: f.write(f"REJECT_PROTOCOL: {url}\n")
+        return False
+        
     # 1. Extensions to ignore
-    if any(url_lower.endswith(ext) for ext in ['.pdf', '.jpg', '.png', '.xml', '.rss', '.atom', '.mp3', '.mp4']):
+    if any(url_lower.endswith(ext) for ext in ['.pdf', '.jpg', '.png', '.gif', '.xml', '.rss', '.atom', '.mp3', '.mp4']):
+        with open("stream_debug.log", "a") as f: f.write(f"REJECT_EXT: {url}\n")
         return False
         
     # 2. Blacklisted keywords in path
-    # 'feed' often appears in /feed/
-    # 'category', 'tag', 'page' are common CMS structures
     blacklist = [
-        '/feed', '/rss', '/category', '/tag', '/page', '/search', '/admin', 
+        '/feed/', '/rss', '/category', '/tag', '/page', '/search', '/admin', 
         '/login', '/register', '/profile', '/user', '/author',
         '/reklama', '/aktsiyi', '/promo', '/special', '/topics', '/theme',
         '/rules', '/donate', '/pidtrymka', '/contact', '/about',
         '/oblasna-vlada', '/parlamentski-vybory', '/ukrajina', '/allnews',
         '/video', '/photo', '/maps', '/weather', '/horoscope',
         'list.html', 'index.php',
-        # Spam/Utility Terms
+        # Spam/Utility Terms (User Reported)
         'privacy-policy', 'privacy', 'terms', 'conditions', 'usloviya', 'agreement', 'rules', 'pravila', 'feedback', 
         'contact', 'about', 'donat', 'subscription', 'login', 'register', 'signin', 'auth',
-        'advertise', 'reklama', 'rss', 'feed', 'sitemap', 'shop', 'store', 'cart', 'basket',
+        'advertise', 'reklama', 'sitemap', 
+        '/shop/', '/store/', '/cart/', '/basket/', 
+        'termeni', 'conditii', 'gdpr', 'confidentialitate', 
+        'publicitate', 'despre', 'echipa', 'abonament', 'newsletter',
+        '/ghid/', '/anunt/', '/pamflete/', 'galerie-foto',
         'route/appear', '/cellar/', # Technical/Ad redirects
         'brest1000', 'heroes'
     ]
     
-    # Using 'in' might be too aggressive for weak keywords like 'video', check path segments if needed
-    # But for these specific ones, they are usually safe to block if present as a segment
     for bad in blacklist:
         if bad in url_lower:
+            with open("stream_debug.log", "a") as f: f.write(f"REJECT_KEYWORD [{bad}]: {url}\n")
             return False
             
-    # 3. Host blocking (e.g. wordpress.org)
-    bad_hosts = ["wordpress.org", "tp.st", "invite.viber.com"]
+    # 3. Explicit Pagination Check
+    # Matches: /page/2, /2.html (if segment is just digit), /p/2
+    if re.search(r'/(page|p)/\d+', url_lower) or re.search(r'/\d+\.html$', url_lower):
+        # Exception: Some articles are just ID.html (e.g. /12345.html)
+        # But /1.html or /2.html are usually pages.
+        # Let's be careful. If the number is small (< 100), likely pagination.
+        match = re.search(r'/(\d+)\.html$', url_lower)
+        if match:
+             num = int(match.group(1))
+             if num < 50: 
+                 with open("stream_debug.log", "a") as f: f.write(f"REJECT_PAGINATION_ID: {url}\n")
+                 return False # Page 1-49 usually pagination
+        else:
+             if '/page/' in url_lower: 
+                 with open("stream_debug.log", "a") as f: f.write(f"REJECT_PAGINATION: {url}\n")
+                 return False
+             
+    # 4. Host blocking
+    bad_hosts = [
+        "wordpress.org", "tp.st", "invite.viber.com",
+        "paydemic.com", "account.paydemic.com", "content.paydemic.com",
+        "facebook.com", "twitter.com", "instagram.com", "youtube.com",
+        "linkedin.com", "pinterest.com", "reddit.com"
+    ]
     for bh in bad_hosts:
-        if bh in url_lower: return False
+        if bh in url_lower: 
+            with open("stream_debug.log", "a") as f: f.write(f"REJECT_HOST [{bh}]: {url}\n")
+            return False
     
     # 4. Path Analysis
     from urllib.parse import urlparse
     parsed = urlparse(url)
     path = parsed.path.strip("/")
     
-    if not path: return False # Homepage
+    if not path: 
+        with open("stream_debug.log", "a") as f: f.write(f"REJECT_HOMEPAGE: {url}\n")
+        return False # Homepage
     
     segments = path.split("/")
     last_seg = segments[-1] if segments else ""
@@ -530,7 +599,9 @@ def is_valid_article_url(url: str) -> bool:
     # 5. Pagination Blocking (e.g. /news/2/, /page/5)
     import re
     if re.match(r'^\d+$', last_seg):
-        if len(last_seg) < 4: return False 
+        if len(last_seg) < 4: 
+             with open("stream_debug.log", "a") as f: f.write(f"REJECT_SHORT_DIGIT: {url}\n")
+             return False 
 
     # 6. Trailing Slash Heuristic
     if url.endswith("/"):
@@ -539,6 +610,7 @@ def is_valid_article_url(url: str) -> bool:
         has_digits = any(c.isdigit() for c in last_seg)
         
         if not has_digits and hyphen_count < 2 and len(last_seg) < 25:
+             with open("stream_debug.log", "a") as f: f.write(f"REJECT_TRAILING_SLASH: {url}\n")
              return False
 
     # Reject high-level single-segment paths that look like categories
@@ -551,7 +623,8 @@ def is_valid_article_url(url: str) -> bool:
         
         # If short, no digits, few hyphens -> Likely category
         if len(slug) < 20 and not has_digits and hyphen_count < 2:
-            return False
+             with open("stream_debug.log", "a") as f: f.write(f"REJECT_SINGLE_SEG: {url}\n")
+             return False
             
     # 7. Query Param Check
     if parsed.query:
@@ -822,3 +895,49 @@ def generate_master_timeline(all_events_map: Dict[str, List[Dict[str, Any]]]):
     with open("master_timeline.html", "w", encoding="utf-8") as f:
         f.write(html)
     print("Master Timeline saved to master_timeline.html")
+
+# --- Title Extraction ---
+def extract_title_from_html(html: str, url: str, custom_rule_override: Optional[ScraperRule] = None) -> Optional[str]:
+    """
+    Extracts the article title using Rules, Metadata, or Heuristics.
+    """
+    if not html: return None
+    soup = BeautifulSoup(html, 'html.parser')
+    
+    # 0. Check Rules Registry or Override
+    rule = custom_rule_override
+    if not rule:
+        domain = url.split("//")[-1].split("/")[0].replace("www.", "")
+        rule = SCRAPER_REGISTRY.get(domain)
+    
+    if rule and rule.title_selectors:
+        for selector in rule.title_selectors:
+            try:
+                el = soup.select_one(selector)
+                if el:
+                    text = el.get_text(strip=True)
+                    if len(text) > 5: return text
+            except Exception as e:
+                print(f"Rule Title Selector '{selector}' failed: {e}")
+
+    # 1. Open Graph Meta
+    og_title = soup.find("meta", property="og:title")
+    if og_title and og_title.get("content"):
+        return og_title["content"].strip()
+
+    # 2. H1 (Standard for most CMS)
+    h1 = soup.find("h1")
+    if h1:
+        text = h1.get_text(strip=True)
+        if len(text) > 5: return text
+
+    # 3. Twitter Card
+    tw_title = soup.find("meta", name="twitter:title")
+    if tw_title and tw_title.get("content"):
+        return tw_title["content"].strip()
+        
+    # 4. Fallback to <title>
+    if soup.title:
+        return soup.title.get_text(strip=True)
+
+    return None

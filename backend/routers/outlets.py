@@ -874,6 +874,8 @@ async def robust_fetch(client, url):
         return None
 
 async def smart_scrape_outlet(outlet: NewsOutlet, category: str, timeframe: str = "24h", log_bus: any = None, api_key: str = None, scraper_rule_config: dict = None) -> dict:
+    print(f"DEBUG: smart_scrape_outlet called for {outlet.url}")
+    with open("stream_debug.log", "a") as f: f.write(f"START_SCRAPE: {outlet.url}\n")
     """
     Fetches content from an outlet, intelligently navigating to the category page if possible.
     Returns structured article data and raw text for AI.
@@ -928,6 +930,10 @@ async def smart_scrape_outlet(outlet: NewsOutlet, category: str, timeframe: str 
         # Limit HTML size to prevent CPU blocking on huge pages
         html = resp.text[:200000] 
         soup = BeautifulSoup(html, 'html.parser')
+        candidates = []
+        seen_urls = set()
+        links_found = soup.find_all('a', href=True)
+        with open("stream_debug.log", "a") as f: f.write(f"EXTRACT: Found {len(links_found)} raw <a> tags in {outlet.url}\n")
         timeline_events[-1]["end"] = time.time()
 
         # 2. Try to find Category Link (Universal AI Discovery)
@@ -1035,143 +1041,64 @@ async def smart_scrape_outlet(outlet: NewsOutlet, category: str, timeframe: str 
                  continue 
         
         # Valid response check
-        if not resp: continue
+        if not resp: 
+             await log(f"  -> Resp is None, skipping.")
+             continue
+        
+        await log(f"  -> Got {len(resp.text)} chars.")
         
         # NOTE: Removed the second 'try/log/async with' block that was here.
         # Now proceeding to parsing...
                 
         # Parse
         soup = BeautifulSoup(resp.text, 'html.parser')
-        
-        # Extract Text (Append to combined)
         text = soup.get_text(separator=' ', strip=True)
+        
         # Truncate to avoid exploding token context
         combined_content += f"\n--- SOURCE: {outlet.name} [{target_url}] ---\n{text[:10000]}\n"
         
-        # Extract Links (Article Discovery)
-        # Reuse the existing article extraction logic?
-        # The original code had a big block for "Find Articles".
-        # We need to run that block on 'soup'.
-        
-        # ... (Logic below is the original article extraction, customized for the loop)
-        
-        # Find all potential links
-        links = soup.find_all('a', href=True)
-                
-        for a in links:
-            href = a['href']
-            raw_title = a.get_text(strip=True)
-            
-            # Normalize URL
-            if not href.startswith('http'):
-                import urllib.parse
-                full_url = urllib.parse.urljoin(target_url, href)
-            else:
-                full_url = href
-            
-            # STRICT FILTER (Unify with Sitemap Logic)
-            if not scraper_engine.is_valid_article_url(full_url):
-                continue
-            
-            # Basic Validation
-            if len(raw_title) < 5: continue
-            
-            # Content/Allowlist Filter
-            is_relevant = False
-            
-            # 1. URL Keywords
-            if any(k in full_url.lower() for k in cat_keywords): is_relevant = True
-            # 2. Title Keywords
-            if any(k in raw_title.lower() for k in cat_keywords): is_relevant = True
-            # 3. Date check (simple slug)
-            if "2026" in full_url or "2025" in full_url: is_relevant = True
-            
-            # Blacklist
-            BLACKLIST_TERMS = [
-                # Meta-pages (Contact, Terms, Privacy)
-                "contact", "terms", "privacy", "cookies", "gdpr", "politica-confidentialitate", "despre", "about", 
-                "redactia", "echipa", "team", "publicitate", "advertising", "cariere", "careers", 
-                "politica-editoriala", "caseta-redactionala", "termeni", "conditii",
-                "donate", "donat", "pidtrymka", "support", "subscription", "login", "signin", "auth", "register",
-                "linklist", "rules", "pravyla", "allnews", "moda", "eksklyuziv", # User Spam
+        # LEGACY LOOP REMOVED - Relying on Standardized Engine
+        await log("  -> Legacy loop bypassed. Proceeding to Engine Extraction.")
 
-                # Food/Recipes
-                "recipe", "retet", "receta", "recette", "rezept", "ricett", "mancare", "food", "kitchen", "bucatarie", "essen", "cucina",
-                # Horoscope/Astrology
-                "horoscop", "horoscope", "horoskop", "zodiac", "zodiaque", "astrology", "astro",
-                # Gossip/Tabloid
-                "can-can", "cancan", "paparazzi", "gossip", "tabloid", "klatsch", "potins", "monden", "diva", "vedete", "vip",
-                # Games/Quizzes
-                "game", "jocuri", "juego", "jeu", "spiele", "gioc", "quiz", "crossword", "sudoku", "rebus",
-                # Lifestyle/Shopping
-                "lifestyle", "fashion", "moda", "mode", "shop", "magazin-online", "store", "oferte"
-            ]
-            if any(b in full_url.lower() for b in BLACKLIST_TERMS): is_relevant = False
-                    
-                    # DEBUG: Log logic
-                    # print(f"DEBUG LINK: {full_url} | Relevant: {is_relevant} | Keywords: {cat_keywords}")
-
-            # 4. Contextual Relevance (NEW)
-            page_is_category = any(k in target_url.lower() for k in cat_keywords)
-            
-            if not is_relevant and page_is_category:
-                 if full_url.count("-") >= 3:
-                     is_relevant = True
-                 elif re.search(r'/\d+/', full_url):
-                     is_relevant = True
-            
-            # --- NEW: Content-Based Verification for "Category" Suspects ---
-            
-            if is_relevant:
-                # Heuristic: If URL looks like a section root (short path, no date, specific keywords)
-                # Expanded for Finnish/Global patterns AND User Feedback
-                suspicious_roots = [
-                     "/category/", "/app/", "/shopping/", "/collection/", "/store/", "/shop/", 
-                             "/guide", "/rss", "/tilaus", "/logga-in", "/politik", # Finnish/Swedish specifics
-                             "/rubric/", "/list/", "/anfrage", "tel:", "mailto:", # User Reported Spams
-                             "/region", "/oblast", "/sport/", "/culture/", "/theme/", "/tema/", "/ukrayina", # Sections
-                             "/t/", "/a/" # Ambiguous short paths often used for topics or archives
-                ]
-                
-                # Count slashes ignoring protocols
-                path_depth = full_url.replace("://", "").rstrip("/").count("/")
-                
-                if any(s in full_url.lower() for s in suspicious_roots) or path_depth <= 2:
-                    # Fetch to verify
-                    try:
-                        async with httpx.AsyncClient(verify=False, timeout=5, headers=ROBUST_HEADERS) as verify_client:
-                            head_resp = await verify_client.get(full_url)
-                            content_type = scraper_engine.detect_content_type(head_resp.text[:15000]) # First 15KB enough for meta/p structure
-                            
-                            if content_type == "category":
-                                print(f"DEBUG: REJECTED Content-Based {full_url} (Detected as {content_type})")
-                                is_relevant = False
-                    except:
-                        # Fail Closed for suspicious roots if we can't verify
-                        print(f"DEBUG: REJECTED {full_url} (Verification Failed)")
-                        is_relevant = False
-
-                    
-                    if is_relevant:
-                        print(f"DEBUG: ACCEPTED CANDIDATE {full_url}")
-                else:
-                    # Log first few rejections to see why
-                    if len(links) < 100 or i < 1: 
-                         pass 
-                     # print(f"DEBUG: REJECTED {full_url} (PageCat: {page_is_category})")
         # Standardized Link Extraction
+        await log(f"  -> Calling extract_article_links...")
         extracted_items = scraper_engine.extract_article_links(resp.text, target_url)
-        await log(f"  -> Extracted {len(extracted_items)} raw links.")
+        await log(f"  -> Extracted {len(extracted_items)} raw links via Engine.")
         
-        # Rule Object Init (Reuse)
+        # Rule Object Init (Reuse or Fetch from DB)
         rule_obj = None
+        
+        # 1. Use Override if provided (Testing)
         if scraper_rule_config:
               rule_obj = scraper_engine.ScraperRule(
                   domain="custom",
                   date_selectors=scraper_rule_config.get('date_selectors'),
                   date_regex=scraper_rule_config.get('date_regex'),
-                  use_json_ld=scraper_rule_config.get('use_json_ld', True)
+                  title_selectors=scraper_rule_config.get('title_selectors'),
+                  use_json_ld=scraper_rule_config.get('use_json_ld', True),
+                  use_data_layer=scraper_rule_config.get('use_data_layer', True),
+                  data_layer_var=scraper_rule_config.get('data_layer_var', "dataLayer")
               )
+        # 2. Fetch from DB if not provided (Persistence)
+        else:
+            try:
+                domain_key = target_url.split("//")[-1].split("/")[0].replace("www.", "")
+                # ScraperRule is already imported from models
+                db_rule = db.query(ScraperRule).filter(ScraperRule.domain == domain_key).first()
+                if db_rule:
+                    rule_obj = scraper_engine.ScraperRule(
+                        domain=db_rule.domain,
+                        date_selectors=db_rule.date_selectors,
+                        date_regex=db_rule.date_regex,
+                        # Pass title selectors from DB for persistence
+                        title_selectors=db_rule.title_selectors,
+                        use_json_ld=db_rule.use_json_ld,
+                        use_data_layer=db_rule.use_data_layer,
+                        data_layer_var=db_rule.data_layer_var
+                    )
+                    # print(f"DEBUG: Loaded Persisted Rule for {domain_key}: {db_rule.title_selectors}")
+            except Exception as e:
+                print(f"Failed to load ScraperRule from DB: {e}")
 
         # Separate items needing scan vs ready items
         items_to_scan = []
@@ -1224,18 +1151,17 @@ async def smart_scrape_outlet(outlet: NewsOutlet, category: str, timeframe: str 
                          s_resp = await s_client.get(full_url)
                          if s_resp.status_code == 200:
                              effective_rule = rule_obj or scraper_engine.ScraperRule(domain="fallback", use_json_ld=True, use_data_layer=True)
+                             
+                             # Extract Date
                              if not found_date_str:
                                  found_date_str = scraper_engine.extract_date_from_html(s_resp.text, full_url, custom_rule_override=effective_rule)
-                             if is_bad_title:
-                                 try:
-                                     from bs4 import BeautifulSoup as BS
-                                     s_soup = BS(s_resp.text, "html.parser")
-                                     og = s_soup.find("meta", property="og:title")
-                                     if og and og.get("content"): raw_title = og.get("content").strip()
-                                     else:
-                                         h1 = s_soup.find("h1")
-                                         if h1: raw_title = h1.get_text(strip=True)
-                                 except: pass
+                             
+                             # Extract Title (Deep Scan Override)
+                             # Unconditional Deep Extraction (Matches Test Mode Behavior)
+                             deep_title = scraper_engine.extract_title_from_html(s_resp.text, full_url, custom_rule_override=effective_rule)
+                             
+                             if deep_title:
+                                 raw_title = deep_title
                 except: pass
                 
                 ev["end"] = time.time()

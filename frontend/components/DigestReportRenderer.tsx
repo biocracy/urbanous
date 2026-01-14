@@ -4,23 +4,29 @@ import React, { useState, useMemo } from 'react';
 import { Article, DigestReportRendererProps } from './digest/types';
 import { OutletGroup } from './digest/OutletGroup';
 
-export default function DigestReportRenderer({ articles, category, isTranslated = false, selectedUrls, onToggle, onAssess, onDebug, excludedArticles }: DigestReportRendererProps) {
+export default function DigestReportRenderer({ articles, category, isTranslated = false, selectedUrls, onToggle, onAssess, onDebug, onReportSpam, spamUrls, excludedArticles }: DigestReportRendererProps) {
     const [displayCount, setDisplayCount] = useState(20);
 
     // Group Articles by Outlet
     const groupedArticles = useMemo(() => {
-        const groups: { [key: string]: { active: Article[], excluded: Article[] } } = {};
+        const groups: { [key: string]: { active: Article[], excluded: Article[], spam: Article[] } } = {};
 
-        articles.forEach(art => {
-            if (!groups[art.source]) groups[art.source] = { active: [], excluded: [] };
-            groups[art.source].active.push(art);
-        });
+        const processArticle = (art: Article, isExcludeList = false) => {
+            if (!groups[art.source]) groups[art.source] = { active: [], excluded: [], spam: [] };
+
+            if (selectedUrls && spamUrls && spamUrls.has(art.url)) {
+                groups[art.source].spam.push(art);
+            } else if (isExcludeList) {
+                groups[art.source].excluded.push(art);
+            } else {
+                groups[art.source].active.push(art);
+            }
+        };
+
+        articles.forEach(art => processArticle(art, false));
 
         if (excludedArticles) {
-            excludedArticles.forEach(art => {
-                if (!groups[art.source]) groups[art.source] = { active: [], excluded: [] };
-                groups[art.source].excluded.push(art);
-            });
+            excludedArticles.forEach(art => processArticle(art, true));
         }
 
         // Convert to array and sort outlets by highest score (max relevance in group)
@@ -44,12 +50,13 @@ export default function DigestReportRenderer({ articles, category, isTranslated 
                 return {
                     source,
                     articles: activeSorted,
-                    excludedArticles: excludedSorted, // Pass to child
+                    excludedArticles: excludedSorted,
+                    spamArticles: data.spam.sort(sortFn),
                     maxScore: Math.max(maxActive, maxExcluded)
                 };
             })
             .sort((a, b) => b.maxScore - a.maxScore);
-    }, [articles, excludedArticles]);
+    }, [articles, excludedArticles, spamUrls, selectedUrls]);
 
     const visibleGroups = groupedArticles.slice(0, displayCount);
 
@@ -68,7 +75,9 @@ export default function DigestReportRenderer({ articles, category, isTranslated 
                     onToggle={onToggle}
                     onAssess={onAssess}
                     onDebug={onDebug}
+                    onReportSpam={onReportSpam}
                     excludedArticles={group.excludedArticles}
+                    spamArticles={group.spamArticles}
                 />
             ))}
 

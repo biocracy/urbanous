@@ -15,12 +15,15 @@ interface OutletGroupProps {
     onToggle: (url: string) => void;
     onAssess?: (article: Article) => void;
     onDebug?: (article: Article) => void;
+    onReportSpam?: (article: Article) => void;
     excludedArticles?: Article[];
+    spamArticles?: Article[];
 }
 
-export function OutletGroup({ group, isTranslated, selectedUrls, onToggle, onAssess, onDebug, excludedArticles = [] }: OutletGroupProps) {
+export function OutletGroup({ group, isTranslated, selectedUrls, onToggle, onAssess, onDebug, onReportSpam, excludedArticles = [], spamArticles = [] }: OutletGroupProps) {
     const [isOpen, setIsOpen] = useState(true);
     const [isExcludedOpen, setIsExcludedOpen] = useState(false);
+    const [isSpamOpen, setIsSpamOpen] = useState(false);
 
     return (
         <div className="animate-in fade-in duration-500 slide-in-from-bottom-2">
@@ -56,13 +59,14 @@ export function OutletGroup({ group, isTranslated, selectedUrls, onToggle, onAss
                         <tbody className="divide-y divide-slate-800/50">
                             {group.articles.map((art, idx) => (
                                 <ArticleRow
-                                    key={'active-' + idx}
+                                    key={'active-' + art.url}
                                     article={art}
                                     isTranslated={isTranslated}
                                     isSelected={selectedUrls.has(art.url)}
                                     onToggle={onToggle}
                                     onAssess={onAssess}
                                     onDebug={onDebug}
+                                    onReportSpam={onReportSpam}
                                 />
                             ))}
 
@@ -82,18 +86,48 @@ export function OutletGroup({ group, isTranslated, selectedUrls, onToggle, onAss
                                     </tr>
                                     {isExcludedOpen && excludedArticles.map((art, idx) => (
                                         <ArticleRow
-                                            key={'excluded-' + idx}
+                                            key={'excluded-' + art.url}
                                             article={art}
                                             isTranslated={isTranslated}
                                             isSelected={selectedUrls.has(art.url)}
                                             onToggle={onToggle}
                                             onAssess={onAssess}
                                             onDebug={onDebug}
+                                            onReportSpam={onReportSpam}
                                         />
                                     ))}
                                 </>
                             )}
                         </tbody>
+                        {/* Junk/Spam Section */}
+                        {spamArticles.length > 0 && (
+                            <tbody className="divide-y divide-red-900/30 border-t border-slate-700/50">
+                                <tr className="bg-red-950/20">
+                                    <td colSpan={5} className="p-0">
+                                        <button
+                                            onClick={() => setIsSpamOpen(!isSpamOpen)}
+                                            className="w-full py-2 text-xs font-bold text-red-400 hover:text-red-300 hover:bg-red-900/20 uppercase tracking-wider flex items-center justify-center gap-2 transition-colors"
+                                        >
+                                            {isSpamOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                                            {isSpamOpen ? 'Hide' : 'Show'} {spamArticles.length} Flagged as Spam
+                                        </button>
+                                    </td>
+                                </tr>
+                                {isSpamOpen && spamArticles.map((art, idx) => (
+                                    <ArticleRow
+                                        key={'spam-' + art.url}
+                                        article={art}
+                                        isTranslated={isTranslated}
+                                        isSelected={false}
+                                        onToggle={() => { }} // Disabled for spam
+                                        onAssess={onAssess}
+                                        onDebug={onDebug}
+                                        onReportSpam={onReportSpam}
+                                        isSpam={true}
+                                    />
+                                ))}
+                            </tbody>
+                        )}
                     </table>
                 </div>
             )}

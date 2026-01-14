@@ -25,6 +25,9 @@ class ScraperRuleCreate(BaseModel):
     use_json_ld: bool = True
     use_data_layer: bool = False
     data_layer_var: Optional[str] = None
+    title_selectors: Optional[List[str]] = None
+
+
 
 class ScraperRuleRead(BaseModel):
     id: int
@@ -112,8 +115,10 @@ async def test_extraction(req: TestExtractionRequest, db: Session = Depends(get_
                     date_regex=req.rule_config.date_regex,
                     use_json_ld=req.rule_config.use_json_ld,
                     use_data_layer=req.rule_config.use_data_layer,
-                    data_layer_var=req.rule_config.data_layer_var
+                    data_layer_var=req.rule_config.data_layer_var,
+                    title_selectors=req.rule_config.title_selectors
                 )
+
             else:
                  # Fetch from DB if no config provided
                  from urllib.parse import urlparse
@@ -131,17 +136,23 @@ async def test_extraction(req: TestExtractionRequest, db: Session = Depends(get_
                           date_regex=config.get('date_regex'),
                           use_json_ld=config.get('use_json_ld', True),
                           use_data_layer=config.get('use_data_layer', False),
-                          data_layer_var=config.get('data_layer_var')
+                          data_layer_var=config.get('data_layer_var'),
+                          title_selectors=config.get('title_selectors')
+
                       )
+
             
             # Extract
             extracted_date = scraper_engine.extract_date_from_html(html, req.url, custom_rule_override=custom_rule)
+            extracted_title = scraper_engine.extract_title_from_html(html, req.url, custom_rule_override=custom_rule)
             
             return {
                 "status": "success",
                 "extracted_date": extracted_date,
+                "extracted_title": extracted_title,
                 "used_rule": req.rule_config or "System Default"
             }
+
             
         except HTTPException as he:
             raise he

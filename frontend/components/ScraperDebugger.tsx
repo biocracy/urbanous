@@ -7,25 +7,35 @@ interface ScraperDebuggerProps {
     onClose: () => void;
     initialUrl: string;
     domain: string;
-    onSave?: (domain: string) => void;
+    onSave?: (domain: string, result?: TestResult, config?: any) => void;
     onSaving?: () => void; // New: Trigger when save starts
     onDateExtracted?: (date: string) => void;
+    initialMode?: 'date' | 'title';
 }
 
 interface TestResult {
     status: string;
     extracted_date: string | null;
+    extracted_title?: string | null;
     used_rule: any;
     error?: string;
 }
 
-const ScraperDebugger: React.FC<ScraperDebuggerProps> = ({ isOpen, onClose, initialUrl, domain, onSave, onSaving, onDateExtracted }) => {
+const ScraperDebugger: React.FC<ScraperDebuggerProps> = ({ isOpen, onClose, initialUrl, domain, onSave, onSaving, onDateExtracted, initialMode = 'date' }) => {
     const [testUrl, setTestUrl] = useState(initialUrl);
+    const [targetType, setTargetType] = useState<'date' | 'title'>(initialMode);
+
+    // Config State
     const [selectors, setSelectors] = useState("");
     const [regex, setRegex] = useState("");
+    const [titleSelectors, setTitleSelectors] = useState(""); // New: Title Selectors
     const [useJsonLd, setUseJsonLd] = useState(true);
     const [useDataLayer, setUseDataLayer] = useState(false);
     const [dataLayerVar, setDataLayerVar] = useState("dataLayer");
+
+    useEffect(() => {
+        if (targetType === 'title') setActiveMode('selectors');
+    }, [targetType]);
 
     const [loading, setLoading] = useState(false);
     const [testResult, setTestResult] = useState<TestResult | null>(null);
@@ -50,6 +60,8 @@ const ScraperDebugger: React.FC<ScraperDebuggerProps> = ({ isOpen, onClose, init
                     if (rule) {
                         setSelectors(rule.config.date_selectors?.join(", ") || "");
                         setRegex(rule.config.date_regex?.join(", ") || "");
+                        setTitleSelectors(rule.config.title_selectors?.join(", ") || "");
+
                         setUseJsonLd(rule.config.use_json_ld ?? true);
                         setUseDataLayer(rule.config.use_data_layer ?? false);
                         setDataLayerVar(rule.config.data_layer_var || "dataLayer");
@@ -57,6 +69,8 @@ const ScraperDebugger: React.FC<ScraperDebuggerProps> = ({ isOpen, onClose, init
                         // clear defaults
                         setSelectors("");
                         setRegex("");
+                        setTitleSelectors("");
+
                         setUseJsonLd(true);
                         setUseDataLayer(false);
                     }
@@ -73,6 +87,7 @@ const ScraperDebugger: React.FC<ScraperDebuggerProps> = ({ isOpen, onClose, init
                 domain: domain,
                 date_selectors: selectors ? selectors.split(",").map(s => s.trim()).filter(s => s) : [],
                 date_regex: regex ? regex.split(",").map(s => s.trim()).filter(s => s) : [],
+                title_selectors: titleSelectors ? titleSelectors.split(",").map(s => s.trim()).filter(s => s) : [],
                 use_json_ld: useJsonLd,
                 use_data_layer: useDataLayer,
                 data_layer_var: dataLayerVar
@@ -89,13 +104,16 @@ const ScraperDebugger: React.FC<ScraperDebuggerProps> = ({ isOpen, onClose, init
             if (response.data.extracted_date && onDateExtracted) {
                 onDateExtracted(response.data.extracted_date);
             }
+            return response.data;
         } catch (error: any) {
-            setTestResult({
+            const errResult: TestResult = {
                 status: "error",
                 extracted_date: null,
                 used_rule: null,
                 error: error.response?.data?.detail || error.message
-            });
+            }
+            setTestResult(errResult);
+            return errResult;
         } finally {
             setLoading(false);
         }
@@ -109,6 +127,7 @@ const ScraperDebugger: React.FC<ScraperDebuggerProps> = ({ isOpen, onClose, init
                 domain: domain,
                 date_selectors: selectors ? selectors.split(",").map(s => s.trim()).filter(s => s) : [],
                 date_regex: regex ? regex.split(",").map(s => s.trim()).filter(s => s) : [],
+                title_selectors: titleSelectors ? titleSelectors.split(",").map(s => s.trim()).filter(s => s) : [],
                 use_json_ld: useJsonLd,
                 use_data_layer: useDataLayer,
                 data_layer_var: dataLayerVar
@@ -118,10 +137,20 @@ const ScraperDebugger: React.FC<ScraperDebuggerProps> = ({ isOpen, onClose, init
             setSaveStatus("saved");
 
             // Auto-Run Test to update UI immediately
-            await handleTest();
+            const latestResult = await handleTest();
 
             setTimeout(() => setSaveStatus("idle"), 2000);
-            if (onSave) onSave(domain); // Trigger parent update
+            // Schema matching ScraperRuleCreate for backend
+            const ruleConfigForBackend = {
+                domain: domain,
+                date_selectors: config.date_selectors,
+                date_regex: config.date_regex,
+                title_selectors: config.title_selectors,
+                use_json_ld: config.use_json_ld,
+                use_data_layer: config.use_data_layer,
+                data_layer_var: config.data_layer_var
+            };
+            if (onSave) onSave(domain, latestResult, ruleConfigForBackend);
         } catch (error) {
             console.error("Save failed", error);
             setSaveStatus("error");
@@ -145,8 +174,25 @@ const ScraperDebugger: React.FC<ScraperDebuggerProps> = ({ isOpen, onClose, init
             <div className="bg-slate-900 border border-slate-700 rounded-xl w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto flex flex-col">
                 <div className="flex items-center justify-between p-4 border-b border-slate-800 bg-slate-950/50">
                     <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                        <span className="text-blue-400">🔧</span> Debug Date Extraction
+                        <span className="text-blue-400">🔧</span> Debug Extraction
                     </h2>
+
+                    {/* Target Toggle */}
+                    <div className="flex bg-slate-800 p-1 rounded-lg">
+                        <button
+                            onClick={() => setTargetType('date')}
+                            className={`px-3 py-1 text-xs font-bold rounded transition-colors ${targetType === 'date' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
+                        >
+                            Date
+                        </button>
+                        <button
+                            onClick={() => setTargetType('title')}
+                            className={`px-3 py-1 text-xs font-bold rounded transition-colors ${targetType === 'title' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
+                        >
+                            Title
+                        </button>
+                    </div>
+
                     <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors text-2xl leading-none">&times;</button>
                 </div>
 
@@ -160,7 +206,7 @@ const ScraperDebugger: React.FC<ScraperDebuggerProps> = ({ isOpen, onClose, init
                 <div className="flex-1 overflow-y-auto">
                     {/* Mode Tabs */}
                     <div className="flex border-b border-slate-800 bg-slate-900/50 sticky top-0 z-10 backdrop-blur">
-                        {MODES.map(mode => (
+                        {MODES.filter(m => targetType === 'date' || m.id === 'selectors').map(mode => (
                             <button
                                 key={mode.id}
                                 onClick={() => setActiveMode(mode.id)}
@@ -184,18 +230,20 @@ const ScraperDebugger: React.FC<ScraperDebuggerProps> = ({ isOpen, onClose, init
                             {activeMode === 'selectors' && (
                                 <div className="space-y-4 animate-in fade-in slide-in-from-left-4 duration-200">
                                     <div className="p-4 bg-blue-900/10 border border-blue-900/30 rounded-lg mb-4">
-                                        <h3 className="text-sm font-bold text-blue-200 mb-2">Strategy: HTML Elements</h3>
+                                        <h3 className="text-sm font-bold text-blue-200 mb-2">Strategy: HTML Elements ({targetType === 'title' ? 'Title' : 'Date'})</h3>
                                         <p className="text-xs text-blue-300/70">
                                             Extracts text from specific HTML tags. Use typical CSS selectors like classes or IDs.
                                         </p>
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-mono text-slate-400 mb-1 uppercase">CSS Selectors (comma separated)</label>
+                                        <label className="block text-xs font-mono text-slate-400 mb-1 uppercase">
+                                            {targetType === 'title' ? 'Title Selectors' : 'Date Selectors'} (comma separated)
+                                        </label>
                                         <input
                                             type="text"
-                                            value={selectors}
-                                            onChange={e => setSelectors(e.target.value)}
-                                            placeholder=".post-date, time.entry-date"
+                                            value={targetType === 'title' ? titleSelectors : selectors}
+                                            onChange={e => targetType === 'title' ? setTitleSelectors(e.target.value) : setSelectors(e.target.value)}
+                                            placeholder={targetType === 'title' ? "h1.entry-title, .post-title" : ".post-date, time.entry-date"}
                                             className="w-full bg-slate-800 border border-slate-700 rounded-md px-3 py-2 text-sm text-white focus:ring-2 focus:ring-blue-500 outline-none font-mono"
                                         />
                                         <p className="text-[10px] text-slate-500 mt-1">Example: <code className="bg-slate-800 px-1 rounded">span.date, .meta-time</code></p>
@@ -314,21 +362,40 @@ const ScraperDebugger: React.FC<ScraperDebuggerProps> = ({ isOpen, onClose, init
                                             Error: {testResult.error}
                                         </div>
                                     ) : (
-                                        <div className="flex items-center justify-between">
-                                            <div>
-                                                <div className="text-[10px] uppercase tracking-wide text-slate-500 font-bold mb-1">Extracted Date</div>
-                                                <div className={`text-xl font-mono font-bold ${testResult.extracted_date ? 'text-green-400' : 'text-red-400'}`}>
-                                                    {testResult.extracted_date || "NULL"}
+                                        <div className="flex flex-col gap-4">
+                                            {/* Date Result */}
+                                            <div className="flex items-center justify-between">
+                                                <div>
+                                                    <div className="text-[10px] uppercase tracking-wide text-slate-500 font-bold mb-1">Extracted Date</div>
+                                                    <div className={`text-xl font-mono font-bold ${testResult.extracted_date ? 'text-green-400' : 'text-red-400'}`}>
+                                                        {testResult.extracted_date || "NULL"}
+                                                    </div>
+                                                    <div className="text-[10px] text-slate-600 mt-1">Rule Used: {JSON.stringify(testResult.used_rule?.date_selectors || testResult.used_rule?.date_regex || "Default")}</div>
                                                 </div>
-                                                <div className="text-[10px] text-slate-600 mt-1">Rule Used: {JSON.stringify(testResult.used_rule?.date_selectors || testResult.used_rule?.date_regex || "Default")}</div>
+                                                {testResult.extracted_date && targetType === 'date' && (
+                                                    <div className="text-4xl">✅</div>
+                                                )}
                                             </div>
-                                            {testResult.extracted_date && (
-                                                <div className="text-4xl">✅</div>
+
+                                            {/* Title Result (Only show if present or target is title) */}
+                                            {(testResult.extracted_title || targetType === 'title') && (
+                                                <div className="flex items-center justify-between border-t border-slate-800 pt-3">
+                                                    <div>
+                                                        <div className="text-[10px] uppercase tracking-wide text-slate-500 font-bold mb-1">Extracted Title</div>
+                                                        <div className={`text-md font-bold text-white`}>
+                                                            {testResult.extracted_title || "NULL"}
+                                                        </div>
+                                                    </div>
+                                                    {testResult.extracted_title && targetType === 'title' && (
+                                                        <div className="text-4xl">✅</div>
+                                                    )}
+                                                </div>
                                             )}
                                         </div>
                                     )}
                                 </div>
                             )}
+
                         </div>
                     </div>
                 </div>
