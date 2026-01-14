@@ -1967,6 +1967,9 @@ async def generate_digest_stream(req: DigestRequest, current_user: User = Depend
                                              current_user.gemini_api_key
                                         )
                                         
+                                        if err_msg:
+                                             await stream_queue.put({"type": "log", "message": f"⚠️ AI Batch Error: {err_msg}"})
+                                        
                                         # Log Raw AI output to stream for debugging
                                         if raw_ai_log:
                                              short_log = raw_ai_log.replace('\n', ' ')[:200]
