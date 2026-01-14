@@ -2001,85 +2001,91 @@ async def generate_digest_stream(req: DigestRequest, current_user: User = Depend
         # WORKER FUNCTION
         async def scraper_worker():
             try:
-                with open("stream_debug.log", "a") as f: f.write("DEBUG: Worker Started.\n")
-                all_raw_articles = []
-                for outlet in outlets:
-                     try:
-                         with open("stream_debug.log", "a") as f: f.write(f"DEBUG: Processing {outlet.name}...\n")
-                         # Find Rule
-                         from urllib.parse import urlparse
-                         domain = urlparse(outlet.url).netloc.replace("www.", "").lower()
-                         rule_config = rules_map.get(domain)
+                with open("stream_debug.log", "a") as f: f.write("DEBUG: Worker Started (Parallel Mode).\n")
+                
+                # Concurrency Limit (5 concurrent outlets)
+                sem = asyncio.Semaphore(5)
+                
+                async def process_outlet(outlet):
+                    async with sem:
+                        try:
+                             with open("stream_debug.log", "a") as f: f.write(f"DEBUG: Processing {outlet.name}...\n")
+                             # Find Rule
+                             from urllib.parse import urlparse
+                             domain = urlparse(outlet.url).netloc.replace("www.", "").lower()
+                             rule_config = rules_map.get(domain)
 
-                         # Fallback check (e.g. root domain)
-                         if not rule_config:
-                             parts = domain.split('.')
-                             if len(parts) > 2:
-                                 root = ".".join(parts[-2:])
-                                 rule_config = rules_map.get(root)
+                             # Fallback check (e.g. root domain)
+                             if not rule_config:
+                                 parts = domain.split('.')
+                                 if len(parts) > 2:
+                                     root = ".".join(parts[-2:])
+                                     rule_config = rules_map.get(root)
 
-                         # Verbose Log to Stream
-                         has_rule = "YES" if rule_config else "NO"
-                         await stream_queue.put({"type": "log", "message": f"Processing {outlet.name} (Rule: {has_rule})..."})
+                             # Verbose Log to Stream
+                             has_rule = "YES" if rule_config else "NO"
+                             await stream_queue.put({"type": "log", "message": f"Processing {outlet.name} (Rule: {has_rule})..."})
 
-                         # Pass queue_logger which is Awaitable (not a generator)
-                         # Pass current_user.gemini_api_key for AI Navigation
-                         res = await smart_scrape_outlet(outlet, req.category, req.timeframe, log_bus=queue_logger, api_key=current_user.gemini_api_key, scraper_rule_config=rule_config)
-                                                 
-                         if res.get("articles"):
-                              new_arts = res["articles"]
-                              
-                              # INCREMENTAL AI VERIFICATION (Fixes Timeout Issue)
-                              if req.category == "Politics" and current_user.gemini_api_key:
-                                   await stream_queue.put({"type": "log", "message": f"🤖 AI Verifying {len(new_arts)} items from {outlet.name}..."})
-                                   
-                                   # Create title map for batch verification
-                                   # We use a temp ID 0..N for mapping back
-                                   titles_map = {i: a.title for i, a in enumerate(new_arts)}
-                                   
-                                   try:
-                                        # Call the debug function we fixed earlier
-                                        verdicts, err_msg, raw_ai_log = await batch_verify_titles_debug(
-                                             titles_map, 
-                                             POLITICS_OPERATIONAL_DEFINITION, # Ensure this is available in scope
-                                             current_user.gemini_api_key
-                                        )
-                                        
-                                        if err_msg:
-                                             await stream_queue.put({"type": "log", "message": f"⚠️ AI Batch Error: {err_msg}"})
-                                        
-                                        # Log Raw AI output to stream for debugging
-                                        if raw_ai_log:
-                                             short_log = raw_ai_log.replace('\n', ' ')[:200]
-                                             await stream_queue.put({"type": "log", "message": f"🤖 AI RAW: {short_log}..."})
+                             # Pass queue_logger which is Awaitable (not a generator)
+                             # Pass current_user.gemini_api_key for AI Navigation
+                             res = await smart_scrape_outlet(outlet, req.category, req.timeframe, log_bus=queue_logger, api_key=current_user.gemini_api_key, scraper_rule_config=rule_config)
+                                                     
+                             if res.get("articles"):
+                                  new_arts = res["articles"]
+                                  
+                                  # INCREMENTAL AI VERIFICATION (Fixes Timeout Issue)
+                                  if req.category == "Politics" and current_user.gemini_api_key:
+                                       await stream_queue.put({"type": "log", "message": f"🤖 AI Verifying {len(new_arts)} items from {outlet.name}..."})
+                                       
+                                       # Create title map for batch verification
+                                       titles_map = {i: a.title for i, a in enumerate(new_arts)}
+                                       
+                                       try:
+                                            # Call the debug function we fixed earlier
+                                            verdicts, err_msg, raw_ai_log = await batch_verify_titles_debug(
+                                                 titles_map, 
+                                                 POLITICS_OPERATIONAL_DEFINITION, # Ensure this is available in scope
+                                                 current_user.gemini_api_key
+                                            )
+                                            
+                                            if err_msg:
+                                                 await stream_queue.put({"type": "log", "message": f"⚠️ AI Batch Error: {err_msg}"})
+                                            
+                                            # Log Raw AI output to stream for debugging
+                                            if raw_ai_log:
+                                                 short_log = raw_ai_log.replace('\n', ' ')[:200]
+                                                 await stream_queue.put({"type": "log", "message": f"🤖 AI RAW: {short_log}..."})
 
-                                        # Apply Verdicts
-                                        for i, art in enumerate(new_arts):
-                                             k = str(i) # keys returned as strings
-                                             if k in verdicts:
-                                                  v = verdicts[k]
-                                                  is_verified = v.get("verdict", False)
-                                                  art.ai_verdict = "VERIFIED" if is_verified else "REJECTED"
-                                                  if v.get("translated"):
-                                                       art.translated_title = v.get("translated")
-                                   except Exception as e:
-                                        await stream_queue.put({"type": "log", "message": f"⚠️ AI Check Error: {e}"})
+                                            # Apply Verdicts
+                                            for i, art in enumerate(new_arts):
+                                                 k = str(i) # keys returned as strings
+                                                 if k in verdicts:
+                                                      v = verdicts[k]
+                                                      is_verified = v.get("verdict", False)
+                                                      art.ai_verdict = "VERIFIED" if is_verified else "REJECTED"
+                                                      if v.get("translated"):
+                                                           art.translated_title = v.get("translated")
+                                       except Exception as e:
+                                            await stream_queue.put({"type": "log", "message": f"⚠️ AI Check Error: {e}"})
 
-                              # INCREMENTAL SEND
-                              await stream_queue.put({"type": "data", "articles": new_arts})
-                              await stream_queue.put({"type": "log", "message": f"Found {len(new_arts)} articles from {outlet.name}"})
-                         
-                         if res.get("timeline_events"):
-                              await stream_queue.put({"type": "timeline", "source": outlet.name, "events": res["timeline_events"]})
+                                  # INCREMENTAL SEND
+                                  await stream_queue.put({"type": "data", "articles": new_arts})
+                                  await stream_queue.put({"type": "log", "message": f"Found {len(new_arts)} articles from {outlet.name}"})
+                             
+                             if res.get("timeline_events"):
+                                  await stream_queue.put({"type": "timeline", "source": outlet.name, "events": res["timeline_events"]})
 
-                     except Exception as e:
-                         print(f"DEBUG: Error processing outlet {outlet.name}: {e}")
-                         await stream_queue.put({"type": "log", "message": f"⚠️ Error processing {outlet.name}: {str(e)}"})
-                         # Continue to next outlet!
+                        except Exception as e:
+                             print(f"DEBUG: Error processing outlet {outlet.name}: {e}")
+                             await stream_queue.put({"type": "log", "message": f"⚠️ Error processing {outlet.name}: {str(e)}"})
+                             # Do NOT crash the worker, just fail this outlet
+
+                # Run in Parallel
+                tasks = [process_outlet(o) for o in outlets]
+                await asyncio.gather(*tasks)
                 
                 # Signal phase change
                 print(f"DEBUG: WORKER FINISHED.")
-                # No longer sending bulk data here
             except Exception as e:
                 print(f"DEBUG: WORKER ERROR: {e}")
                 tb_str = traceback.format_exc()
