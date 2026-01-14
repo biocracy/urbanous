@@ -751,8 +751,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                                 currentDigestState.articles = [...msg.articles];
                             }
 
-                            // Show modal immediately when data starts arriving (Incremental UX)
-                            setShowDigestModal(true);
+                            // Show modal implicitly by having digestData populated
                             currentDigestState.category = msg.category;
 
                             const now = Date.now();
@@ -2116,7 +2115,9 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
             {/* Digest Modal / Full Screen View */}
             {
-                digestData && !isGeneratingDigest && (
+                {/* Digest Modal / Full Screen View */ }
+            {
+                digestData && (
                     <div className="absolute inset-0 z-50 bg-slate-950/95 backdrop-blur-sm flex items-center justify-center p-8 animate-in fade-in duration-200">
                         <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-4xl h-[90vh] flex flex-col overflow-hidden">
                             <div className="p-6 border-b border-slate-700 flex justify-between items-center bg-slate-800/50 relative">
