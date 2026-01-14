@@ -113,6 +113,8 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
     const [isSaving, setIsSaving] = useState(false);
     const [isSharing, setIsSharing] = useState(false);
     const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
+    // Progress Tracking
+    const [progress, setProgress] = useState({ current: 0, total: 0 });
     const [savedDigests, setSavedDigests] = useState<any[]>([]);
     const [activeSideTab, setActiveSideTab] = useState<'sources' | 'digests'>('sources');
     const [activeModalTab, setActiveModalTab] = useState<'articles' | 'digest' | 'analytics'>('articles');
