@@ -643,15 +643,20 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
     };
 
     const handleGenerateDigest = async () => {
+        console.log("DIGEST_DEBUG: handleGenerateDigest triggered");
         if (!isAuthenticated) {
+            console.log("DIGEST_DEBUG: User not authenticated");
             setErrorMessage("Please log in to use AI features.");
             return;
         }
 
         if (selectedOutletIds.length === 0) {
+            console.log("DIGEST_DEBUG: No outlets selected");
             setErrorMessage("Please select at least one outlet.");
             return;
         }
+        console.log(`DIGEST_DEBUG: Starting generation. Category=${selectedCategory}, Timeframe=${selectedTimeframe}, Outlets=${selectedOutletIds.length}`);
+
         setIsGeneratingDigest(true);
         setErrorMessage(null);
         setDigestData(null);
@@ -662,10 +667,10 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
         try {
             // Retrieve token from storage/api helper if needed
             const token = localStorage.getItem('token');
-
             // Init AbortController
             abortControllerRef.current = new AbortController();
 
+            console.log("DIGEST_DEBUG: Initiating fetch to /outlets/digest/stream");
             const response = await fetch(`${api.defaults.baseURL}/outlets/digest/stream`, {
                 method: 'POST',
                 headers: {
@@ -680,7 +685,12 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                 signal: abortControllerRef.current.signal
             });
 
-            if (!response.body) throw new Error("No stream body");
+            console.log("DIGEST_DEBUG: Fetch response received. Status:", response.status);
+
+            if (!response.body) {
+                console.error("DIGEST_DEBUG: Response body is null!");
+                throw new Error("No stream body");
+            }
 
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
@@ -691,10 +701,14 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             // Accumulator for throttled updates
             let currentDigestState: any = { articles: [], digest: '', analysis_source: [] };
 
+            console.log("DIGEST_DEBUG: Starting stream reader loop");
+
             while (!done) {
                 const { value, done: doneReading } = await reader.read();
                 done = doneReading;
                 const chunkValue = decoder.decode(value || new Uint8Array(), { stream: !done });
+                
+                // console.log(`DIGEST_DEBUG: Chunk received. Done=${done}, Size=${chunkValue.length}`);
 
                 buffer += chunkValue;
                 const lines = buffer.split('\n');
@@ -707,6 +721,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                     if (line.trim() === '') continue;
                     try {
                         const msg = JSON.parse(line);
+                        // console.log("DIGEST_DEBUG: Parsed message type:", msg.type);
 
                         if (msg.type === 'log') {
                             // Throttle log updates to prevent UI/WebGL thrashing (max 5fps)
@@ -714,11 +729,12 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                             if (now - lastLogUpdate > 200 || msg.message.includes("Done") || msg.message.includes("Error")) {
                                 setProgressLog(`> ${msg.message}`);
                                 lastLogUpdate = now;
+                                console.log("DIGEST_DEBUG: Log:", msg.message);
                             }
                         }
                         // --- New Partial Handlers ---
                         else if (msg.type === 'partial_digest') {
-                            // console.log("Received Partial Digest HTML");
+                            console.log("DIGEST_DEBUG: Received partial_digest html update");
                             currentDigestState.digest = msg.html;
 
                             const now = Date.now();
@@ -728,7 +744,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                             }
                         }
                         else if (msg.type === 'partial_articles') {
-                            // console.log(`Received Partial Articles List (${msg.articles.length})`);
+                            console.log(`DIGEST_DEBUG: Received partial_articles (${msg.articles.length})`);
                             if (currentDigestState.articles) {
                                 currentDigestState.articles.push(...msg.articles);
                             } else {
@@ -743,7 +759,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                             }
                         }
                         else if (msg.type === 'partial_analysis') {
-                            // console.log("Received Partial Analysis");
+                            console.log("DIGEST_DEBUG: Received partial_analysis");
                             currentDigestState.analysis_source = msg.source;
 
                             const now = Date.now();
@@ -753,7 +769,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                             }
                         }
                         else if (msg.type === 'done') {
-                            console.log("Digest Stream Complete.");
+                            console.log("DIGEST_DEBUG: Stream 'done' message received. Finalizing.");
                             // Final Update
                             setDigestData({ ...currentDigestState });
 
@@ -777,6 +793,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                             if (currentDigestState.analysis_source) {
                                 const hasRateLimit = currentDigestState.analysis_source.some((k: any) => k.type === "System:RateLimit");
                                 if (hasRateLimit) {
+                                    console.warn("DIGEST_DEBUG: Rate Limit detected in analysis");
                                     alert("⚠️ Rate Limit Warning: Some articles could not be fully analyzed.");
                                 }
                             }
@@ -784,7 +801,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                         // --- Legacy Fallback ---
                         else if (msg.type === 'result') {
                             const data = msg.payload;
-                            console.log("Received Digest Result:", data); // Debug
+                            console.log("DIGEST_DEBUG: Received legacy 'result' payload. Articles:", data.articles?.length);
                             currentDigestState = data; // Update local
                             setDigestData(data);
 
@@ -804,26 +821,33 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                             setActiveModalTab('articles');
                             setShowOutletPanel(true);
                         } else if (msg.type === 'error') {
+                            console.error("DIGEST_DEBUG: Stream reported error:", msg.message);
                             setErrorMessage(msg.message);
                         }
                     } catch (e) {
-                        console.warn("Stream parse error for line:", line.substring(0, 50) + "...", e);
+                        console.warn("DIGEST_DEBUG: Stream parse error for line:", line.substring(0, 50) + "...", e);
                     }
                 }
+            }
+            
+            console.log("DIGEST_DEBUG: Stream loop finished.");
+            if (!currentDigestState.articles || currentDigestState.articles.length === 0) {
+                console.warn("DIGEST_DEBUG: Final state checking - No articles found in digest state!");
             }
 
         } catch (err: any) {
             if (err.name === 'AbortError') {
-                console.log("Digest generation aborted by user.");
+                console.log("DIGEST_DEBUG: Digest generation aborted by user.");
                 return; // Clean exit
             }
-            console.error("Digest generation failed", err);
+            console.error("DIGEST_DEBUG: Digest generation failed with exception", err);
             if (err.message && err.message.includes("network")) {
                 setErrorMessage("Network Timeout. Please try fewer outlets or a smaller timeframe.");
             } else {
                 setErrorMessage(err.message || 'Failed to generate digest');
             }
         } finally {
+            console.log("DIGEST_DEBUG: Finally block reached. isGeneratingDigest = false");
             setIsGeneratingDigest(false);
         }
     };
