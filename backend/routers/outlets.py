@@ -14,7 +14,7 @@ from sqlalchemy import select, distinct
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
 from database import AsyncSessionLocal
-from models import NewsOutlet, User, Country, CityMetadata, ScraperRule
+from models import NewsOutlet, User, Country, CityMetadata, ScraperRule, NewsDigest, SpamFeedback
 from dependencies import get_current_user, get_db
 import scraper_engine # New Import
 
@@ -1363,39 +1363,45 @@ async def save_digest(
     print(f"DEBUG: Saving digest '{digest.title}' for user {current_user.id}")
     import json
     
-    db_digest = NewsDigest(
-        user_id=current_user.id,
-        title=digest.title,
-        category=digest.category,
-        city=digest.city,
-        timeframe=digest.timeframe,
-        summary_markdown=digest.summary_markdown,
-        articles_json=json.dumps(digest.articles),
-        selected_article_urls=json.dumps(digest.selected_article_urls) if digest.selected_article_urls else None,
-        analysis_source=json.dumps(digest.analysis_source) if digest.analysis_source else None,
-        analysis_digest=json.dumps(digest.analysis_digest) if digest.analysis_digest else None
-    )
-    db.add(db_digest)
-    await db.commit()
-    await db.refresh(db_digest)
-    
-    # Clean return (deserialize for response)
-    return DigestRead(
-        id=db_digest.id,
-        title=db_digest.title,
-        category=db_digest.category,
-        city=db_digest.city,
-        timeframe=db_digest.timeframe,
-        summary_markdown=db_digest.summary_markdown,
-        articles=json.loads(db_digest.articles_json),
-        selected_article_urls=json.loads(db_digest.selected_article_urls) if db_digest.selected_article_urls else None,
-        analysis_source=json.loads(db_digest.analysis_source) if db_digest.analysis_source else [],
-        created_at=db_digest.created_at,
-        is_public=db_digest.is_public,
-        public_slug=db_digest.public_slug,
-        owner_id=db_digest.user_id,
-        owner_username=current_user.username
-    )
+    try:
+        db_digest = NewsDigest(
+            user_id=current_user.id,
+            title=digest.title,
+            category=digest.category,
+            city=digest.city,
+            timeframe=digest.timeframe,
+            summary_markdown=digest.summary_markdown,
+            articles_json=json.dumps(digest.articles),
+            selected_article_urls=json.dumps(digest.selected_article_urls) if digest.selected_article_urls else None,
+            analysis_source=json.dumps(digest.analysis_source) if digest.analysis_source else None,
+            analysis_digest=json.dumps(digest.analysis_digest) if digest.analysis_digest else None
+        )
+        db.add(db_digest)
+        await db.commit()
+        await db.refresh(db_digest)
+        
+        # Clean return (deserialize for response)
+        return DigestRead(
+            id=db_digest.id,
+            title=db_digest.title,
+            category=db_digest.category,
+            city=db_digest.city,
+            timeframe=db_digest.timeframe,
+            summary_markdown=db_digest.summary_markdown,
+            articles=json.loads(db_digest.articles_json),
+            selected_article_urls=json.loads(db_digest.selected_article_urls) if db_digest.selected_article_urls else None,
+            analysis_source=json.loads(db_digest.analysis_source) if db_digest.analysis_source else [],
+            created_at=db_digest.created_at,
+            is_public=db_digest.is_public,
+            public_slug=db_digest.public_slug,
+            owner_id=db_digest.user_id,
+            owner_username=current_user.username
+        )
+    except Exception as e:
+        print(f"CRITICAL: Save Digest failed: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to save digest: {str(e)}")
 
 @router.put("/digests/{digest_id}", response_model=DigestRead)
 async def update_digest(
