@@ -2013,6 +2013,7 @@ async def generate_digest_stream(req: DigestRequest, current_user: User = Depend
                 all_timeline_events[item["source"]] = item["events"]
         
         print(f"DEBUG: CONSUMER EXITED LOOP. Total Articles: {len(all_articles)}")
+        yield json.dumps({"type": "log", "message": "✅ Scraping finished. Starting Post-Processing & AI Check..."}) + "\n"
         
         # --- POST-PROCESSING SAFETY WRAPPER ---
         # Wrap ALL scoring/filtering/AI logic to catch silent crashes (e.g. from bad dates/NoneTypes)
