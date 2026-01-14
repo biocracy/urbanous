@@ -2144,19 +2144,19 @@ async def generate_digest_stream(req: DigestRequest, current_user: User = Depend
                                       art.scores["is_fresh"] = True
                              except: pass
 
-                      # Convert Pydantic models to dicts for JSON serialization
-                      # Re-filter new_articles to exclude dropped ones
-                      final_articles = []
-                      for a in new_articles:
-                          try:
-                              if a.date_str:
-                                  d_obj = datetime.strptime(a.date_str, "%Y-%m-%d")
-                                  if d_obj < hard_cutoff_date: continue
-                              final_articles.append(a)
-                          except:
-                              final_articles.append(a)
+                     # Convert Pydantic models to dicts for JSON serialization
+                     # Re-filter new_articles to exclude dropped ones
+                     final_articles = []
+                     for a in new_articles:
+                         try:
+                             if a.date_str:
+                                 d_obj = datetime.strptime(a.date_str, "%Y-%m-%d")
+                                 if d_obj < hard_cutoff_date: continue
+                             final_articles.append(a)
+                         except:
+                             final_articles.append(a)
 
-                      serializable_new = [a.dict() for a in final_articles]
+                     serializable_new = [a.dict() for a in final_articles]
                      yield json.dumps({
                          "type": "partial_articles", 
                          "articles": serializable_new, 
