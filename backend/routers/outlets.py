@@ -587,8 +587,23 @@ async def batch_verify_titles_debug(titles_map: Dict[int, str], definition: str,
     
     try:
         # Try multiple models in order of preference to ensure compatibility
-        candidate_models = ["gemini-1.5-flash", "gemini-1.5-flash-001", "gemini-1.5-flash-002", "gemini-pro"]
+        candidate_models = [
+            "gemini-1.5-flash", 
+            "gemini-1.5-flash-001", 
+            "gemini-1.5-flash-latest",
+            "gemini-1.5-pro",
+            "gemini-pro", 
+            "gemini-1.0-pro"
+        ]
         
+        # Log Library Version
+        try:
+             import importlib.metadata
+             ver = importlib.metadata.version("google-generativeai")
+             print(f"DEBUG: google-generativeai version: {ver}")
+        except:
+             print("DEBUG: Could not determine google-generativeai version")
+
         response = None
         used_model = None
         last_error = None
@@ -606,7 +621,19 @@ async def batch_verify_titles_debug(titles_map: Dict[int, str], definition: str,
         
         if not response:
              error_str = str(last_error) if last_error else "No models available"
-             return {}, f"All models failed. Last error: {error_str}", ""
+             
+             # Emergency: List available models to find out what IS supported
+             try:
+                available = []
+                for m in genai.list_models():
+                    if 'generateContent' in m.supported_generation_methods:
+                        available.append(m.name)
+                available_str = ", ".join(available)
+                err_msg = f"All models failed. Lib Ver: {ver}. Available: {available_str}. Last Error: {error_str}"
+             except Exception as e2:
+                err_msg = f"All models failed. Last error: {error_str}. (Also failed to list models: {e2})"
+                
+             return {}, err_msg, ""
 
         text = response.text.replace("```json", "").replace("```", "").strip()
         
@@ -2037,7 +2064,7 @@ async def generate_digest_stream(req: DigestRequest, current_user: User = Depend
         all_timeline_events = {} # Map[Source, Events]
         
         # Consumer Loop
-        yield json.dumps({"type": "log", "message": "🔵 STREAM CONNECTED (v0.109 - ROBUST AI & UI)"}) + "\n"
+        yield json.dumps({"type": "log", "message": "🔵 STREAM CONNECTED (v0.110 - MODEL DISCOVERY)"}) + "\n"
         while True:
             item = await stream_queue.get()
             if item is None:
