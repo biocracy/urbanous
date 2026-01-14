@@ -707,7 +707,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                 const { value, done: doneReading } = await reader.read();
                 done = doneReading;
                 const chunkValue = decoder.decode(value || new Uint8Array(), { stream: !done });
-                
+
                 // console.log(`DIGEST_DEBUG: Chunk received. Done=${done}, Size=${chunkValue.length}`);
 
                 buffer += chunkValue;
@@ -829,7 +829,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                     }
                 }
             }
-            
+
             console.log("DIGEST_DEBUG: Stream loop finished.");
             if (!currentDigestState.articles || currentDigestState.articles.length === 0) {
                 console.warn("DIGEST_DEBUG: Final state checking - No articles found in digest state!");
@@ -3159,7 +3159,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
             {/* Version Indicator */}
             <div className="absolute bottom-2 right-2 z-[100] text-[10px] text-white/30 font-mono hover:text-white/80 cursor-default select-none transition-colors">
-                v0.1
+                v0.101
             </div>
 
         </div >
