@@ -587,7 +587,7 @@ async def batch_verify_titles_debug(titles_map: Dict[int, str], definition: str,
     
     try:
         # Switch to stable 1.5 flash if 2.0 is causing issues
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-1.5-flash-latest')
         response = await model.generate_content_async(prompt)
         text = response.text.replace("```json", "").replace("```", "").strip()
         
