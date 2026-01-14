@@ -2029,7 +2029,7 @@ async def generate_digest_stream(req: DigestRequest, current_user: User = Depend
                                                   is_verified = v.get("verdict", False)
                                                   art.ai_verdict = "VERIFIED" if is_verified else "REJECTED"
                                                   if v.get("translated"):
-                                                       art.title_translated = v.get("translated")
+                                                       art.translated_title = v.get("translated")
                                    except Exception as e:
                                         await stream_queue.put({"type": "log", "message": f"⚠️ AI Check Error: {e}"})
 
@@ -2064,7 +2064,7 @@ async def generate_digest_stream(req: DigestRequest, current_user: User = Depend
         all_timeline_events = {} # Map[Source, Events]
         
         # Consumer Loop
-        yield json.dumps({"type": "log", "message": "🔵 STREAM CONNECTED (v0.111 - GEMINI 2.0)"}) + "\n"
+        yield json.dumps({"type": "log", "message": "🔵 STREAM CONNECTED (v0.112 - FIELD FIX)"}) + "\n"
         while True:
             item = await stream_queue.get()
             if item is None:
