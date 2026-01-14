@@ -124,6 +124,7 @@ B) Elections & party politics
 
 C) Public policy (substance + debate)
 - Policy proposals, reforms, regulation, taxation, welfare, healthcare policy, education policy, climate policy, etc.
+- **Implementation of new legislation** (National or EU Directives) impacting society or business sectors.
 - Political conflict over policy (who supports/opposes; parliamentary dynamics; veto threats)
 
 D) Political accountability & legitimacy
@@ -141,7 +142,7 @@ F) Civil liberties & rights as political contestation
 
 Exclude (unless politics is clearly primary):
 1) Crime / courts: If it’s mainly “who did what, evidence, trial details,” label CRIME/LAW, not POLITICS. Exception: if the case directly affects governance.
-2) Business / economy: Market moves, company earnings, mergers → BUSINESS. Exception: sanctions, regulation, antitrust, budgets where the policy process is central → POLITICS.
+2) Business / economy: Market moves, company earnings, mergers → BUSINESS. Exception: sanctions, antitrust, budgets, or **new regulations/laws** being implemented → POLITICS.
 3) Disasters / weather / accidents: If the focus is the event itself → DISASTER. Exception: political accountability/policy response dominates.
 4) Culture / celebrity: Politicians as celebrities (personal life) → ENTERTAINMENT unless tied to office, campaign, or legitimacy.
 5) Sports: Sports story with a politician quote is still SPORTS unless it becomes policy.
@@ -1927,6 +1928,9 @@ async def generate_digest_stream(req: DigestRequest, current_user: User = Depend
         rules_map = {}
         outlets = []
         
+        # Stream-level Deduplication State
+        stream_seen_fingerprints = set()
+        
         try:
              # Explicit internal imports to prevent any scope weirdness
              import traceback
@@ -1947,7 +1951,18 @@ async def generate_digest_stream(req: DigestRequest, current_user: User = Depend
                       yield json.dumps({"type": "error", "message": "No outlets found"}) + "\n"
                       return
     
-                 # 2. Fetch Rules
+                 # 2. Fetch Spam Rules (User Feedback)
+                 from models import SpamFeedback
+                 stmt_spam = select(SpamFeedback)
+                 res_spam = await session.execute(stmt_spam)
+                 spam_records = res_spam.scalars().all()
+                 
+                 spam_urls = {s.url for s in spam_records if s.url}
+                 spam_titles_lower = {s.title.lower() for s in spam_records if s.title}
+                 
+                 yield json.dumps({"type": "log", "message": f"Loaded {len(spam_records)} spam signatures..."}) + "\n"
+
+                 # 3. Fetch Scraper Rules
                  stmt_rules = select(ScraperRule)
                  res_rules = await session.execute(stmt_rules)
                  all_rules = res_rules.scalars().all()
@@ -2147,11 +2162,36 @@ async def generate_digest_stream(req: DigestRequest, current_user: User = Depend
                      # Convert Pydantic models to dicts for JSON serialization
                      # Re-filter new_articles to exclude dropped ones
                      final_articles = []
+                     
+                     # Hard Junk Filter Terms (Generic)
+                     JUNK_TERMS = ["site relocation"] # Kept minimal as per user feedback
+
                      for a in new_articles:
                          try:
+                             # 1. Deduplication (Stream Level)
+                             norm_title = a.title.lower().strip()
+                             norm_url = a.url.split('?')[0].rstrip('/')
+                             fingerprint = f"{norm_title}|{norm_url}"
+                             if norm_title in stream_seen_fingerprints or fingerprint in stream_seen_fingerprints:
+                                 continue
+                                 continue
+                             stream_seen_fingerprints.add(norm_title)
+                             stream_seen_fingerprints.add(fingerprint)
+
+                             # 2. Hard Junk Filter (Generic + User Marked Spam)
+                             # Generic Terms
+                             if "site relocation" in norm_title or "moved" in norm_title: continue
+                             
+                             # User Marked Spam
+                             if a.url in spam_urls or norm_title in spam_titles_lower:
+                                  print(f"DEBUG: Rejected SPAM {a.title}")
+                                  continue
+
+                             # 3. Hard Date Cutoff
                              if a.date_str:
                                  d_obj = datetime.strptime(a.date_str, "%Y-%m-%d")
                                  if d_obj < hard_cutoff_date: continue
+                             
                              final_articles.append(a)
                          except:
                              final_articles.append(a)
