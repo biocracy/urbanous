@@ -22,7 +22,8 @@ api.interceptors.response.use(
         if (error.response && error.response.status === 401) {
             if (typeof window !== 'undefined') {
                 localStorage.removeItem('token');
-                window.location.reload(); // Force reload to clear auth state
+                // Don't reload, just let the app handle unauthenticated state
+                // window.location.reload(); 
             }
         }
         return Promise.reject(error);

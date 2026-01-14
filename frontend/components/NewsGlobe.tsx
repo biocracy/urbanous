@@ -37,6 +37,7 @@ const isDateCurrent = (extractedDate: string) => {
 
 export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
     const globeEl = useRef<any>(null);
+    const { isAuthenticated } = useAuthStore();
 
     // Initial View managed by onGlobeReady
 
@@ -126,10 +127,10 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
     // Refresh user when settings close (to update username in UI if changed)
     useEffect(() => {
-        if (!isSettingsOpen) {
+        if (!isSettingsOpen && isAuthenticated) {
             api.get('/users/me').then(res => setCurrentUser(res.data)).catch(err => console.error("Auth Error", err));
         }
-    }, [isSettingsOpen]);
+    }, [isSettingsOpen, isAuthenticated]);
 
     // Helper: Mask Username
     const getOwnerName = (digest: any) => {
@@ -289,8 +290,6 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             setIsAnalyzing(false);
         }
     };
-
-    const { isAuthenticated } = useAuthStore();
 
     useEffect(() => {
         if (isAuthenticated && (activeSideTab === 'digests' || isGlobalSidebarOpen)) {
