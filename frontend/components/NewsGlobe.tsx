@@ -743,6 +743,13 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                                 lastDataUpdate = now;
                             }
                         }
+                        else if (msg.type === 'meta') {
+                            console.log("DIGEST_DEBUG: Received Meta:", msg);
+                            currentDigestState.owner_id = msg.owner_id;
+                            currentDigestState.owner_username = msg.owner_username;
+                            // Immediate update to show user name
+                            setDigestData({ ...currentDigestState });
+                        }
                         else if (msg.type === 'partial_articles') {
                             console.log(`DIGEST_DEBUG: Received partial_articles (${msg.articles.length})`);
                             if (currentDigestState.articles) {
@@ -3161,7 +3168,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
             {/* Version Indicator */}
             <div className="absolute bottom-2 right-2 z-[100] text-[10px] text-white/30 font-mono hover:text-white/80 cursor-default select-none transition-colors">
-                v0.111
+                v0.113
             </div>
 
         </div >
