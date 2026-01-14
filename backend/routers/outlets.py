@@ -547,10 +547,10 @@ async def assess_article_politics(req: PoliticsAssessmentRequest, current_user: 
 # We will return a tuple (result_map, error_msg)
 
 
-async def batch_verify_titles_debug(titles_map: Dict[int, str], definition: str, api_key: str, target_language: str = "English") -> tuple[Dict[str, Any], str]:
+async def batch_verify_titles_debug(titles_map: Dict[int, str], definition: str, api_key: str, target_language: str = "English") -> tuple[Dict[str, Any], str, str]:
     if not api_key:
         print("DEBUG: missing API key for batch_verify_titles_debug")
-        return {}, "Missing API Key"
+        return {}, "Missing API Key", ""
     
     print(f"DEBUG: Using API Key: {api_key[:4]}...{api_key[-4:]} | Target Lang: {target_language}")
     genai.configure(api_key=api_key)
@@ -604,7 +604,7 @@ async def batch_verify_titles_debug(titles_map: Dict[int, str], definition: str,
             if match:
                 result_map = json.loads(match.group(0))
             else:
-                raise ValueError("Could not extract JSON")
+                raise ValueError(f"Could not extract JSON. Raw: {text[:100]}")
 
         # Convert all keys to strings for consistent comparison
         # And ensure value structure
@@ -635,11 +635,11 @@ async def batch_verify_titles_debug(titles_map: Dict[int, str], definition: str,
         with open("debug_ai.log", "a") as f:
              f.write(f"Mapped Keys: {list(final_map.keys())}\n")
              
-        return final_map, None
+        return final_map, None, text
     except Exception as e:
         with open("debug_ai.log", "a") as f:
              f.write(f"ERROR: {e}\n")
-        return {}, str(e)
+        return {}, str(e), ""
 
 class DigestSaveRequest(BaseModel):
     title: str
@@ -2231,8 +2231,13 @@ async def generate_digest_stream(req: DigestRequest, current_user: User = Depend
                      # Process Results as they complete
                      completed_in_group = 0
                      for task in asyncio.as_completed(tasks):
-                         res, err = await task
+                         res, err, raw_debug = await task
                          completed_in_group += 1
+                         
+                         if raw_debug:
+                              # Send a snippet of the raw AI response to frontend for debugging
+                              short_debug = raw_debug.replace('\n', ' ')[:200]
+                              yield json.dumps({"type": "log", "message": f"🤖 AI RAW: {short_debug}..."}) + "\n"
                          
                          if err:
                               yield json.dumps({"type": "log", "message": f"⚠️ Batch AI Error: {err}"}) + "\n"
