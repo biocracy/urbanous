@@ -2115,10 +2115,22 @@ async def generate_digest_stream(req: DigestRequest, current_user: User = Depend
                      elif req.timeframe == "1week": cutoff_date = now - timedelta(days=7)
                      elif req.timeframe == "1month": cutoff_date = now - timedelta(days=30)
                      
+                     # HARD CUTOFF (5x Timeframe) - Reject outright
+                     hard_cutoff_date = now - timedelta(days=5) # 24h -> 5 days
+                     if req.timeframe == "3days": hard_cutoff_date = now - timedelta(days=14)
+                     elif req.timeframe == "1week": hard_cutoff_date = now - timedelta(days=30)
+                     elif req.timeframe == "1month": hard_cutoff_date = now - timedelta(days=60)
+                     
                      for art in new_articles:
                          if art.date_str:
                              try:
                                  d_obj = datetime.strptime(art.date_str, "%Y-%m-%d")
+                                 d_obj = datetime.strptime(art.date_str, "%Y-%m-%d")
+                                 
+                                 # STRICT FILTER: Discard if older than Hard Cutoff
+                                 if d_obj < hard_cutoff_date:
+                                     continue
+
                                  is_fresh = d_obj >= cutoff_date
                                  
                                  # Ensure scores dict exists
@@ -2132,8 +2144,19 @@ async def generate_digest_stream(req: DigestRequest, current_user: User = Depend
                                       art.scores["is_fresh"] = True
                              except: pass
 
-                     # Convert Pydantic models to dicts for JSON serialization
-                     serializable_new = [a.dict() for a in new_articles]
+                      # Convert Pydantic models to dicts for JSON serialization
+                      # Re-filter new_articles to exclude dropped ones
+                      final_articles = []
+                      for a in new_articles:
+                          try:
+                              if a.date_str:
+                                  d_obj = datetime.strptime(a.date_str, "%Y-%m-%d")
+                                  if d_obj < hard_cutoff_date: continue
+                              final_articles.append(a)
+                          except:
+                              final_articles.append(a)
+
+                      serializable_new = [a.dict() for a in final_articles]
                      yield json.dumps({
                          "type": "partial_articles", 
                          "articles": serializable_new, 
