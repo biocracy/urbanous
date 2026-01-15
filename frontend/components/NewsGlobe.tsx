@@ -157,6 +157,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
     const [isAnalyticsTranslated, setIsAnalyticsTranslated] = useState(false);
     const [analyticsViewMode, setAnalyticsViewMode] = useState<'cloud' | 'columns'>('cloud');
     const [analyzingTickerText, setAnalyzingTickerText] = useState<string>('');
+    const [digestFetchStatus, setDigestFetchStatus] = useState<string>('idle');
 
     const handleToggleSelection = (url: string) => {
         const newSet = new Set(selectedArticleUrls);
@@ -306,10 +307,12 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             const res = await api.get('/digests');
             console.log("DIGEST_DEBUG: Fetched Saved Digests:", res.data);
             setSavedDigests(res.data);
+            setDigestFetchStatus(`success (${res.data.length} items)`);
         } catch (err: any) {
             console.error("Failed to fetch digests", err);
             // Robust logging
             console.log("DIGEST_DEBUG: Digest fetch error details:", err.response?.data || err.message);
+            setDigestFetchStatus(`error: ${err.message}`);
         }
     };
     // Scraper Debugger State
