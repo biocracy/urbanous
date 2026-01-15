@@ -58,6 +58,12 @@ export default function PublicDigestPage() {
                 // Use the public endpoint
                 const res = await api.get(`/digests/public/${slug}`);
                 setDigest(res.data);
+
+                // Auto-detect existing translations
+                const hasTranslations = res.data.articles?.some((a: any) => !!a.translated_title);
+                if (hasTranslations) {
+                    setIsArticlesTranslated(true);
+                }
             } catch (err: any) {
                 console.error("Fetch failed", err);
                 setError("Digest not found or private.");
