@@ -35,11 +35,11 @@ export default function Home() {
           <div
             className="h-8 w-6 -mt-1 bg-gradient-to-r from-fuchsia-400 to-indigo-400"
             style={{
-              maskImage: 'url(/logo-mask.png)',
+              maskImage: 'url(/logo-mask-v5.png)',
               maskSize: 'contain',
               maskRepeat: 'no-repeat',
               maskPosition: 'center',
-              WebkitMaskImage: 'url(/logo-mask.png)',
+              WebkitMaskImage: 'url(/logo-mask-v5.png)',
               WebkitMaskSize: 'contain',
               WebkitMaskRepeat: 'no-repeat',
               WebkitMaskPosition: 'center'
