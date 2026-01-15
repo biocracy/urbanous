@@ -2085,7 +2085,7 @@ async def generate_digest_stream(req: DigestRequest, current_user: User = Depend
                                        new_arts.append(art)
                                   
                                   if not new_arts:
-                                       continue # Nothing new from this source
+                                       return # Nothing new from this source
                                   
                                   # INCREMENTAL AI VERIFICATION (Fixes Timeout Issue)
                                   if req.category == "Politics" and current_user.gemini_api_key:
