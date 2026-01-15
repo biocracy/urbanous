@@ -2649,28 +2649,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                     <div className="absolute top-20 left-4 w-96 bg-slate-900/95 backdrop-blur border border-slate-700 rounded-lg shadow-2xl overflow-hidden flex flex-col max-h-[calc(100vh-140px)]">
                         <div className="p-4 border-b border-slate-700 bg-slate-900">
                             {/* Search Bar */}
-                            <div className="relative mb-4 max-w-[82%]">
-                                <input
-                                    type="text"
-                                    placeholder="Search City..."
-                                    value={searchQuery}
-                                    onChange={e => setSearchQuery(e.target.value)}
-                                    className="w-full bg-slate-800 border border-slate-600 rounded px-3 py-1.5 text-sm text-white focus:ring-2 focus:ring-blue-500 outline-none"
-                                />
-                                {searchResults.length > 0 && (
-                                    <div className="absolute top-full left-0 right-0 bg-slate-800 border border-slate-600 rounded-b mt-1 max-h-40 overflow-y-auto z-50">
-                                        {searchResults.map((city, i) => (
-                                            <div
-                                                key={i}
-                                                onClick={() => handleSearchSelect(city)}
-                                                className="px-3 py-2 text-sm text-slate-200 hover:bg-slate-700 cursor-pointer border-b border-slate-700/50 last:border-0"
-                                            >
-                                                <span className="font-bold">{city.name}</span> <span className="text-slate-500 text-xs">({city.country})</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
+
 
                             <div className="flex justify-between items-start mb-3">
                                 <div className="flex flex-col gap-1 items-start w-full pr-8">
@@ -2709,640 +2688,647 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                                     </div>
                                 </div>
 
-                                <div className="absolute top-4 right-4 flex gap-2">
+
+                                <button onClick={() => setShowOutletPanel(false)} className="text-gray-400 hover:text-white">✕</button>
+                            </div>
+                        </div>
+                        {cityInfo && (
+                            <div className="text-xs text-slate-400 space-y-2 animate-in slide-in-from-left-2 fade-in duration-300">
+                                <div className="flex flex-wrap gap-2 text-[10px] items-center">
+                                    <span className="px-1.5 py-0.5 bg-slate-800 rounded text-slate-300 font-mono">
+                                        👥 {cityInfo.population}
+                                    </span>
+                                    {cityInfo.ruling_party && (
+                                        <span className="px-1.5 py-0.5 bg-slate-800 rounded text-slate-300">
+                                            🏛 {cityInfo.ruling_party}
+                                        </span>
+                                    )}
+                                </div>
+                                <p className="text-slate-500 italic leading-relaxed border-l-2 border-slate-700 pl-2">
+                                    {cityInfo.description}
+                                </p>
+                            </div>
+                        )}
+                    </div>
+
+                        {/* Controls */}
+            <div className="p-4 space-y-4">
+                <div className="flex gap-2 flex-wrap">
+                    {CATEGORIES.map(cat => (
+                        <button
+                            key={cat}
+                            onClick={() => setSelectedCategory(cat)}
+                            className={`px-2 py-1 text-xs rounded border ${selectedCategory === cat ? 'bg-blue-600 border-blue-500 text-white' : 'border-slate-700 text-gray-400'}`}
+                        >
+                            {cat}
+                        </button>
+                    ))}
+                </div>
+
+                {/* Timeframe Selector */}
+                <div className="flex gap-2 bg-slate-900/40 p-1 rounded-lg border border-slate-700/50 my-2">
+                    {[
+                        { label: '24h', value: '24h' },
+                        { label: '3 Days', value: '3days' },
+                        { label: '7 Days', value: '1week' }
+                    ].map((tf) => (
+                        <button
+                            key={tf.value}
+                            onClick={() => setSelectedTimeframe(tf.value)}
+                            className={`flex-1 py-1 text-[10px] uppercase font-bold rounded text-center transition-all ${selectedTimeframe === tf.value
+                                ? 'bg-blue-600/20 text-blue-400 border border-blue-500/50 shadow-[0_0_10px_rgba(59,130,246,0.2)]'
+                                : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800'
+                                }`}
+                        >
+                            {tf.label}
+                        </button>
+                    ))}
+                </div>
+
+                <div className="flex gap-2 relative w-full">
+                    <button
+                        onClick={handleGenerateDigest}
+                        disabled={!isGeneratingDigest && selectedOutletIds.length === 0}
+                        className={`w-full font-medium py-3 rounded-lg shadow-lg transition-all text-base flex justify-center items-center gap-2 h-14 min-w-[300px]
+                                        ${isGeneratingDigest
+                                ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-900/40 border border-blue-500/30'
+                                : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-900/40 border border-blue-500/30'
+                            }
+                                    `}
+                    >
+                        {isGeneratingDigest ? (
+                            <>
+                                <div className="flex flex-col items-center">
+                                    <span className="flex items-center gap-2">
+                                        <Loader2 className="w-5 h-5 animate-spin" />
+                                        Gathering Articles...
+                                    </span>
+                                    {progressLog && (
+                                        <div className="mt-1 min-w-[250px] text-center">
+                                            <UIMarquee
+                                                text={progressLog}
+                                                maxLength={40}
+                                                className="text-xs text-blue-200 font-mono opacity-80"
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                <FileText className="w-5 h-5" />
+                                Gather Articles
+                            </>
+                        )}
+                    </button>
+
+                    {isGeneratingDigest && (
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handleStopDigest();
+                            }}
+                            title="Stop Generation"
+                            className="absolute -top-2 -right-2 p-1.5 bg-red-500 hover:bg-red-600 text-white rounded shadow-lg transition-transform hover:scale-110 z-20 border-2 border-slate-900 flex items-center justify-center"
+                        >
+                            <div className="h-3 w-3 bg-white rounded-[1px]" />
+                        </button>
+                    )}
+                </div>
+
+                {/* Sidebar Tabs */}
+
+                <div className="flex border-b border-slate-700 mt-4">
+                    <button
+                        onClick={() => setActiveSideTab('sources')}
+                        className={`flex-1 pb-2 text-sm font-bold transition-colors ${activeSideTab === 'sources' ? 'text-blue-400 border-b-2 border-blue-400' : 'text-slate-500 hover:text-slate-300'}`}
+                    >
+                        Sources
+                    </button>
+                    <button
+                        onClick={() => setActiveSideTab('digests')}
+                        className={`flex-1 pb-2 text-sm font-bold transition-colors ${activeSideTab === 'digests' ? 'text-blue-400 border-b-2 border-blue-400' : 'text-slate-500 hover:text-slate-300'}`}
+                    >
+                        Saved Digests
+                    </button>
+                </div>
+            </div>
+
+            {/* Results / List */}
+            <div className="flex-1 overflow-y-auto p-4 text-white text-sm custom-scrollbar">
+                {activeSideTab === 'sources' ? (
+                    <>
+                        {isDiscovering && <div className="text-center text-blue-400 mb-4 animate-pulse">Discovering landscape...</div>}
+
+                        {(!digestData || isGeneratingDigest) && !isDiscovering && (
+                            <div className="space-y-2">
+                                {/* Filters & Header */}
+                                <div className="flex items-center justify-between gap-4 mb-4">
+                                    <div className="flex items-center gap-2 text-xs">
+                                        <span className="text-gray-400 font-bold uppercase">Show:</span>
+                                        <label className="flex items-center gap-1 cursor-pointer text-slate-300 hover:text-white">
+                                            <input type="checkbox" defaultChecked className="rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-0"
+                                                onChange={(e) => {
+                                                    // TODO: filtering logic state not yet implemented fully, relying on visual scanning for MVP
+                                                }}
+                                            />
+                                            Local
+                                        </label>
+                                        <label className="flex items-center gap-1 cursor-pointer text-slate-300 hover:text-white">
+                                            <input type="checkbox" defaultChecked className="rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-0" />
+                                            National
+                                        </label>
+                                    </div>
+                                    {/* Moved Refresh Button */}
                                     <button
                                         onClick={handleRediscoverCity}
                                         title="Rediscover Media Landscape"
-                                        className="p-1 hover:bg-slate-800 rounded text-slate-500 hover:text-blue-400 transition-colors"
+                                        className="p-1 hover:bg-slate-800 rounded text-slate-500 hover:text-blue-400 transition-colors text-xs flex items-center gap-1 border border-slate-700 px-2"
                                     >
-                                        🔄
+                                        🔄 Refresh
                                     </button>
-                                    <button onClick={() => setShowOutletPanel(false)} className="text-gray-400 hover:text-white">✕</button>
                                 </div>
-                            </div>
-                            {cityInfo && (
-                                <div className="text-xs text-slate-400 space-y-2 animate-in slide-in-from-left-2 fade-in duration-300">
-                                    <div className="flex flex-wrap gap-2 text-[10px] items-center">
-                                        <span className="px-1.5 py-0.5 bg-slate-800 rounded text-slate-300 font-mono">
-                                            👥 {cityInfo.population}
-                                        </span>
-                                        {cityInfo.ruling_party && (
-                                            <span className="px-1.5 py-0.5 bg-slate-800 rounded text-slate-300">
-                                                🏛 {cityInfo.ruling_party}
-                                            </span>
-                                        )}
+
+                                {selectedCityOutlets.length === 0 && (
+                                    <div className="text-center py-4 text-gray-500 text-sm">
+                                        <p>No major outlets automatically found.</p>
+                                        <p>Try the Magic Import below!</p>
                                     </div>
-                                    <p className="text-slate-500 italic leading-relaxed border-l-2 border-slate-700 pl-2">
-                                        {cityInfo.description}
-                                    </p>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Controls */}
-                        <div className="p-4 space-y-4">
-                            <div className="flex gap-2 flex-wrap">
-                                {CATEGORIES.map(cat => (
-                                    <button
-                                        key={cat}
-                                        onClick={() => setSelectedCategory(cat)}
-                                        className={`px-2 py-1 text-xs rounded border ${selectedCategory === cat ? 'bg-blue-600 border-blue-500 text-white' : 'border-slate-700 text-gray-400'}`}
-                                    >
-                                        {cat}
-                                    </button>
-                                ))}
-                            </div>
-
-                            {/* Timeframe Selector */}
-                            <div className="flex gap-2 bg-slate-900/40 p-1 rounded-lg border border-slate-700/50 my-2">
-                                {[
-                                    { label: '24h', value: '24h' },
-                                    { label: '3 Days', value: '3days' },
-                                    { label: '7 Days', value: '1week' }
-                                ].map((tf) => (
-                                    <button
-                                        key={tf.value}
-                                        onClick={() => setSelectedTimeframe(tf.value)}
-                                        className={`flex-1 py-1 text-[10px] uppercase font-bold rounded text-center transition-all ${selectedTimeframe === tf.value
-                                            ? 'bg-blue-600/20 text-blue-400 border border-blue-500/50 shadow-[0_0_10px_rgba(59,130,246,0.2)]'
-                                            : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800'
-                                            }`}
-                                    >
-                                        {tf.label}
-                                    </button>
-                                ))}
-                            </div>
-
-                            <div className="flex gap-2 relative w-full">
-                                <button
-                                    onClick={handleGenerateDigest}
-                                    disabled={!isGeneratingDigest && selectedOutletIds.length === 0}
-                                    className={`w-full font-medium py-3 rounded-lg shadow-lg transition-all text-base flex justify-center items-center gap-2 h-14 min-w-[300px]
-                                        ${isGeneratingDigest
-                                            ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-900/40 border border-blue-500/30'
-                                            : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-900/40 border border-blue-500/30'
-                                        }
-                                    `}
-                                >
-                                    {isGeneratingDigest ? (
-                                        <>
-                                            <div className="flex flex-col items-center">
-                                                <span className="flex items-center gap-2">
-                                                    <Loader2 className="w-5 h-5 animate-spin" />
-                                                    Gathering Articles...
-                                                </span>
-                                                {progressLog && (
-                                                    <div className="mt-1 min-w-[250px] text-center">
-                                                        <UIMarquee
-                                                            text={progressLog}
-                                                            maxLength={40}
-                                                            className="text-xs text-blue-200 font-mono opacity-80"
-                                                        />
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <FileText className="w-5 h-5" />
-                                            Gather Articles
-                                        </>
-                                    )}
-                                </button>
-
-                                {isGeneratingDigest && (
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleStopDigest();
-                                        }}
-                                        title="Stop Generation"
-                                        className="absolute -top-2 -right-2 p-1.5 bg-red-500 hover:bg-red-600 text-white rounded shadow-lg transition-transform hover:scale-110 z-20 border-2 border-slate-900 flex items-center justify-center"
-                                    >
-                                        <div className="h-3 w-3 bg-white rounded-[1px]" />
-                                    </button>
                                 )}
-                            </div>
 
-                            {/* Sidebar Tabs */}
+                                {/* Groups: Manual Top, then AI Sorted by Popularity */}
+                                {(() => {
+                                    const manual = selectedCityOutlets.filter(o => o.origin === 'manual');
+                                    const auto = selectedCityOutlets.filter(o => o.origin !== 'manual').sort((a, b) => (b.popularity || 0) - (a.popularity || 0));
 
-                            <div className="flex border-b border-slate-700 mt-4">
-                                <button
-                                    onClick={() => setActiveSideTab('sources')}
-                                    className={`flex-1 pb-2 text-sm font-bold transition-colors ${activeSideTab === 'sources' ? 'text-blue-400 border-b-2 border-blue-400' : 'text-slate-500 hover:text-slate-300'}`}
-                                >
-                                    Sources
-                                </button>
-                                <button
-                                    onClick={() => setActiveSideTab('digests')}
-                                    className={`flex-1 pb-2 text-sm font-bold transition-colors ${activeSideTab === 'digests' ? 'text-blue-400 border-b-2 border-blue-400' : 'text-slate-500 hover:text-slate-300'}`}
-                                >
-                                    Saved Digests
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Results / List */}
-                        <div className="flex-1 overflow-y-auto p-4 text-white text-sm custom-scrollbar">
-                            {activeSideTab === 'sources' ? (
-                                <>
-                                    {isDiscovering && <div className="text-center text-blue-400 mb-4 animate-pulse">Discovering landscape...</div>}
-
-                                    {(!digestData || isGeneratingDigest) && !isDiscovering && (
-                                        <div className="space-y-2">
-                                            {/* Filters & Header */}
-                                            <div className="flex items-center justify-between gap-4 mb-4">
-                                                <div className="flex items-center gap-2 text-xs">
-                                                    <span className="text-gray-400 font-bold uppercase">Show:</span>
-                                                    <label className="flex items-center gap-1 cursor-pointer text-slate-300 hover:text-white">
-                                                        <input type="checkbox" defaultChecked className="rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-0"
-                                                            onChange={(e) => {
-                                                                // TODO: filtering logic state not yet implemented fully, relying on visual scanning for MVP
-                                                            }}
-                                                        />
-                                                        Local
-                                                    </label>
-                                                    <label className="flex items-center gap-1 cursor-pointer text-slate-300 hover:text-white">
-                                                        <input type="checkbox" defaultChecked className="rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-0" />
-                                                        National
-                                                    </label>
-                                                </div>
-                                            </div>
-
-                                            {selectedCityOutlets.length === 0 && (
-                                                <div className="text-center py-4 text-gray-500 text-sm">
-                                                    <p>No major outlets automatically found.</p>
-                                                    <p>Try the Magic Import below!</p>
-                                                </div>
-                                            )}
-
-                                            {/* Groups: Manual Top, then AI Sorted by Popularity */}
-                                            {(() => {
-                                                const manual = selectedCityOutlets.filter(o => o.origin === 'manual');
-                                                const auto = selectedCityOutlets.filter(o => o.origin !== 'manual').sort((a, b) => (b.popularity || 0) - (a.popularity || 0));
-
-                                                const renderOutlet = (outlet: any) => (
-                                                    <div key={outlet.id} className={`group p-3 rounded transition-all border mb-2 ${selectedOutletIds.includes(outlet.id) ? 'bg-slate-800/80 border-blue-500/30' : 'bg-slate-900/50 border-slate-800 opacity-80 hover:opacity-100'}`}>
-                                                        <div className="flex justify-between items-start">
-                                                            <div className="flex items-center gap-2">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    checked={selectedOutletIds.includes(outlet.id)}
-                                                                    onChange={() => toggleOutletSelection(outlet.id)}
-                                                                    className="rounded bg-slate-700 border-slate-600 text-blue-500 focus:ring-0 cursor-pointer"
-                                                                />
-                                                                <div className="flex flex-col">
-                                                                    <div className="flex items-center gap-2">
-                                                                        <h4 className={`font-bold transition-colors ${selectedOutletIds.includes(outlet.id) ? 'text-blue-100' : 'text-slate-300'}`}>{outlet.name}</h4>
-                                                                        {/* Focus Badge */}
-                                                                        {outlet.focus === 'National' && <span className="px-1 py-0.5 rounded bg-indigo-900/50 text-indigo-300 text-[9px] uppercase font-bold border border-indigo-700/50">National</span>}
-                                                                        {outlet.focus === 'Local and National' && <span className="px-1 py-0.5 rounded bg-purple-900/50 text-purple-300 text-[9px] uppercase font-bold border border-purple-700/50">Mixed</span>}
-                                                                    </div>
-                                                                    <div className="flex items-center gap-2 mt-0.5">
-                                                                        <span className="text-[10px] uppercase font-mono text-slate-500">{outlet.type || 'Media'}</span>
-                                                                        {/* Popularity Stars */}
-                                                                        {(outlet.popularity > 0) && (
-                                                                            <span className="text-[10px] text-amber-500/80 font-mono" title={`Popularity Score: ${outlet.popularity}/10`}>
-                                                                                {"★".repeat(Math.min(outlet.popularity, 5))}
-                                                                                <span className='opacity-30'>{"★".repeat(Math.max(0, 5 - outlet.popularity))}</span>
-                                                                            </span>
-                                                                        )}
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                            {outlet.origin === 'manual' && <span className="text-[9px] text-emerald-500 font-bold uppercase tracking-wider bg-emerald-900/20 px-1 rounded">Manually Added</span>}
-                                                        </div>
-                                                        {outlet.url && selectedOutletIds.includes(outlet.id) && (
-                                                            <a
-                                                                href={outlet.url}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                className="mt-2 ml-6 block text-xs text-blue-400 hover:text-blue-300 hover:underline truncate"
-                                                            >
-                                                                {outlet.url}
-                                                            </a>
-                                                        )}
-                                                    </div>
-                                                );
-
-                                                return (
-                                                    <>
-                                                        {manual.map(renderOutlet)}
-                                                        {manual.length > 0 && auto.length > 0 && (
-                                                            <div className="my-2 border-t border-slate-800 flex items-center justify-center">
-                                                                <span className="bg-slate-900 px-2 text-[10px] text-slate-600 uppercase font-bold -mt-2.5">AI Discovered</span>
-                                                            </div>
-                                                        )}
-                                                        {auto.map(renderOutlet)}
-                                                    </>
-                                                )
-                                            })()}
-                                            {editingOutletId !== null && ( // This block was moved outside the renderOutlet function
-                                                <div className="flex gap-1 animate-in fade-in zoom-in duration-200 w-full">
+                                    const renderOutlet = (outlet: any) => (
+                                        <div key={outlet.id} className={`group p-3 rounded transition-all border mb-2 ${selectedOutletIds.includes(outlet.id) ? 'bg-slate-800/80 border-blue-500/30' : 'bg-slate-900/50 border-slate-800 opacity-80 hover:opacity-100'}`}>
+                                            <div className="flex justify-between items-start">
+                                                <div className="flex items-center gap-2">
                                                     <input
-                                                        className="bg-slate-900 border border-blue-500 rounded text-xs px-1 py-0.5 flex-1 text-white outline-none"
-                                                        value={editUrl}
-                                                        onChange={e => setEditUrl(e.target.value)}
-                                                        onKeyDown={e => {
-                                                            if (e.key === 'Enter') handleUpdateOutlet(editingOutletId);
-                                                            if (e.key === 'Escape') setEditingOutletId(null);
-                                                        }}
-                                                        autoFocus
+                                                        type="checkbox"
+                                                        checked={selectedOutletIds.includes(outlet.id)}
+                                                        onChange={() => toggleOutletSelection(outlet.id)}
+                                                        className="rounded bg-slate-700 border-slate-600 text-blue-500 focus:ring-0 cursor-pointer"
                                                     />
-                                                    <button onClick={() => handleUpdateOutlet(editingOutletId)} className="text-green-400 hover:text-green-300 px-1">✓</button>
-                                                    <button onClick={() => setEditingOutletId(null)} className="text-slate-500 hover:text-slate-300 px-1">✕</button>
-                                                </div>
-                                            )}
-
-                                        </div >
-                                    )}
-
-                                    {
-                                        !showAddForm && !digestData && (
-                                            <div className="p-4 border-t border-slate-700 mt-4">
-                                                <button onClick={() => setShowAddForm(true)} className="w-full py-2 bg-slate-800 text-blue-400 rounded text-sm font-bold border border-slate-600 border-dashed hover:border-blue-500 transition-colors">+ Add Source</button>
-                                            </div>
-                                        )
-                                    }
-
-                                    {
-                                        showAddForm && (
-                                            <div className="p-4 border-t border-slate-700 space-y-2 mt-4">
-                                                <input
-                                                    className="w-full bg-slate-800 border-slate-600 rounded p-2 text-white text-xs"
-                                                    placeholder="https://example.com"
-                                                    value={importUrl}
-                                                    onChange={e => setImportUrl(e.target.value)}
-                                                />
-                                                <div className="flex gap-2">
-                                                    <button onClick={handleImportUrl} className="flex-1 bg-purple-600 text-white rounded py-1 text-xs font-bold hover:bg-purple-500">Import</button>
-                                                    <button onClick={() => setShowAddForm(false)} className="px-3 bg-slate-700 text-gray-300 rounded py-1 text-xs hover:bg-slate-600">Cancel</button>
-                                                </div>
-                                            </div>
-                                        )
-                                    }
-                                </>
-                            ) : (
-                                <div className="space-y-2">
-                                    {savedDigests.length === 0 ? (
-                                        <div className="text-center text-slate-500 py-6 px-2 flex flex-col gap-3">
-                                            <div>No saved digests found.</div>
-
-                                            {/* Debug Info */}
-                                            <div className="bg-slate-900 border border-slate-700/50 rounded p-2 text-[10px] font-mono text-left space-y-1 w-full overflow-hidden">
-                                                <div className="text-slate-400">UID: <span className="text-white">{currentUser?.id}</span></div>
-                                                <div className="text-slate-400">Name: <span className="text-white">{currentUser?.username}</span></div>
-                                                <div className="text-slate-400">Status: <span className={digestFetchStatus.includes('error') ? "text-red-400" : "text-green-400"}>{digestFetchStatus}</span></div>
-                                            </div>
-
-                                            <button onClick={fetchSavedDigests} className="text-xs text-blue-400 hover:text-blue-300 underline">
-                                                Refresh List
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        (savedDigests || [])
-                                            // Left Sidebar: Show ALL user digests (removed city filter)
-                                            // .filter((d: any) => !selectedCityName || d.city === selectedCityName)
-                                            .map((digest: any) => {
-                                                const createdAt = digest.created_at || new Date().toISOString();
-                                                const end = new Date(createdAt);
-                                                if (isNaN(end.getTime())) {
-                                                    // Fallback for invalid dates
-                                                    const safeDate = new Date();
-                                                    end.setTime(safeDate.getTime());
-                                                }
-                                                const start = new Date(end);
-
-                                                if (digest.timeframe === "24h") start.setDate(end.getDate() - 1);
-                                                else if (digest.timeframe === "3days") start.setDate(end.getDate() - 3);
-                                                else if (digest.timeframe === "1week") start.setDate(end.getDate() - 7);
-                                                else if (digest.timeframe === "1month") start.setDate(end.getDate() - 30);
-
-                                                const f = (d: Date) => d.getDate().toString().padStart(2, '0') + "." + (d.getMonth() + 1).toString().padStart(2, '0');
-                                                const y = (d: Date) => d.getFullYear();
-                                                const dateRange = `${f(start)} - ${f(end)}.${y(end)}`;
-
-                                                const title = digest.title || "";
-                                                const cat = digest.category || "";
-                                                const showCategory = cat && !title.toLowerCase().includes(cat.toLowerCase());
-
-                                                return (
-                                                    <div
-                                                        key={digest.id}
-                                                        onClick={() => handleLoadDigest(digest)}
-                                                        className="bg-slate-800/50 hover:bg-slate-800 border border-slate-700 hover:border-blue-500 p-3 rounded cursor-pointer transition-all group"
-                                                    >
-                                                        <div className="flex justify-between items-start mb-1">
-                                                            <h4 className="font-bold text-slate-200 line-clamp-1 group-hover:text-blue-400">{title}</h4>
-                                                            {/* Delete only if Owner */}
-                                                            {currentUser && digest.owner_id === currentUser.id && (
-                                                                <button onClick={(e) => handleDeleteDigest(e, digest.id)} className="text-slate-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">✕</button>
+                                                    <div className="flex flex-col">
+                                                        <div className="flex items-center gap-2">
+                                                            <h4 className={`font-bold transition-colors ${selectedOutletIds.includes(outlet.id) ? 'text-blue-100' : 'text-slate-300'}`}>{outlet.name}</h4>
+                                                            {/* Focus Badge */}
+                                                            {outlet.focus === 'National' && <span className="px-1 py-0.5 rounded bg-indigo-900/50 text-indigo-300 text-[9px] uppercase font-bold border border-indigo-700/50">National</span>}
+                                                            {outlet.focus === 'Local and National' && <span className="px-1 py-0.5 rounded bg-purple-900/50 text-purple-300 text-[9px] uppercase font-bold border border-purple-700/50">Mixed</span>}
+                                                        </div>
+                                                        <div className="flex items-center gap-2 mt-0.5">
+                                                            <span className="text-[10px] uppercase font-mono text-slate-500">{outlet.type || 'Media'}</span>
+                                                            {/* Popularity Stars */}
+                                                            {(outlet.popularity > 0) && (
+                                                                <span className="text-[10px] text-amber-500/80 font-mono" title={`Popularity Score: ${outlet.popularity}/10`}>
+                                                                    {"★".repeat(Math.min(outlet.popularity, 5))}
+                                                                    <span className='opacity-30'>{"★".repeat(Math.max(0, 5 - outlet.popularity))}</span>
+                                                                </span>
                                                             )}
                                                         </div>
-                                                        <div className="text-[10px] text-slate-500 mb-1">
-                                                            by <span className="text-slate-400 font-medium">{getOwnerName(digest)}</span>
-                                                        </div>
-                                                        <div className="flex flex-col gap-0.5 text-[10px] text-slate-500 font-medium mt-1">
-                                                            <div className="flex items-center gap-2 uppercase font-bold">
-                                                                {digest.city && <span className="text-blue-400">{digest.city}</span>}
-                                                                {showCategory && <span>• {cat}</span>}
-                                                                {digest.is_public && (
-                                                                    <span className="flex items-center gap-0.5 text-emerald-400 bg-emerald-900/30 px-1 rounded border border-emerald-800/50 text-[9px] transform scale-90" title="Public Link Active">
-                                                                        <GlobeIcon size={8} /> Public
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                            <div className="text-slate-400">
-                                                                {dateRange}
-                                                            </div>
-                                                        </div>
                                                     </div>
-                                                );
-                                            }))}
+                                                </div>
+                                                {outlet.origin === 'manual' && <span className="text-[9px] text-emerald-500 font-bold uppercase tracking-wider bg-emerald-900/20 px-1 rounded">Manually Added</span>}
+                                            </div>
+                                            {outlet.url && selectedOutletIds.includes(outlet.id) && (
+                                                <a
+                                                    href={outlet.url}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="mt-2 ml-6 block text-xs text-blue-400 hover:text-blue-300 hover:underline truncate"
+                                                >
+                                                    {outlet.url}
+                                                </a>
+                                            )}
+                                        </div>
+                                    );
+
+                                    return (
+                                        <>
+                                            {manual.map(renderOutlet)}
+                                            {manual.length > 0 && auto.length > 0 && (
+                                                <div className="my-2 border-t border-slate-800 flex items-center justify-center">
+                                                    <span className="bg-slate-900 px-2 text-[10px] text-slate-600 uppercase font-bold -mt-2.5">AI Discovered</span>
+                                                </div>
+                                            )}
+                                            {auto.map(renderOutlet)}
+                                        </>
+                                    )
+                                })()}
+                                {editingOutletId !== null && ( // This block was moved outside the renderOutlet function
+                                    <div className="flex gap-1 animate-in fade-in zoom-in duration-200 w-full">
+                                        <input
+                                            className="bg-slate-900 border border-blue-500 rounded text-xs px-1 py-0.5 flex-1 text-white outline-none"
+                                            value={editUrl}
+                                            onChange={e => setEditUrl(e.target.value)}
+                                            onKeyDown={e => {
+                                                if (e.key === 'Enter') handleUpdateOutlet(editingOutletId);
+                                                if (e.key === 'Escape') setEditingOutletId(null);
+                                            }}
+                                            autoFocus
+                                        />
+                                        <button onClick={() => handleUpdateOutlet(editingOutletId)} className="text-green-400 hover:text-green-300 px-1">✓</button>
+                                        <button onClick={() => setEditingOutletId(null)} className="text-slate-500 hover:text-slate-300 px-1">✕</button>
+                                    </div>
+                                )}
+
+                            </div >
+                        )}
+
+                        {
+                            !showAddForm && !digestData && (
+                                <div className="p-4 border-t border-slate-700 mt-4">
+                                    <button onClick={() => setShowAddForm(true)} className="w-full py-2 bg-slate-800 text-blue-400 rounded text-sm font-bold border border-slate-600 border-dashed hover:border-blue-500 transition-colors">+ Add Source</button>
                                 </div>
-                            )}
-                        </div>
-                    </div>
-                )
-            }
+                            )
+                        }
 
+                        {
+                            showAddForm && (
+                                <div className="p-4 border-t border-slate-700 space-y-2 mt-4">
+                                    <input
+                                        className="w-full bg-slate-800 border-slate-600 rounded p-2 text-white text-xs"
+                                        placeholder="https://example.com"
+                                        value={importUrl}
+                                        onChange={e => setImportUrl(e.target.value)}
+                                    />
+                                    <div className="flex gap-2">
+                                        <button onClick={handleImportUrl} className="flex-1 bg-purple-600 text-white rounded py-1 text-xs font-bold hover:bg-purple-500">Import</button>
+                                        <button onClick={() => setShowAddForm(false)} className="px-3 bg-slate-700 text-gray-300 rounded py-1 text-xs hover:bg-slate-600">Cancel</button>
+                                    </div>
+                                </div>
+                            )
+                        }
+                    </>
+                ) : (
+                    <div className="space-y-2">
+                        {savedDigests.length === 0 ? (
+                            <div className="text-center text-slate-500 py-6 px-2 flex flex-col gap-3">
+                                <div>No saved digests found.</div>
 
-            {
-                debugTarget && (
-                    <ScraperDebugger
-                        isOpen={scraperDebuggerOpen}
-                        onClose={() => setScraperDebuggerOpen(false)}
-                        initialUrl={debugTarget.url}
-                        domain={debugTarget.domain}
+                                {/* Debug Info */}
+                                <div className="bg-slate-900 border border-slate-700/50 rounded p-2 text-[10px] font-mono text-left space-y-1 w-full overflow-hidden">
+                                    <div className="text-slate-400">UID: <span className="text-white">{currentUser?.id}</span></div>
+                                    <div className="text-slate-400">Name: <span className="text-white">{currentUser?.username}</span></div>
+                                    <div className="text-slate-400">Status: <span className={digestFetchStatus.includes('error') ? "text-red-400" : "text-green-400"}>{digestFetchStatus}</span></div>
+                                </div>
 
-                        onSave={handleRulesUpdated}
-                        onSaving={handleRuleSaving}
-                    />
-                )
-            }
-            {/* Right Sidebar - Global Digests */}
-            <div className={`fixed right-0 top-20 z-40 transition-all duration-300 ease-in-out ${isGlobalSidebarOpen ? 'w-80' : 'w-0'} h-[calc(100vh-100px)]`}>
-                {/* Toggle Handle - Custom Tall Arrow */}
-                <button
-                    onClick={() => setIsGlobalSidebarOpen(!isGlobalSidebarOpen)}
-                    className={`absolute -left-5 top-1/2 -translate-y-1/2 bg-slate-900 border border-slate-600 border-r-0 rounded-l-lg 
-                        h-24 w-5 flex items-center justify-center hover:bg-slate-800 hover:text-blue-400 text-slate-500 shadow-[0_0_15px_rgba(0,0,0,0.5)] transition-all group overflow-hidden`}
-                    title="Toggle Global Digests"
-                >
-                    <div className={`transition-transform duration-500 ${isGlobalSidebarOpen ? 'rotate-180' : ''}`}>
-                        <svg width="10" height="40" viewBox="0 0 10 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M8 2L2 20L8 38" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                    </div>
-                </button>
-
-                {/* Content Panel */}
-                <div className="w-full h-full bg-slate-900/95 backdrop-blur border-l border-slate-700 shadow-2xl overflow-hidden flex flex-col">
-                    <div className="p-4 border-b border-slate-700 bg-slate-900 sticky top-0 z-10">
-                        <h3 className="font-bold text-white text-lg flex items-center gap-2 mb-2">
-                            <List size={18} className="text-blue-400" />
-                            Global Stream
-                        </h3>
-
-                        <div className="flex bg-slate-800 rounded p-1">
-                            <button
-                                onClick={() => setGlobalStreamTab('stream')}
-                                className={`flex-1 text-xs font-bold py-1.5 rounded transition-all ${globalStreamTab === 'stream' ? 'bg-slate-700 text-blue-400 shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
-                            >
-                                Stream
-                            </button>
-                            <button
-                                onClick={() => setGlobalStreamTab('my')}
-                                className={`flex-1 text-xs font-bold py-1.5 rounded transition-all ${globalStreamTab === 'my' ? 'bg-slate-700 text-blue-400 shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
-                            >
-                                My Digests
-                            </button>
-                        </div>
-                    </div>
-
-                    <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-                        {(savedDigests || [])
-                            .filter((d: any) => {
-                                if (globalStreamTab === 'my') {
-                                    return currentUser && d.owner_id === currentUser.id;
-                                }
-                                return true; // Show all
-                            })
-                            .length === 0 ? (
-                            <div className="text-center text-slate-500 py-8 text-sm">
-                                {globalStreamTab === 'my' ? "You haven't saved any digests." : "No digests found."}
+                                <button onClick={fetchSavedDigests} className="text-xs text-blue-400 hover:text-blue-300 underline">
+                                    Refresh List
+                                </button>
                             </div>
                         ) : (
-                            (savedDigests || []).map((digest: any) => {
-                                const end = new Date(digest.created_at);
-                                const start = new Date(end);
-                                if (digest.timeframe === "24h") start.setDate(end.getDate() - 1);
-                                else if (digest.timeframe === "3days") start.setDate(end.getDate() - 3);
-                                else if (digest.timeframe === "1week") start.setDate(end.getDate() - 7);
-                                else if (digest.timeframe === "1month") start.setDate(end.getDate() - 30);
+                            (savedDigests || [])
+                                // Left Sidebar: Show ALL user digests (removed city filter)
+                                // .filter((d: any) => !selectedCityName || d.city === selectedCityName)
+                                .map((digest: any) => {
+                                    const createdAt = digest.created_at || new Date().toISOString();
+                                    const end = new Date(createdAt);
+                                    if (isNaN(end.getTime())) {
+                                        // Fallback for invalid dates
+                                        const safeDate = new Date();
+                                        end.setTime(safeDate.getTime());
+                                    }
+                                    const start = new Date(end);
 
-                                const f = (d: Date) => d.getDate().toString().padStart(2, '0') + "." + (d.getMonth() + 1).toString().padStart(2, '0');
-                                const y = (d: Date) => d.getFullYear();
-                                const dateRange = `${f(start)} - ${f(end)}.${y(end)}`;
-                                const title = digest.title || "";
-                                const cat = digest.category || "";
-                                const showCategory = cat && !title.toLowerCase().includes(cat.toLowerCase());
+                                    if (digest.timeframe === "24h") start.setDate(end.getDate() - 1);
+                                    else if (digest.timeframe === "3days") start.setDate(end.getDate() - 3);
+                                    else if (digest.timeframe === "1week") start.setDate(end.getDate() - 7);
+                                    else if (digest.timeframe === "1month") start.setDate(end.getDate() - 30);
 
-                                return (
-                                    <div
-                                        key={digest.id}
-                                        onClick={() => handleLoadDigest(digest)}
-                                        className="bg-slate-800/50 hover:bg-slate-800 border border-slate-700 hover:border-blue-500 p-3 rounded cursor-pointer transition-all group mb-2"
-                                    >
-                                        <div className="flex justify-between items-start mb-1">
-                                            <h4 className="font-bold text-slate-200 line-clamp-2 text-sm group-hover:text-blue-400">{title}</h4>
-                                        </div>
-                                        <div className="flex flex-col gap-0.5 text-[10px] text-slate-500 font-medium mt-1">
-                                            <div className="flex items-center gap-2 uppercase font-bold flex-wrap">
-                                                {digest.city && <span className="text-blue-400 bg-blue-900/20 px-1 rounded">{digest.city}</span>}
-                                                {showCategory && <span className="text-slate-400">• {cat}</span>}
-                                                {digest.is_public && (
-                                                    <span className="flex items-center gap-0.5 text-emerald-400 bg-emerald-900/30 px-1 rounded border border-emerald-800/50 text-[9px] transform scale-90" title="Public Link Active">
-                                                        <GlobeIcon size={8} /> Public
-                                                    </span>
+                                    const f = (d: Date) => d.getDate().toString().padStart(2, '0') + "." + (d.getMonth() + 1).toString().padStart(2, '0');
+                                    const y = (d: Date) => d.getFullYear();
+                                    const dateRange = `${f(start)} - ${f(end)}.${y(end)}`;
+
+                                    const title = digest.title || "";
+                                    const cat = digest.category || "";
+                                    const showCategory = cat && !title.toLowerCase().includes(cat.toLowerCase());
+
+                                    return (
+                                        <div
+                                            key={digest.id}
+                                            onClick={() => handleLoadDigest(digest)}
+                                            className="bg-slate-800/50 hover:bg-slate-800 border border-slate-700 hover:border-blue-500 p-3 rounded cursor-pointer transition-all group"
+                                        >
+                                            <div className="flex justify-between items-start mb-1">
+                                                <h4 className="font-bold text-slate-200 line-clamp-1 group-hover:text-blue-400">{title}</h4>
+                                                {/* Delete only if Owner */}
+                                                {currentUser && digest.owner_id === currentUser.id && (
+                                                    <button onClick={(e) => handleDeleteDigest(e, digest.id)} className="text-slate-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">✕</button>
                                                 )}
                                             </div>
-                                            <div className="text-slate-600 font-mono mt-0.5">
-                                                {dateRange}
+                                            <div className="text-[10px] text-slate-500 mb-1">
+                                                by <span className="text-slate-400 font-medium">{getOwnerName(digest)}</span>
+                                            </div>
+                                            <div className="flex flex-col gap-0.5 text-[10px] text-slate-500 font-medium mt-1">
+                                                <div className="flex items-center gap-2 uppercase font-bold">
+                                                    {digest.city && <span className="text-blue-400">{digest.city}</span>}
+                                                    {showCategory && <span>• {cat}</span>}
+                                                    {digest.is_public && (
+                                                        <span className="flex items-center gap-0.5 text-emerald-400 bg-emerald-900/30 px-1 rounded border border-emerald-800/50 text-[9px] transform scale-90" title="Public Link Active">
+                                                            <GlobeIcon size={8} /> Public
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <div className="text-slate-400">
+                                                    {dateRange}
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                );
-                            })
-                        )}
+                                    );
+                                }))}
                     </div>
-                </div>
+                )}
             </div>
+        </div>
+    )
+}
 
-            {/* Settings Button (Top Right Fixed) */}
-            {!digestData && (
+
+{
+    debugTarget && (
+        <ScraperDebugger
+            isOpen={scraperDebuggerOpen}
+            onClose={() => setScraperDebuggerOpen(false)}
+            initialUrl={debugTarget.url}
+            domain={debugTarget.domain}
+
+            onSave={handleRulesUpdated}
+            onSaving={handleRuleSaving}
+        />
+    )
+}
+{/* Right Sidebar - Global Digests */ }
+<div className={`fixed right-0 top-20 z-40 transition-all duration-300 ease-in-out ${isGlobalSidebarOpen ? 'w-80' : 'w-0'} h-[calc(100vh-100px)]`}>
+    {/* Toggle Handle - Custom Tall Arrow */}
+    <button
+        onClick={() => setIsGlobalSidebarOpen(!isGlobalSidebarOpen)}
+        className={`absolute -left-5 top-1/2 -translate-y-1/2 bg-slate-900 border border-slate-600 border-r-0 rounded-l-lg 
+                        h-24 w-5 flex items-center justify-center hover:bg-slate-800 hover:text-blue-400 text-slate-500 shadow-[0_0_15px_rgba(0,0,0,0.5)] transition-all group overflow-hidden`}
+        title="Toggle Global Digests"
+    >
+        <div className={`transition-transform duration-500 ${isGlobalSidebarOpen ? 'rotate-180' : ''}`}>
+            <svg width="10" height="40" viewBox="0 0 10 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M8 2L2 20L8 38" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+        </div>
+    </button>
+
+    {/* Content Panel */}
+    <div className="w-full h-full bg-slate-900/95 backdrop-blur border-l border-slate-700 shadow-2xl overflow-hidden flex flex-col">
+        <div className="p-4 border-b border-slate-700 bg-slate-900 sticky top-0 z-10">
+            <h3 className="font-bold text-white text-lg flex items-center gap-2 mb-2">
+                <List size={18} className="text-blue-400" />
+                Global Stream
+            </h3>
+
+            <div className="flex bg-slate-800 rounded p-1">
                 <button
-                    onClick={() => setIsSettingsOpen(true)}
-                    className="fixed top-4 right-4 z-40 p-2 bg-slate-900/80 backdrop-blur border border-slate-700 rounded-full text-slate-400 hover:text-white hover:bg-slate-800 transition-all shadow-xl"
-                    title="User Settings"
+                    onClick={() => setGlobalStreamTab('stream')}
+                    className={`flex-1 text-xs font-bold py-1.5 rounded transition-all ${globalStreamTab === 'stream' ? 'bg-slate-700 text-blue-400 shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
                 >
-                    <Settings size={20} />
+                    Stream
                 </button>
-            )}
-
-            {/* Settings Modal */}
-            <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
-
-            {/* Global Analytics Tooltip */}
-            {activeTooltip && activeTooltip.rect && (
-                <div
-                    className="fixed z-[9999] w-80 bg-slate-950 backdrop-blur-xl border border-slate-700 rounded-xl shadow-[0_0_50px_rgba(0,0,0,0.8)] p-4 text-xs text-left cursor-auto animate-in fade-in zoom-in-95 duration-200"
-                    style={{
-                        top: activeTooltip.placement === 'bottom'
-                            ? activeTooltip.rect.bottom + 8
-                            : activeTooltip.rect.top - 8 - (200),
-                        left: activeTooltip.rect.left + (activeTooltip.rect.width / 2) - 160,
-                    }}
-                    onMouseEnter={() => {
-                        if (hoverTimeout.current) clearTimeout(hoverTimeout.current);
-                    }}
-                    onMouseLeave={() => {
-                        if (isTooltipLocked) return;
-                        hoverTimeout.current = setTimeout(() => {
-                            setActiveTooltip(null);
-                            setIsTooltipLocked(false);
-                        }, 150);
-                    }}
+                <button
+                    onClick={() => setGlobalStreamTab('my')}
+                    className={`flex-1 text-xs font-bold py-1.5 rounded transition-all ${globalStreamTab === 'my' ? 'bg-slate-700 text-blue-400 shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
                 >
-                    <div className="flex justify-between items-start border-b border-slate-800 pb-2 mb-3">
-                        <div className="font-bold text-white text-base">
-                            {isAnalyticsTranslated && activeTooltip.data?.translation ? activeTooltip.data.translation : activeTooltip.word}
-                            {isTooltipLocked && <span className="ml-2 text-[10px] text-blue-400 border border-blue-900 bg-blue-950/50 px-1 rounded align-middle">LOCKED</span>}
-                        </div>
-                        <div className="flex flex-col items-end gap-1">
-                            <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${activeTooltip.data?.sentiment === 'Positive' ? 'bg-green-900/50 text-green-400 border border-green-800' : activeTooltip.data?.sentiment === 'Negative' ? 'bg-red-900/50 text-red-400 border border-red-800' : 'bg-slate-800 text-slate-400 border border-slate-700'}`}>
-                                {activeTooltip.data?.sentiment}
-                            </span>
-                            <span className="text-[10px] text-slate-500 font-mono">Imp: {activeTooltip.data?.importance}</span>
-                        </div>
-                    </div>
-
-                    <div className="space-y-2">
-                        <div className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-1">
-                            Found in {activeTooltip.data?.sources?.length || 0} sources
-                        </div>
-                        <ul className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar pr-1">
-                            {activeTooltip.data?.sources && activeTooltip.data.sources.length > 0 ? (
-                                activeTooltip.data.sources.map((src: any, idx: number) => (
-                                    <li key={idx} className="flex flex-col gap-0.5 bg-slate-900/50 p-2 rounded hover:bg-slate-900 transition-colors border border-white/5">
-                                        <a href={src.url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 hover:underline font-medium line-clamp-2 leading-tight">
-                                            {src.title}
-                                        </a>
-                                        <span className="text-[10px] text-slate-500">{src.source}</span>
-                                    </li>
-                                ))
-                            ) : (
-                                <li className="text-slate-600 italic">No direct sources mapped.</li>
-                            )}
-                        </ul>
-                    </div>
-                </div>
-            )}
-
-            {/* Support / Donation Button */}
-            <a
-                href="https://buymeacoffee.com/urbanous"
-                target="_blank"
-                rel="noopener noreferrer"
-                title="Support OpenNews"
-                className="absolute top-4 right-16 z-20 p-2 rounded-lg bg-yellow-500/90 text-white shadow-lg shadow-yellow-500/20 hover:bg-yellow-400 hover:scale-110 transition-all flex items-center gap-2 font-bold text-sm"
-            >
-                <Coffee className="w-5 h-5" />
-                <span className="hidden group-hover:block whitespace-nowrap">Support Us</span>
-            </a>
-
-            {/* Spotlight Search Overlay */}
-            {isSpotlightOpen && (
-                <div className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 transition-opacity" onClick={() => setIsSpotlightOpen(false)}>
-                    <div className="w-full max-w-lg bg-slate-900 border border-slate-700 rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200" onClick={e => e.stopPropagation()}>
-                        <div className="p-4 border-b border-slate-800 flex items-center gap-3">
-                            <Search className="w-5 h-5 text-slate-400" />
-                            <input
-                                autoFocus
-                                className="flex-1 bg-transparent border-none outline-none text-white placeholder-slate-500 text-lg"
-                                placeholder="Search City..."
-                                value={spotlightQuery}
-                                onChange={e => {
-                                    setSpotlightQuery(e.target.value);
-                                    setSpotlightSelectedIndex(0);
-                                }}
-                                onKeyDown={e => {
-                                    const candidates = cities
-                                        .filter(c => c.name.toLowerCase().includes(spotlightQuery.toLowerCase()))
-                                        .slice(0, 8);
-
-                                    if (e.key === 'ArrowDown') {
-                                        e.preventDefault();
-                                        setSpotlightSelectedIndex(prev => (prev + 1) % candidates.length);
-                                    } else if (e.key === 'ArrowUp') {
-                                        e.preventDefault();
-                                        setSpotlightSelectedIndex(prev => (prev - 1 + candidates.length) % candidates.length);
-                                    } else if (e.key === 'Enter') {
-                                        e.preventDefault();
-                                        const match = candidates[spotlightSelectedIndex];
-                                        if (match) {
-                                            handleSearchSelect(match);
-                                            setIsSpotlightOpen(false);
-                                            setSpotlightQuery('');
-                                            setSpotlightSelectedIndex(0);
-                                        }
-                                    }
-                                }}
-                            />
-                            <div className="flex gap-2">
-                                <span className="text-[10px] bg-slate-800 px-1.5 py-0.5 rounded text-slate-400">ESC</span>
-                            </div>
-                        </div>
-                        {spotlightQuery && (
-                            <div className="max-h-[300px] overflow-y-auto">
-                                {cities
-                                    .filter(c => c.name.toLowerCase().includes(spotlightQuery.toLowerCase()))
-                                    .slice(0, 8)
-                                    .map((city: any, idx: number) => (
-                                        <button
-                                            key={city.id || city.name}
-                                            className={`w-full text-left px-4 py-3 flex items-center justify-between group transition-colors ${idx === spotlightSelectedIndex ? 'bg-slate-800 border-l-2 border-blue-500' : 'hover:bg-slate-800/50 border-l-2 border-transparent'}`}
-                                            onClick={() => {
-                                                handleSearchSelect(city);
-                                                setIsSpotlightOpen(false);
-                                                setSpotlightQuery('');
-                                            }}
-                                            onMouseEnter={() => setSpotlightSelectedIndex(idx)}
-                                        >
-                                            <span className={`font-medium ${idx === spotlightSelectedIndex ? 'text-white' : 'text-slate-200 group-hover:text-white'}`}>{city.name}</span>
-                                            <span className="text-xs text-slate-500 uppercase">{city.country_code}</span>
-                                        </button>
-                                    ))}
-                                {cities.filter(c => c.name.toLowerCase().includes(spotlightQuery.toLowerCase())).length === 0 && (
-                                    <div className="p-4 text-center text-slate-500 italic">No cities found</div>
-                                )}
-                            </div>
-                        )}
-                        {!spotlightQuery && (
-                            <div className="p-8 text-center text-slate-600 text-sm">
-                                Type to fly to a city...
-                            </div>
-                        )}
-                    </div>
-                </div>
-            )}
-
-
-            {/* Version Indicator */}
-            {/* Version Indicator */}
-            <div className="absolute bottom-2 right-2 z-[100] text-[10px] text-white/30 font-mono hover:text-white/80 cursor-default select-none transition-colors">
-                v0.120.21 Spotlight
+                    My Digests
+                </button>
             </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+            {(savedDigests || [])
+                .filter((d: any) => {
+                    if (globalStreamTab === 'my') {
+                        return currentUser && d.owner_id === currentUser.id;
+                    }
+                    return true; // Show all
+                })
+                .length === 0 ? (
+                <div className="text-center text-slate-500 py-8 text-sm">
+                    {globalStreamTab === 'my' ? "You haven't saved any digests." : "No digests found."}
+                </div>
+            ) : (
+                (savedDigests || []).map((digest: any) => {
+                    const end = new Date(digest.created_at);
+                    const start = new Date(end);
+                    if (digest.timeframe === "24h") start.setDate(end.getDate() - 1);
+                    else if (digest.timeframe === "3days") start.setDate(end.getDate() - 3);
+                    else if (digest.timeframe === "1week") start.setDate(end.getDate() - 7);
+                    else if (digest.timeframe === "1month") start.setDate(end.getDate() - 30);
+
+                    const f = (d: Date) => d.getDate().toString().padStart(2, '0') + "." + (d.getMonth() + 1).toString().padStart(2, '0');
+                    const y = (d: Date) => d.getFullYear();
+                    const dateRange = `${f(start)} - ${f(end)}.${y(end)}`;
+                    const title = digest.title || "";
+                    const cat = digest.category || "";
+                    const showCategory = cat && !title.toLowerCase().includes(cat.toLowerCase());
+
+                    return (
+                        <div
+                            key={digest.id}
+                            onClick={() => handleLoadDigest(digest)}
+                            className="bg-slate-800/50 hover:bg-slate-800 border border-slate-700 hover:border-blue-500 p-3 rounded cursor-pointer transition-all group mb-2"
+                        >
+                            <div className="flex justify-between items-start mb-1">
+                                <h4 className="font-bold text-slate-200 line-clamp-2 text-sm group-hover:text-blue-400">{title}</h4>
+                            </div>
+                            <div className="flex flex-col gap-0.5 text-[10px] text-slate-500 font-medium mt-1">
+                                <div className="flex items-center gap-2 uppercase font-bold flex-wrap">
+                                    {digest.city && <span className="text-blue-400 bg-blue-900/20 px-1 rounded">{digest.city}</span>}
+                                    {showCategory && <span className="text-slate-400">• {cat}</span>}
+                                    {digest.is_public && (
+                                        <span className="flex items-center gap-0.5 text-emerald-400 bg-emerald-900/30 px-1 rounded border border-emerald-800/50 text-[9px] transform scale-90" title="Public Link Active">
+                                            <GlobeIcon size={8} /> Public
+                                        </span>
+                                    )}
+                                </div>
+                                <div className="text-slate-600 font-mono mt-0.5">
+                                    {dateRange}
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })
+            )}
+        </div>
+    </div>
+</div>
+
+{/* Settings Button (Top Right Fixed) */ }
+{
+    !digestData && (
+        <button
+            onClick={() => setIsSettingsOpen(true)}
+            className="fixed top-4 right-4 z-40 p-2 bg-slate-900/80 backdrop-blur border border-slate-700 rounded-full text-slate-400 hover:text-white hover:bg-slate-800 transition-all shadow-xl"
+            title="User Settings"
+        >
+            <Settings size={20} />
+        </button>
+    )
+}
+
+{/* Settings Modal */ }
+<SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+
+{/* Global Analytics Tooltip */ }
+{
+    activeTooltip && activeTooltip.rect && (
+        <div
+            className="fixed z-[9999] w-80 bg-slate-950 backdrop-blur-xl border border-slate-700 rounded-xl shadow-[0_0_50px_rgba(0,0,0,0.8)] p-4 text-xs text-left cursor-auto animate-in fade-in zoom-in-95 duration-200"
+            style={{
+                top: activeTooltip.placement === 'bottom'
+                    ? activeTooltip.rect.bottom + 8
+                    : activeTooltip.rect.top - 8 - (200),
+                left: activeTooltip.rect.left + (activeTooltip.rect.width / 2) - 160,
+            }}
+            onMouseEnter={() => {
+                if (hoverTimeout.current) clearTimeout(hoverTimeout.current);
+            }}
+            onMouseLeave={() => {
+                if (isTooltipLocked) return;
+                hoverTimeout.current = setTimeout(() => {
+                    setActiveTooltip(null);
+                    setIsTooltipLocked(false);
+                }, 150);
+            }}
+        >
+            <div className="flex justify-between items-start border-b border-slate-800 pb-2 mb-3">
+                <div className="font-bold text-white text-base">
+                    {isAnalyticsTranslated && activeTooltip.data?.translation ? activeTooltip.data.translation : activeTooltip.word}
+                    {isTooltipLocked && <span className="ml-2 text-[10px] text-blue-400 border border-blue-900 bg-blue-950/50 px-1 rounded align-middle">LOCKED</span>}
+                </div>
+                <div className="flex flex-col items-end gap-1">
+                    <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${activeTooltip.data?.sentiment === 'Positive' ? 'bg-green-900/50 text-green-400 border border-green-800' : activeTooltip.data?.sentiment === 'Negative' ? 'bg-red-900/50 text-red-400 border border-red-800' : 'bg-slate-800 text-slate-400 border border-slate-700'}`}>
+                        {activeTooltip.data?.sentiment}
+                    </span>
+                    <span className="text-[10px] text-slate-500 font-mono">Imp: {activeTooltip.data?.importance}</span>
+                </div>
+            </div>
+
+            <div className="space-y-2">
+                <div className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-1">
+                    Found in {activeTooltip.data?.sources?.length || 0} sources
+                </div>
+                <ul className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar pr-1">
+                    {activeTooltip.data?.sources && activeTooltip.data.sources.length > 0 ? (
+                        activeTooltip.data.sources.map((src: any, idx: number) => (
+                            <li key={idx} className="flex flex-col gap-0.5 bg-slate-900/50 p-2 rounded hover:bg-slate-900 transition-colors border border-white/5">
+                                <a href={src.url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 hover:underline font-medium line-clamp-2 leading-tight">
+                                    {src.title}
+                                </a>
+                                <span className="text-[10px] text-slate-500">{src.source}</span>
+                            </li>
+                        ))
+                    ) : (
+                        <li className="text-slate-600 italic">No direct sources mapped.</li>
+                    )}
+                </ul>
+            </div>
+        </div>
+    )
+}
+
+{/* Support / Donation Button */ }
+<a
+    href="https://buymeacoffee.com/urbanous"
+    target="_blank"
+    rel="noopener noreferrer"
+    title="Support OpenNews"
+    className="absolute top-4 right-16 z-20 p-2 rounded-lg bg-yellow-500/90 text-white shadow-lg shadow-yellow-500/20 hover:bg-yellow-400 hover:scale-110 transition-all flex items-center gap-2 font-bold text-sm"
+>
+    <Coffee className="w-5 h-5" />
+    <span className="hidden group-hover:block whitespace-nowrap">Support Us</span>
+</a>
+
+{/* Spotlight Search Overlay */ }
+{
+    isSpotlightOpen && (
+        <div className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 transition-opacity" onClick={() => setIsSpotlightOpen(false)}>
+            <div className="w-full max-w-lg bg-slate-900 border border-slate-700 rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200" onClick={e => e.stopPropagation()}>
+                <div className="p-4 border-b border-slate-800 flex items-center gap-3">
+                    <Search className="w-5 h-5 text-slate-400" />
+                    <input
+                        autoFocus
+                        className="flex-1 bg-transparent border-none outline-none text-white placeholder-slate-500 text-lg"
+                        placeholder="Search City..."
+                        value={spotlightQuery}
+                        onChange={e => {
+                            setSpotlightQuery(e.target.value);
+                            setSpotlightSelectedIndex(0);
+                        }}
+                        onKeyDown={e => {
+                            const candidates = cities
+                                .filter(c => c.name.toLowerCase().includes(spotlightQuery.toLowerCase()))
+                                .slice(0, 8);
+
+                            if (e.key === 'ArrowDown') {
+                                e.preventDefault();
+                                setSpotlightSelectedIndex(prev => (prev + 1) % candidates.length);
+                            } else if (e.key === 'ArrowUp') {
+                                e.preventDefault();
+                                setSpotlightSelectedIndex(prev => (prev - 1 + candidates.length) % candidates.length);
+                            } else if (e.key === 'Enter') {
+                                e.preventDefault();
+                                const match = candidates[spotlightSelectedIndex];
+                                if (match) {
+                                    handleSearchSelect(match);
+                                    setIsSpotlightOpen(false);
+                                    setSpotlightQuery('');
+                                    setSpotlightSelectedIndex(0);
+                                }
+                            }
+                        }}
+                    />
+                    <div className="flex gap-2">
+                        <span className="text-[10px] bg-slate-800 px-1.5 py-0.5 rounded text-slate-400">ESC</span>
+                    </div>
+                </div>
+                {spotlightQuery && (
+                    <div className="max-h-[300px] overflow-y-auto">
+                        {cities
+                            .filter(c => c.name.toLowerCase().includes(spotlightQuery.toLowerCase()))
+                            .slice(0, 8)
+                            .map((city: any, idx: number) => (
+                                <button
+                                    key={city.id || city.name}
+                                    className={`w-full text-left px-4 py-3 flex items-center justify-between group transition-colors ${idx === spotlightSelectedIndex ? 'bg-slate-800 border-l-2 border-blue-500' : 'hover:bg-slate-800/50 border-l-2 border-transparent'}`}
+                                    onClick={() => {
+                                        handleSearchSelect(city);
+                                        setIsSpotlightOpen(false);
+                                        setSpotlightQuery('');
+                                    }}
+                                    onMouseEnter={() => setSpotlightSelectedIndex(idx)}
+                                >
+                                    <span className={`font-medium ${idx === spotlightSelectedIndex ? 'text-white' : 'text-slate-200 group-hover:text-white'}`}>{city.name}</span>
+                                    <span className="text-xs text-slate-500 uppercase">{city.country_code}</span>
+                                </button>
+                            ))}
+                        {cities.filter(c => c.name.toLowerCase().includes(spotlightQuery.toLowerCase())).length === 0 && (
+                            <div className="p-4 text-center text-slate-500 italic">No cities found</div>
+                        )}
+                    </div>
+                )}
+                {!spotlightQuery && (
+                    <div className="p-8 text-center text-slate-600 text-sm">
+                        Type to fly to a city...
+                    </div>
+                )}
+            </div>
+        </div>
+    )
+}
+
+
+{/* Version Indicator */ }
+{/* Version Indicator */ }
+<div className="absolute bottom-2 right-2 z-[100] text-[10px] text-white/30 font-mono hover:text-white/80 cursor-default select-none transition-colors">
+    v0.120.21 Spotlight
+</div>
 
         </div >
 
