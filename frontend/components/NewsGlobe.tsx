@@ -994,16 +994,8 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
         setActiveModalTab('articles');
     };
 
-    const handleDeleteDigest = async (e: any, id: number) => {
-        e.stopPropagation();
-        if (!confirm("Delete this digest?")) return;
-        try {
-            await api.delete(`/digests/${id}`);
-            fetchSavedDigests();
-        } catch (err) {
-            console.error(err);
-        }
-    };
+    // Duplicate handleDeleteDigest removed
+
 
     const CATEGORIES = ['Politics', 'Internal Affairs', 'External Affairs', 'Sports', 'Business', 'Tech'];
     const countryMap = useRef<Record<string, string>>({});
@@ -3400,7 +3392,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
             {/* Version Indicator */}
             <div className="absolute bottom-2 right-2 z-[100] text-[10px] text-white/30 font-mono hover:text-white/80 cursor-default select-none transition-colors">
-                v0.120.22 Sidebar
+                v0.120.23 Sidebar
             </div>
 
         </div >
