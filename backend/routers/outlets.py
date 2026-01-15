@@ -2067,10 +2067,14 @@ async def generate_digest_stream(req: DigestRequest, current_user: User = Depend
                                        title = art.get('title', '') if isinstance(art, dict) else getattr(art, 'title', '')
                                        url = art.get('url', '') if isinstance(art, dict) else getattr(art, 'url', '')
                                        
-                                       # Compute fingerprint
-                                       fp = hashlib.md5((str(title) + str(url)).lower().encode()).hexdigest()
-                                       if fp in stream_seen_fingerprints:
-                                            continue # Skip duplicate
+                                        # Normalize: Strip whitespace, strip query params from URL
+                                        clean_title = str(title).strip().lower()
+                                        clean_url = str(url).split('?')[0].split('#')[0].strip().lower()
+                                        
+                                        # Compute fingerprint
+                                        fp = hashlib.md5((clean_title + clean_url).encode()).hexdigest()
+                                        if fp in stream_seen_fingerprints:
+                                             continue # Skip duplicate
                                        
                                        # Database Spam Check (using set for speed)
                                        # Assuming spam_records is a list of objects, we need a fast lookup.
