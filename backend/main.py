@@ -49,6 +49,18 @@ app.include_router(outlets.router, tags=["News Agents"])
 app.include_router(scraper.router, tags=["Scraper Config"])
 app.include_router(feedback.router, tags=["Feedback System"])
 
+from fastapi.staticfiles import StaticFiles
+
+# ... code ...
+
+# Mount Static Files for Clusters
+# Ensure directory exists to prevent startup error
+static_dir = os.path.join(os.path.dirname(__file__), "static")
+if not os.path.exists(static_dir):
+    os.makedirs(static_dir)
+
+app.mount("/static", StaticFiles(directory=static_dir), name="static")
+
 @app.get("/")
 def read_root():
     return {"message": "Welcome to Urbanous API", "version": "v0.120.9 (Manual Fix Available)"}

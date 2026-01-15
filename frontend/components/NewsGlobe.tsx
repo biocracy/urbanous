@@ -1024,16 +1024,18 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                 countryMap.current = map;
             });
 
-        // Load cities
-        fetch('https://raw.githubusercontent.com/lmfmaier/cities-json/master/cities500.json')
-            .then(res => res.json())
-            .then(data => {
-                const largeCities = Array.isArray(data)
-                    ? data.filter((d: any) => parseInt(d.pop || 0) > 100000)
-                    : [];
-                setCities(largeCities);
-            })
-            .catch(err => console.error("Failed to load cities data", err));
+        // Load cities - DISABLED for Optimization (Phase 2)
+        // fetch('https://raw.githubusercontent.com/lmfmaier/cities-json/master/cities500.json')
+        //     .then(res => {
+        //         console.log("Cities Loaded");
+        //         if (!res.ok) throw new Error("Failed to load cities");
+        //         return res.json();
+        //     })
+        //     .then(data => {
+        //         const largeCities = Array.isArray(data) ? data.filter((d: any) => parseInt(d.pop || '0') > 100000) : [];
+        //         setCities(largeCities);
+        //     })
+        //     .catch(err => console.error("Failed to load cities data", err));
 
         // Load initially discovered cities (Auth required)
         api.get('/outlets/cities/list')
@@ -1043,13 +1045,13 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             })
             .catch(err => console.error("Failed to load discovered cities", err));
 
-        // Load all outlets for mapping
-        api.get('/outlets/')
-            .then(res => {
-                console.log("All Outlets Loaded:", res.data?.length);
-                setAllOutlets(res.data);
-            })
-            .catch(err => console.error("Failed to load outlets map", err));
+        // Load all outlets for mapping - DISABLED for Optimization (Memory < 500MB)
+        // api.get('/outlets/')
+        //     .then(res => {
+        //         console.log("All Outlets Loaded:", res.data?.length);
+        //         setAllOutlets(res.data);
+        //     })
+        //     .catch(err => console.error("Failed to load outlets map", err));
     }, []);
 
     // Search Logic
@@ -1217,162 +1219,90 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
     }, [allOutlets]);
 
 
+    // --- OPTIMIZED CLUSTERING (Phase 2) ---
+    const [rawClusters, setRawClusters] = useState<any[]>([]);
+
+    // 1. Fetch Clusters from Backend (Static JSONs)
+    useEffect(() => {
+        const availableRadii = [0.1, 0.3, 0.5, 0.7, 1.0];
+        // Find closest supported radius
+        const radius = availableRadii.reduce((prev, curr) =>
+            Math.abs(curr - clusterThreshold) < Math.abs(prev - clusterThreshold) ? curr : prev
+        );
+
+        console.log(`Loading clusters for radius: ${radius} (requested: ${clusterThreshold})`);
+        const url = `/static/clusters/cities_${radius.toFixed(1)}.json`; // e.g. cities_0.7.json
+
+        // Use api (axios) or fetch. Since it's valid static file, fetch is fine/faster? 
+        // Using api to keep baseURL consistent if set.
+        api.get(url)
+            .then(res => {
+                console.log(`Loaded ${res.data.length} clusters.`);
+                setRawClusters(res.data);
+            })
+            .catch(err => console.error("Failed to load clusters", err));
+
+    }, [clusterThreshold]); // Re-fetch only when user changes slider
+
+    // 2. Apply Dynamic Styling (Colors, Active News) - O(N) efficient
     const clusters = useMemo(() => {
-        if (cities.length === 0) return [];
+        if (!rawClusters.length) return [];
 
-        // 0. Pre-calculate "Capitals"
-        const countryMaxPop: Record<string, number> = {};
-        cities.forEach(c => {
-            const pop = parseInt(c.pop || '0');
-            const country = c.country || 'XX';
-            if (!countryMaxPop[country] || pop > countryMaxPop[country]) {
-                countryMaxPop[country] = pop;
-            }
-        });
-
-        // 1. Sort by pop desc
-        const sorted = [...cities].sort((a, b) => parseInt(b.pop || 0) - parseInt(a.pop || 0));
-
-        // 1.5 Calculate Active Cities from Digest (Live Mode)
         // 1.5 Calculate Active Cities from Digest (Live Mode)
         const activeDigestCities = new Set<string>();
-        if (digestData?.articles && allOutlets.length > 0) {
-            // Optimized Lookup O(N) instead of O(N*M)
-            const { byDomain, byName } = outletLookup;
-
-            digestData.articles.forEach((art: any) => {
-                try {
-                    let outlet = null;
-                    if (art.url) {
-                        try {
-                            const artDomain = new URL(art.url).hostname.replace('www.', '');
-                            outlet = byDomain.get(artDomain);
-                        } catch { }
-                    }
-                    if (!outlet && art.source) {
-                        outlet = byName.get(art.source);
-                    }
-                    if (outlet && outlet.city) {
-                        activeDigestCities.add(outlet.city);
-                    }
-                } catch (e) { }
-            });
-            console.log(`[NewsGlobe] Found ${activeDigestCities.size} active cities.`);
-        }
-
-        const newClusters: any[] = [];
-
-        sorted.forEach(city => {
-            const lat = parseFloat(city.lat);
-            const lng = parseFloat(city.lon);
-            const pop = parseInt(city.pop || '0');
-
-            city.radius = getPopScale(city.pop);
-            city.isCluster = false;
-
-            const isDiscovered = discoveredCities.includes(city.name);
-
-            // const isCapital = pop === countryMaxPop[city.country || 'XX']; // Old heuristic
-            // Exact match check. Note: city.country is ISO2, same as CAPITALS keys.
-            const isCapital = CAPITALS[city.country] === city.name;
-
-            let color = isDiscovered ? '#34d399' : (isCapital ? '#db2777' : '#64748b');
-
-            // LIVE OVERRIDE
-            if (activeDigestCities.has(city.name)) {
-                color = '#4ade80'; // Bright Green for Active News
-            }
-
-            city.color = color;
-            city.isCapital = isCapital;
-
-            // Find existing cluster
-            const existing = newClusters.find(c => {
-                if (c.country !== city.country) return false;
-                const dist = Math.sqrt(Math.pow(c.lat - lat, 2) + Math.pow(c.lng - lng, 2));
-                return dist < clusterThreshold;
-            });
-
-            if (existing) {
-                // If the new city is a Capital and the Cluster is NOT yet a Capital,
-                // we SWAP them. The Capital becomes the Head of the cluster.
-                // The old Head (e.g. Johannesburg) becomes a sub-point.
-                if (city.isCapital && !existing.isCapital) {
-                    // 1. Save Old Head as a Subpoint
-                    const oldHead = {
-                        ...existing,
-                        // Important: Restore original identity data we might want
-                        // But wait, 'existing' is the accumulator object. 
-                        // We need to construct a "Point" object for the Old Head.
-                        // We rely on 'ownPop' which we must add to initialization.
-                        pop: existing.ownPop,
-                        subPoints: [], // Subpoint is a leaf
-                        isCluster: false,
-                        radius: getPopScale(existing.ownPop),
-                        color: discoveredCities.includes(existing.name) ? '#34d399' : '#64748b'
-                        // Note: Re-calculating color is safer. 
-                        // We don't have 'isDiscovered' on existing easily unless we updated it. 
-                        // But existing.color is currently set. Let's use it? 
-                        // existing.color might be purple (Cluster color).
-                        // Better to use default gray usually, or check discovered.
-                        // Let's assume generic gray for simplicity or re-derive if needed.
-                        // Actually, let's just make it a standard point.
-                    };
-                    delete oldHead.subPoints; // Ensure it's clean
-                    delete oldHead.points; // logic safety
-
-                    existing.subPoints.push(oldHead);
-
-                    // 2. Update Head Identity to New Capital
-                    existing.name = city.name;
-                    existing.lat = lat;
-                    existing.lng = lng;
-                    existing.lon = lng;
-                    existing.country = city.country;
-                    existing.ownPop = pop;
-                    existing.isCapital = true;
-                    existing.color = '#db2777'; // Capital Red
-
-                    // 3. Update Totals
-                    existing.pop += pop; // Add Capital Pop to Total
-                    existing.radius = getPopScale(existing.pop) * 1.2;
-
-                } else {
-                    // Standard Merge: New city becomes a subpoint
-                    existing.subPoints.push(city);
-                    existing.pop += pop;
-                    existing.radius = getPopScale(existing.pop) * 1.2;
-
-                    if (existing.isCapital) {
-                        // Head is already capital, maintain color
-                    } else if (city.isCapital) {
-                        // Edge case: Multiple capitals? 
-                        // Should not happen if we did the swap above (since !existing.isCapital).
-                        // But if existing IS capital AND city IS capital (2 capitals close?),
-                        // We just swallow the smaller capital.
-                    } else {
-                        // No capitals involved
-                        existing.color = '#7c3aed';
-                    }
-                }
-                existing.isCluster = true;
-
-            } else {
-                newClusters.push({
-                    ...city,
-                    lat: lat,
-                    lng: lng,
-                    lon: lng,
-                    subPoints: [],
-                    id: `c-${lat}-${lng}`,
-                    pop: pop,
-                    ownPop: pop, // Save personal population for swapping
-                    isCapital: isCapital
+        if (digestData?.articles) {
+            // Reusing the lookup logic but simplifying since backend handles main 'hasNews'
+            // This is mostly for the SPECIFIC digest being viewed.
+            if (allOutlets.length > 0) {
+                const { byDomain, byName } = outletLookup;
+                digestData.articles.forEach((art: any) => {
+                    try {
+                        let outlet = null;
+                        if (art.url) {
+                            try { outlet = byDomain.get(new URL(art.url).hostname.replace('www.', '')); } catch { }
+                        }
+                        if (!outlet && art.source) outlet = byName.get(art.source);
+                        if (outlet && outlet.city) activeDigestCities.add(outlet.city);
+                    } catch { }
                 });
             }
+        }
+
+        return rawClusters.map(c => {
+            // Determine Color
+            // Priority: Active Digest Match > Has Any News > Capital > Discovered > Default
+            const isActive = activeDigestCities.has(c.name);
+            const isDiscovered = discoveredCities.includes(c.name);
+            const hasNewsGeneric = c.hasNews; // From Backend
+
+            // Note: backend c.isCapital is not set, we relied on 'countryMaxPop'.
+            // Actually, we can just use the color from backend if we pre-computed it?
+            // Or re-apply logic here. Re-applying is safer for dynamic 'discovered' state.
+
+            const isCapital = CAPITALS[c.country] === c.name;
+
+            let color = '#64748b'; // Default Slate-500
+            if (isCapital) color = '#db2777'; // Pink-600
+            if (isDiscovered) color = '#34d399'; // Emerald-400
+            if (hasNewsGeneric) color = '#22d3ee'; // Cyan-400 (Generic News)
+            if (isActive) color = '#4ade80'; // Bright Green (Active Digest)
+
+            // Override radius based on markerScale state
+            const radius = (c.radius || getPopScale(c.pop)) * markerScale; // Scale override
+
+            return {
+                ...c,
+                color,
+                radius,
+                // Ensure subPoints also get scaled radius if expanded
+                subPoints: c.subPoints ? c.subPoints.map((sp: any) => ({
+                    ...sp,
+                    radius: (sp.radius || getPopScale(sp.pop || 0)) * markerScale
+                })) : []
+            };
         });
-        return newClusters;
-    }, [cities, discoveredCities, clusterThreshold, markerScale, digestData, allOutlets, outletLookup]); // Updated deps
+
+    }, [rawClusters, discoveredCities, markerScale, digestData, outletLookup]); // No 'cities' dep
 
     // 2. Generate Render Objects based on Expanded State (Fast)
     useEffect(() => {
@@ -3441,7 +3371,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
             {/* Version Indicator */}
             <div className="absolute bottom-2 right-2 z-[100] text-[10px] text-white/30 font-mono hover:text-white/80 cursor-default select-none transition-colors">
-                v0.120.32 Marquee Fix
+                v0.120.33 Optimization
             </div>
 
         </div >
