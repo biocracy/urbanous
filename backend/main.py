@@ -51,4 +51,10 @@ app.include_router(feedback.router, tags=["Feedback System"])
 
 @app.get("/")
 def read_root():
-    return {"message": "Welcome to Urbanous API", "version": "v0.106"}
+    return {"message": "Welcome to Urbanous API", "version": "v0.120.9 (Manual Fix Available)"}
+
+@app.get("/fix-db")
+async def manual_migration():
+    """Manually trigger database schema migration and see logs."""
+    logs = await run_migrations()
+    return {"status": "completed", "logs": logs}
