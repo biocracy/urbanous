@@ -157,7 +157,6 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
     const [isAnalyticsTranslated, setIsAnalyticsTranslated] = useState(false);
     const [analyticsViewMode, setAnalyticsViewMode] = useState<'cloud' | 'columns'>('cloud');
     const [analyzingTickerText, setAnalyzingTickerText] = useState<string>('');
-    const [analyzingTickerText, setAnalyzingTickerText] = useState<string>('');
     const [digestFetchStatus, setDigestFetchStatus] = useState<string>('idle');
     const [isSpotlightOpen, setIsSpotlightOpen] = useState(false);
     const [spotlightQuery, setSpotlightQuery] = useState('');
@@ -3321,12 +3320,12 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                     </div>
                 </div>
             )}
-        </a>
 
-            {/* Version Indicator */ }
-    <div className="absolute bottom-2 right-2 z-[100] text-[10px] text-white/30 font-mono hover:text-white/80 cursor-default select-none transition-colors">
-        v0.120.14 DEBUG
-    </div>
+
+            {/* Version Indicator */}
+            <div className="absolute bottom-2 right-2 z-[100] text-[10px] text-white/30 font-mono hover:text-white/80 cursor-default select-none transition-colors">
+                v0.120.14 DEBUG
+            </div>
 
         </div >
 
