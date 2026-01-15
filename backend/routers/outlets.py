@@ -1483,7 +1483,7 @@ async def list_digests(
                 articles=json.loads(d.articles_json) if d.articles_json else [],
                 selected_article_urls=json.loads(d.selected_article_urls) if d.selected_article_urls else None,
                 analysis_source=json.loads(d.analysis_source) if d.analysis_source else [],
-                created_at=d.created_at,
+                created_at=d.created_at or datetime.now(), # Fallback for old/broken rows
                 is_public=getattr(d, 'is_public', False), # Safe getattr
                 public_slug=getattr(d, 'public_slug', None),
                 owner_id=d.user_id,
