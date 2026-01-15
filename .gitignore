@@ -68,3 +68,5 @@ yarn-error.log*
 *.log
 debug_*.txt
 master_timeline.html
+Heap-20260115T231431.heapsnapshot
+Heap-20260115T232254.heapsnapshot

@@ -2013,6 +2013,42 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
     // ... (Add manual outlet implementation similar to above using api.post)
 
+
+    // --- Optimization: Hoist handlers to prevent Hook Violations (Error #300) ---
+    // These must be defined at the top level, NOT inside useMemo.
+
+    const handlePolygonCapColor = useCallback(() => 'rgba(0, 0, 0, 0)', []);
+    const handlePolygonSideColor = useCallback(() => 'rgba(0, 0, 0, 0)', []);
+    const handlePolygonStrokeColor = useCallback(() => mapStyle.includes('day') ? '#000000' : '#888', [mapStyle]);
+
+    const handlePolygonClick = useCallback((d: any) => {
+        setExpandedCluster(null); // Click background to close cluster
+        setSelectedCountry(d);
+        if (globeEl.current) {
+            const centroid = turf.centroid(d);
+            const [lng, lat] = centroid.geometry.coordinates;
+            globeEl.current.pointOfView({ lat, lng, altitude: 0.5 }, 1000);
+        }
+        if (onCountrySelect) onCountrySelect(d.properties.NAME, d.properties.ISO_A2);
+    }, [onCountrySelect]);
+
+    // Filter Labels
+    const labelsData = useMemo(() => {
+        return processedData.points.filter(p =>
+            p.isCluster || (parseInt(p.pop || '0') > 1000000) || p.isCapital
+        );
+    }, [processedData.points]);
+
+    const getLabelText = useCallback((d: any) => {
+        if (!d.name) return '?';
+        const char = d.name.charAt(0).normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        return char.toUpperCase();
+    }, []);
+
+    const handleCursorPointer = useCallback((d: any) => {
+        document.body.style.cursor = d ? 'pointer' : 'default';
+    }, []);
+
     const globeComponent = useMemo(() => (
         <Globe
             ref={globeEl}
@@ -2027,45 +2063,23 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             backgroundImageUrl="//unpkg.com/three-globe/example/img/night-sky.png"
 
             // Polygons (Borders)
-            // Polygons (Borders)
             polygonsData={countries.features}
             polygonAltitude={0.005}
-            polygonCapColor={useCallback(() => 'rgba(0, 0, 0, 0)', [])}
-            polygonSideColor={useCallback(() => 'rgba(0, 0, 0, 0)', [])}
-            polygonStrokeColor={useCallback(() => mapStyle.includes('day') ? '#000000' : '#888', [mapStyle])}
+            polygonCapColor={handlePolygonCapColor}
+            polygonSideColor={handlePolygonSideColor}
+            polygonStrokeColor={handlePolygonStrokeColor}
             // @ts-ignore
             polygonStrokeWidth={mapStyle.includes('day') ? 2 : 0.6}
-            onPolygonClick={useCallback((d: any) => {
-                setExpandedCluster(null); // Click background to close cluster
-                setSelectedCountry(d);
-                if (globeEl.current) {
-                    const centroid = turf.centroid(d);
-                    const [lng, lat] = centroid.geometry.coordinates;
-                    globeEl.current.pointOfView({ lat, lng, altitude: 0.5 }, 1000);
-                }
-                if (onCountrySelect) onCountrySelect(d.properties.NAME, d.properties.ISO_A2);
-            }, [onCountrySelect])}
+            onPolygonClick={handlePolygonClick}
 
             // Labels (Initials on Marker) - OPTIMIZATION: Only show for Clusters or Large Cities
-            labelsData={useMemo(() => {
-                // Filter: Clusters (isCluster=true) OR Major Cities (pop > 1M)
-                // This reduces texture memory significantly (from ~3000 sprites to ~500)
-                return processedData.points.filter(p =>
-                    p.isCluster || (parseInt(p.pop || '0') > 1000000) || p.isCapital
-                );
-            }, [processedData.points])}
+            labelsData={labelsData}
             labelLat={getLat}
             labelLng={getLng}
-            labelText={useCallback((d: any) => {
-                if (!d.name) return '?';
-                const char = d.name.charAt(0).normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                return char.toUpperCase();
-            }, [])}
+            labelText={getLabelText}
             labelLabel={getTooltip}
             onLabelClick={handleMapClick}
-            onLabelHover={useCallback((d: any) => {
-                document.body.style.cursor = d ? 'pointer' : 'default';
-            }, [])}
+            onLabelHover={handleCursorPointer}
 
             // Use default system font for max compatibility
             labelTypeFace={undefined}
@@ -2080,9 +2094,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             pointAltitude={0.005}
             // MEMORY OPTIMIZATION: Reduce from 32 down to 7 (Low Poly)
             pointResolution={7}
-            onPointHover={useCallback((d: any) => {
-                document.body.style.cursor = d ? 'pointer' : 'default';
-            }, [])}
+            onPointHover={handleCursorPointer}
             onPointClick={handleMapClick} // Memoized
             pointLabel={getTooltip} // Memoized
 
@@ -2115,7 +2127,25 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             pathDashGap={0.05}
             pathDashAnimateTime={2000}
         />
-    ), [mapStyle, countries, processedData, selectedCityData, highlightedCityId, handleMapClick, getTooltip, getPointColor, ringsData, onCountrySelect]);
+    ), [
+        mapStyle,
+        countries,
+        processedData,
+        selectedCityData,
+        highlightedCityId,
+        handleMapClick,
+        getTooltip,
+        getPointColor,
+        ringsData,
+        // New Dependencies from hoisted hooks
+        handlePolygonCapColor,
+        handlePolygonSideColor,
+        handlePolygonStrokeColor,
+        handlePolygonClick,
+        labelsData,
+        getLabelText,
+        handleCursorPointer
+    ]);
 
     return (
         <div className="relative w-full h-full bg-slate-950">
