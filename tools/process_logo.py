@@ -33,34 +33,37 @@ def process_logo():
     logo_mask = brightness < 200 
     
     # --- Generate White Mask (for Header) ---
-    # Color = White (255, 255, 255)
-    # Alpha = 255 where mask is True, 0 otherwise
-    
     white_img = np.zeros_like(data)
     white_img[..., 0] = 255 # R
     white_img[..., 1] = 255 # G
     white_img[..., 2] = 255 # B
     white_img[..., 3] = np.where(logo_mask, 255, 0) # A
     
-    output_white = "frontend/public/logo-mask-v5.png"
-    Image.fromarray(white_img).save(output_white)
-    print(f"Saved White Mask: {output_white}")
+    white_img_pil = Image.fromarray(white_img)
     
     # --- Generate Black Icon (for Favicon) ---
-    # Color = Black (0, 0, 0)
-    # Alpha = 255 where mask is True, 0 otherwise
-    
     black_img = np.zeros_like(data)
     black_img[..., 0] = 0 # R
     black_img[..., 1] = 0 # G
     black_img[..., 2] = 0 # B
     black_img[..., 3] = np.where(logo_mask, 255, 0) # A
+    bbox = white_img_pil.getbbox()
+    if bbox:
+        white_img_pil = white_img_pil.crop(bbox)
+        print(f"Cropped to content: {bbox}")
     
-    # Resize favicon to standard size (e.g. 64x64 or keep high res?)
-    # Keep high res for now, let browser scale.
+    output_white = "frontend/public/logo-mask-v5.png"
+    white_img_pil.save(output_white)
+    print(f"Saved White Mask: {output_white}")
+    
+    # --- Generate Black Icon (for Favicon) ---
+    black_img_pil = Image.fromarray(black_img)
+    # Use the same bbox for consistency if needed, or recalculate
+    if bbox:
+        black_img_pil = black_img_pil.crop(bbox)
     
     output_black = "frontend/public/favicon-v5.png"
-    Image.fromarray(black_img).save(output_black)
+    black_img_pil.save(output_black)
     print(f"Saved Black Icon: {output_black}")
 
 if __name__ == "__main__":

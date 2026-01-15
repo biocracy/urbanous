@@ -30,7 +30,7 @@ export default function Home() {
     <main className="relative min-h-screen bg-black overflow-hidden">
       {/* Header Overlay */}
       <div className="absolute top-0 left-0 w-full z-10 p-4 flex justify-between items-center pointer-events-none">
-        <h1 className="text-2xl font-black tracking-tighter pointer-events-auto shadow-sm flex items-center gap-0.5 cursor-default select-none">
+        <h1 className="text-2xl font-black tracking-tighter pointer-events-auto shadow-sm flex items-center cursor-default select-none">
           {/* Logo with Gradient Mask */}
           <div
             className="h-8 w-6 -mt-1 bg-gradient-to-r from-fuchsia-400 to-indigo-400"
