@@ -2048,7 +2048,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
         document.body.style.cursor = d ? 'pointer' : 'default';
     }, []);
 
-    const globeComponent = useMemo(() => (
+    const globeComponent = (
         <Globe
             ref={globeEl}
             onGlobeReady={() => {
@@ -2126,25 +2126,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             pathDashGap={0.05}
             pathDashAnimateTime={2000}
         />
-    ), [
-        mapStyle,
-        countries,
-        processedData,
-        selectedCityData,
-        highlightedCityId,
-        handleMapClick,
-        getTooltip,
-        getPointColor,
-        ringsData,
-        // New Dependencies from hoisted hooks
-        handlePolygonCapColor,
-        handlePolygonSideColor,
-        handlePolygonStrokeColor,
-        handlePolygonClick,
-        labelsData,
-        getLabelText,
-        handleCursorPointer
-    ]);
+    );
 
     return (
         <div className="relative w-full h-full bg-slate-950">
@@ -3418,7 +3400,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
             {/* Version Indicator */}
             <div className="absolute bottom-2 right-2 z-[100] text-[10px] text-white/30 font-mono hover:text-white/80 cursor-default select-none transition-colors">
-                v0.120.36 Memory Leak Fix
+                v0.120.37 Interactivity Fix
             </div>
 
         </div >
