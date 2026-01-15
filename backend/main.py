@@ -4,6 +4,7 @@ from database import engine, Base
 from routers import auth, outlets, scraper, feedback
 from models import User, NewsOutlet, NewsDigest # Import to register models
 import os
+from auto_migrate import run_migrations
 
 app = FastAPI(title="Urbanous API")
 
@@ -38,6 +39,9 @@ async def startup():
     # In dev/standalone, create tables if not exist
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        
+    # Run Schema Updates (Add missing columns)
+    await run_migrations()
 
 # Routers
 app.include_router(auth.router, tags=["Authentication"])
