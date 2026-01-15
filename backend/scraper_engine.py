@@ -286,6 +286,8 @@ def extract_date_from_html(html: str, url: str, custom_rule_override: Optional[S
         {'property': 'og:published_time'},
         {'name': 'date'},
         {'name': 'pubdate'},
+        {'name': 'publishdate'}, # User Request: China Daily style
+        {'name': 'publishtime'}, # Common variant
         {'name': 'original-publish-date'},
         {'itemprop': 'datePublished'}
     ]
