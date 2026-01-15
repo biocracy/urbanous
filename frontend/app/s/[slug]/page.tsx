@@ -113,11 +113,11 @@ export default function PublicDigestPage() {
                         <div
                             className="h-8 w-6 bg-gradient-to-r from-fuchsia-400 to-indigo-400"
                             style={{
-                                maskImage: '/logo-mask-v5.png',
+                                maskImage: 'url(/logo-mask-v5.png)',
                                 maskSize: 'contain',
                                 maskRepeat: 'no-repeat',
                                 maskPosition: 'center',
-                                WebkitMaskImage: '/logo-mask-v5.png',
+                                WebkitMaskImage: 'url(/logo-mask-v5.png)',
                                 WebkitMaskSize: 'contain',
                                 WebkitMaskRepeat: 'no-repeat',
                                 WebkitMaskPosition: 'center'
