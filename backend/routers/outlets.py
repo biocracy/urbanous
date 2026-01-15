@@ -1494,7 +1494,7 @@ async def list_digests(
              # DEBUG: Return broken digest so we can see the error in frontend
              safe_digests.append(DigestRead(
                 id=d.id,
-                title=f"DEBUG ERROR {d.id}",
+                title=f"ERR: {type(e).__name__}",
                 category="Error",
                 city=d.city or "Unknown",
                 timeframe="24h",
