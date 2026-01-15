@@ -2078,7 +2078,8 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             pointColor={getPointColor} // Memoized
             pointRadius={getRadius}
             pointAltitude={0.005}
-            pointResolution={32}
+            // MEMORY OPTIMIZATION: Reduce from 32 down to 7 (Low Poly)
+            pointResolution={7}
             onPointHover={useCallback((d: any) => {
                 document.body.style.cursor = d ? 'pointer' : 'default';
             }, [])}
@@ -2090,7 +2091,8 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             labelColor={getLabelColor}
             labelDotRadius={0}
             labelAltitude={0.0051}
-            labelResolution={4}
+            // MEMORY OPTIMIZATION: Text sprites are flat, no need for 3D resolution
+            labelResolution={1}
             labelIncludeDot={false}
 
             // Rings
