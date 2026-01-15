@@ -1287,8 +1287,9 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             if (hasNewsGeneric) color = '#22d3ee'; // Cyan-400 (Generic News)
             if (isActive) color = '#4ade80'; // Bright Green (Active Digest)
 
-            // Override radius based on markerScale state
-            const radius = (c.radius || getPopScale(c.pop)) * markerScale; // Scale override
+            // FIX: Backend radius (1.0-4.5) is too large. tailored for backend graph.
+            // Recalculate using frontend logic:
+            const radius = getPopScale(c.pop) * markerScale;
 
             return {
                 ...c,
@@ -1297,7 +1298,8 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                 // Ensure subPoints also get scaled radius if expanded
                 subPoints: c.subPoints ? c.subPoints.map((sp: any) => ({
                     ...sp,
-                    radius: (sp.radius || getPopScale(sp.pop || 0)) * markerScale
+                    // Use pop scale, ignore backend radius
+                    radius: getPopScale(sp.pop || 0) * markerScale
                 })) : []
             };
         });
@@ -3371,7 +3373,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
             {/* Version Indicator */}
             <div className="absolute bottom-2 right-2 z-[100] text-[10px] text-white/30 font-mono hover:text-white/80 cursor-default select-none transition-colors">
-                v0.120.33 Optimization
+                v0.120.34 Fix Marker Scale
             </div>
 
         </div >
