@@ -1466,6 +1466,7 @@ async def list_digests(
     stmt = select(NewsDigest).where(NewsDigest.user_id == current_user.id).order_by(NewsDigest.created_at.desc())
     result = await db.execute(stmt)
     digests = result.scalars().all()
+    print(f"DEBUG: list_digests found {len(digests)} items for user {current_user.id}")
     
     # Manual mapping to handle JSON deserialization
     # Manual mapping with Safety Checks
@@ -1549,11 +1550,18 @@ async def share_digest(digest_id: int, db: Session = Depends(get_db), current_us
 @router.get("/digests/public/{slug}", response_model=DigestDetail)
 async def get_public_digest(slug: str, db: Session = Depends(get_db)):
     """Get a public digest by slug (No Auth required)."""
-    stmt = select(NewsDigest).where(NewsDigest.public_slug == slug, NewsDigest.is_public == True)
+    print(f"DEBUG: Fetching public digest slug='{slug}'")
+    stmt = select(NewsDigest).where(NewsDigest.public_slug == slug) # Query by slug FIRST to see if it exists
     result = await db.execute(stmt)
     digest = result.scalars().first()
     
     if not digest:
+        print(f"DEBUG: Slug '{slug}' NOT FOUND in DB.")
+        raise HTTPException(status_code=404, detail="Digest not found or private")
+
+    print(f"DEBUG: Found digest {digest.id}. is_public={digest.is_public}")
+    if not digest.is_public:
+        print(f"DEBUG: Digest {digest.id} is NOT PUBLIC.")
         raise HTTPException(status_code=404, detail="Digest not found or private")
     
     # Helper to parse JSON fields safely
