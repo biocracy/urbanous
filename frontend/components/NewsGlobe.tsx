@@ -42,7 +42,22 @@ const isDateCurrent = (extractedDate: string) => {
     } catch { return false; }
 };
 
+
+// STATIC ACCESSORS (Optimization: Prevent props change on every render)
+const getLat = (d: any) => d.lat;
+const getLng = (d: any) => d.lng;
+const getRadius = (d: any) => d.radius;
+const getLabelSize = (d: any) => d.radius * 1.3;
+const getLabelColor = (d: any) => d.opacity && d.opacity < 1 ? 'transparent' : 'black';
+const getRingMaxR = (d: any) => d.maxR;
+const getRingColor = (d: any) => d.color || 'rgba(255,255,255,0.1)';
+const getPathPoints = (d: any) => [[d.startLng, d.startLat], [d.endLng, d.endLat]];
+const getPathPointLat = (p: any) => p[1];
+const getPathPointLng = (p: any) => p[0];
+const getPathColor = (d: any) => d.color;
+
 export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
+    console.log("[NewsGlobe] Render Cycle"); // Debug Log
     const globeEl = useRef<any>(null);
     const { isAuthenticated } = useAuthStore();
 
@@ -1189,17 +1204,59 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
     // --- Advanced Visualization State ---
     const [processedData, setProcessedData] = useState<{ points: any[], rings: any[], links: any[] }>({ points: [], rings: [], links: [] });
     const [expandedCluster, setExpandedCluster] = useState<any | null>(null);
+    const [rawClusters, setRawClusters] = useState<any[]>([]); // Moved up for scope availability
 
-    // Helpers
-    const getPopScale = (pop: any) => {
-        const val = parseInt(pop || '0');
-        if (val < 1000) return 0.02 * markerScale;
-        // Ensure visible minimum even with small scale
-        // Log10(1M)=6 -> 0.18. * 0.6 = 0.108
-        return Math.max(0.08, Math.log10(val) * 0.03) * markerScale;
-    };
+    // OPTIMIZATION: Memoize complex props to prevent Globe re-evaluation
+    const getPointColor = useCallback((d: any) => {
+        if (selectedCityData && d.name === selectedCityData.name) {
+            return '#00FFFF'; // Force Cyan for selected
+        }
+        // Inject opacity if present
+        if (d.opacity !== undefined && d.opacity < 1) {
+            const c = d.color;
+            if (c.startsWith('#')) {
+                const r = parseInt(c.slice(1, 3), 16);
+                const g = parseInt(c.slice(3, 5), 16);
+                const b = parseInt(c.slice(5, 7), 16);
+                return `rgba(${r},${g},${b},${d.opacity})`;
+            }
+            return d.color;
+        }
+        return d.color;
+    }, [selectedCityData]);
 
-
+    const ringsData = useMemo(() => {
+        return [
+            ...processedData.rings,
+            // 1. Temporary Halo for Search Highlight
+            ...(highlightedCityId ? (() => {
+                const c = rawClusters.find(x => x.name === highlightedCityId); // Optimization: Use rawClusters instead of 'cities' which is empty
+                if (!c) return [];
+                return [{
+                    lat: parseFloat(c.lat),
+                    lng: parseFloat(c.lng),
+                    maxR: 2.5,
+                    color: 'rgba(50, 255, 255, 0.8)',
+                    propagationSpeed: 5,
+                    repeatPeriod: 800
+                }];
+            })() : []),
+            // 2. Persistent Halo
+            ...(selectedCityData ? (() => {
+                const lat = parseFloat(selectedCityData.lat);
+                const lng = parseFloat(selectedCityData.lng || selectedCityData.lon);
+                if (isNaN(lat) || isNaN(lng)) return [];
+                return [{
+                    lat: lat,
+                    lng: lng,
+                    maxR: 1.5,
+                    color: 'rgba(50, 200, 255, 0.6)',
+                    propagationSpeed: 2,
+                    repeatPeriod: 1500
+                }];
+            })() : [])
+        ];
+    }, [processedData.rings, highlightedCityId, selectedCityData, rawClusters]);
 
     // Clustering Logic (Simple Distance)
     // const CLUSTER_THRESHOLD = 2.5; // Degrees // Removed, using state variable
@@ -1220,7 +1277,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
 
     // --- OPTIMIZED CLUSTERING (Phase 2) ---
-    const [rawClusters, setRawClusters] = useState<any[]>([]);
+    // --- OPTIMIZED CLUSTERING (Phase 2) ---
 
     // 1. Fetch Clusters from Backend (Static JSONs)
     useEffect(() => {
@@ -1243,6 +1300,15 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             .catch(err => console.error("Failed to load clusters", err));
 
     }, [clusterThreshold]); // Re-fetch only when user changes slider
+
+    // Helpers
+    const getPopScale = (pop: any) => {
+        const val = parseInt(pop || '0');
+        if (val < 1000) return 0.02 * markerScale;
+        // Ensure visible minimum even with small scale
+        // Log10(1M)=6 -> 0.18. * 0.6 = 0.108
+        return Math.max(0.08, Math.log10(val) * 0.03) * markerScale;
+    };
 
     // 2. Apply Dynamic Styling (Colors, Active News) - O(N) efficient
     const clusters = useMemo(() => {
@@ -2000,104 +2066,44 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             labelTypeFace={undefined}
             labelFont={undefined}
 
-            // Radius is "radius", Diameter is 2x. Text height needs to fill diameter.
-            // User req: "a tid smaller" -> 1.3
-            labelSize={(d: any) => d.radius * 1.3}
-            labelColor={(d: any) => d.opacity && d.opacity < 1 ? 'transparent' : 'black'}
-            labelDotRadius={0} // Hide the auxiliary dot
-            labelAltitude={0.0051} // Micro-offset from pointAltitude (0.005) to avoid Z-fighting but minimize gap
-            labelResolution={4} // Sharper rendering
-            labelIncludeDot={false}
-
             // Points (Cities & Clusters)
             pointsData={processedData.points}
-            pointLat={(d: any) => d.lat}
-            pointLng={(d: any) => d.lng}
-            pointColor={(d: any) => {
-                // Dynamic Highlight Logic:
-                // If a city is selected, dim everything else unless it's the selected one or part of the active cluster?
-                // The user mentioned "faint colors" issues. 
-                // Let's rely on opacity mostly, but ensure Selected City is Bright.
-
-                if (selectedCityData && d.name === selectedCityData.name) {
-                    return '#00FFFF'; // Force Cyan for selected
-                }
-
-                // Inject opacity if present
-                if (d.opacity !== undefined && d.opacity < 1) {
-                    // Simple hex to rgba approximation
-                    const c = d.color;
-                    if (c.startsWith('#')) {
-                        const r = parseInt(c.slice(1, 3), 16);
-                        const g = parseInt(c.slice(3, 5), 16);
-                        const b = parseInt(c.slice(5, 7), 16);
-                        return `rgba(${r},${g},${b},${d.opacity})`;
-                    }
-                    return d.color;
-                }
-                return d.color;
-            }}
-            pointRadius={(d: any) => d.radius}
-            pointAltitude={0.005} // Raised slightly to fix generic Raycasting/Click interactions
+            pointLat={getLat}
+            pointLng={getLng}
+            pointColor={getPointColor} // Memoized below
+            pointRadius={getRadius}
+            pointAltitude={0.005}
             pointResolution={32}
             onPointHover={(d: any) => {
-                // Optimization: Removed setHoverPoint(d) to prevent expensive re-renders
-                // This makes the tooltip "snappy"
                 document.body.style.cursor = d ? 'pointer' : 'default';
             }}
-            onPointClick={(d: any) => {
-                if (d) handleMapClick(d);
-            }}
-            pointLabel={getTooltip}
+            onPointClick={handleMapClick} // Memoized
+            pointLabel={getTooltip} // Memoized
 
-            // Rings (Visual cues for clusters & Selection Halo)
-            ringsData={[
-                ...processedData.rings,
-                // 1. Temporary Halo for Search Highlight
-                ...(highlightedCityId ? (() => {
-                    const c = cities.find(x => x.name === highlightedCityId);
-                    if (!c) return [];
-                    return [{
-                        lat: parseFloat(c.lat),
-                        lng: parseFloat(c.lng),
-                        maxR: 2.5, // Large Halo
-                        color: 'rgba(50, 255, 255, 0.8)',
-                        propagationSpeed: 5,
-                        repeatPeriod: 800
-                    }];
-                })() : []),
-                // 2. Persistent Halo for Selected City
-                ...(selectedCityData ? (() => {
-                    // Use selectedCityData coordinates directly
-                    // Ensure lat/lng are numbers
-                    const lat = parseFloat(selectedCityData.lat);
-                    const lng = parseFloat(selectedCityData.lng || selectedCityData.lon);
-                    if (isNaN(lat) || isNaN(lng)) return [];
+            // Radius is "radius", Diameter is 2x. Text height needs to fill diameter.
+            labelSize={getLabelSize}
+            labelColor={getLabelColor}
+            labelDotRadius={0}
+            labelAltitude={0.0051}
+            labelResolution={4}
+            labelIncludeDot={false}
 
-                    return [{
-                        lat: lat,
-                        lng: lng,
-                        maxR: 1.5, // Tighter Halo
-                        color: 'rgba(50, 200, 255, 0.6)',
-                        propagationSpeed: 2,
-                        repeatPeriod: 1500
-                    }];
-                })() : [])
-            ]}
-            ringLat={(d: any) => d.lat}
-            ringLng={(d: any) => d.lng}
-            ringMaxRadius={(d: any) => d.maxR}
-            ringColor={(d: any) => d.color || 'rgba(255,255,255,0.1)'}
+            // Rings
+            ringsData={ringsData}
+            ringLat={getLat}
+            ringLng={getLng}
+            ringMaxRadius={getRingMaxR}
+            ringColor={getRingColor}
             ringPropagationSpeed={2}
             ringRepeatPeriod={1000}
 
-            // Paths (Spider Legs)
+            // Paths
             pathsData={processedData.links}
             // @ts-ignore
-            pathPoints={(d: any) => [[d.startLng, d.startLat], [d.endLng, d.endLat]]} // Globe expects [lng, lat]
-            pathPointLat={(p: any) => p[1]}
-            pathPointLng={(p: any) => p[0]}
-            pathColor={(d: any) => d.color}
+            pathPoints={getPathPoints}
+            pathPointLat={getPathPointLat}
+            pathPointLng={getPathPointLng}
+            pathColor={getPathColor}
             pathDashLength={0.1}
             pathDashGap={0.05}
             pathDashAnimateTime={2000}
@@ -3373,7 +3379,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
             {/* Version Indicator */}
             <div className="absolute bottom-2 right-2 z-[100] text-[10px] text-white/30 font-mono hover:text-white/80 cursor-default select-none transition-colors">
-                v0.120.34 Fix Marker Scale
+                v0.120.35 Prop Optimization
             </div>
 
         </div >
