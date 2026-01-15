@@ -1625,7 +1625,10 @@ async def summarize_selected_articles(req: SummarizeRequest, current_user: User 
         raise HTTPException(status_code=400, detail="Missing Gemini API Key. Please set it in Settings.")
         
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-2.0-flash-exp')
+    genai.configure(api_key=api_key)
+    
+    # Model Fallback Strategy
+    MODELS_TO_TRY = ["gemini-1.5-flash", "gemini-2.0-flash-exp", "gemini-1.5-flash-8b"]
     
     # 1. GENERATE SOURCE INDEX PROGRAMMATICALLY
     # This ensures 100% accuracy and perfectly formatted links (no LLM hallucination).
@@ -1643,7 +1646,7 @@ async def summarize_selected_articles(req: SummarizeRequest, current_user: User 
         source_index_md += f"- [{idx+1}] [{title}]({url}) *({src})*\n"
 
     # 2. CHUNKED PROCESSING
-    BATCH_SIZE = 50
+    BATCH_SIZE = 200 # Increased to 200 to maximize Context Window (1M) and reduce API Call Count
     chunks = [req.articles[i:i + BATCH_SIZE] for i in range(0, len(req.articles), BATCH_SIZE)]
     
     partial_reports = []
@@ -1678,20 +1681,35 @@ async def summarize_selected_articles(req: SummarizeRequest, current_user: User 
         Analyze the conflict, nuances, and details within this batch.
         """
         
-        try:
-            response = await model.generate_content_async(prompt)
-            # Handle triggered safety filters (returns empty text)
+        last_error = None
+        for model_name in MODELS_TO_TRY:
             try:
-                return f"\n### Analysis of Sources {start_idx}-{end_idx}\n{response.text}"
-            except ValueError: 
-                # e.g. "The candidate content is empty"
-                print(f"Chunk {chunk_idx} blocked by safety filters.")
-                return f"\n### Analysis of Sources {start_idx}-{end_idx}\n(Analysis Redacted: Content flagged by Safety Filters)"
-        except Exception as e:
-            print(f"Chunk {chunk_idx} error: {e}")
-            import traceback
-            traceback.print_exc()
-            return f"\n### Analysis of Sources {start_idx}-{end_idx}\n(Processing Error: {str(e)})"
+                # print(f"DEBUG: Summarizing chunk {chunk_idx} with {model_name}...")
+                model = genai.GenerativeModel(model_name)
+                response = await model.generate_content_async(prompt)
+                
+                # Handle TRIGGERED SAFETY FILTERS (Empty Text)
+                try:
+                    return f"\n### Analysis of Sources {start_idx}-{end_idx}\n{response.text}"
+                except ValueError:
+                    print(f"Chunk {chunk_idx} blocked by safety filters on {model_name}.")
+                    return f"\n### Analysis of Sources {start_idx}-{end_idx}\n(Analysis Redacted by Safety Filters)"
+                    
+            except Exception as e:
+                # If 429 (Resource Exhausted), continue loop
+                if "429" in str(e) or "quota" in str(e).lower():
+                    print(f"WARNING: Model {model_name} exhausted (429). Switching...")
+                    last_error = e
+                    continue # Try next model
+                
+                # Other errors (Safety, Validation) -> Fail immediately
+                print(f"Chunk {chunk_idx} error: {e}")
+                import traceback
+                traceback.print_exc()
+                return f"\n### Analysis of Sources {start_idx}-{end_idx}\n(Processing Error: {str(e)})"
+        
+        # If loop finishes, all models failed
+        return f"\n### Analysis of Sources {start_idx}-{end_idx}\n(Quota Exceeded on all models: {str(last_error)})"
 
     # Run chunks in parallel
     tasks = [process_chunk(i, c) for i, c in enumerate(chunks)]
