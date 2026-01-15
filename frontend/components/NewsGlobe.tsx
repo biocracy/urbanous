@@ -157,7 +157,10 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
     const [isAnalyticsTranslated, setIsAnalyticsTranslated] = useState(false);
     const [analyticsViewMode, setAnalyticsViewMode] = useState<'cloud' | 'columns'>('cloud');
     const [analyzingTickerText, setAnalyzingTickerText] = useState<string>('');
+    const [analyzingTickerText, setAnalyzingTickerText] = useState<string>('');
     const [digestFetchStatus, setDigestFetchStatus] = useState<string>('idle');
+    const [isSpotlightOpen, setIsSpotlightOpen] = useState(false);
+    const [spotlightQuery, setSpotlightQuery] = useState('');
 
     const handleToggleSelection = (url: string) => {
         const newSet = new Set(selectedArticleUrls);
@@ -299,6 +302,24 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             fetchSavedDigests();
         }
     }, [activeSideTab, isGlobalSidebarOpen, isAuthenticated]);
+
+    // Spotlight Search Listener
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.code === 'Space') {
+                const tag = (e.target as HTMLElement).tagName;
+                if (['INPUT', 'TEXTAREA'].includes(tag) || (e.target as HTMLElement).isContentEditable) return;
+
+                e.preventDefault();
+                setIsSpotlightOpen(true);
+            }
+            if (e.code === 'Escape') {
+                setIsSpotlightOpen(false);
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isSpotlightOpen]);
 
     const fetchSavedDigests = async () => {
         if (!currentUser) return;
@@ -3240,10 +3261,72 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                 <span className="hidden group-hover:block whitespace-nowrap">Support Us</span>
             </a>
 
-            {/* Version Indicator */}
-            <div className="absolute bottom-2 right-2 z-[100] text-[10px] text-white/30 font-mono hover:text-white/80 cursor-default select-none transition-colors">
-                v0.120.14 DEBUG
-            </div>
+            {/* Spotlight Search Overlay */}
+            {isSpotlightOpen && (
+                <div className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 transition-opacity" onClick={() => setIsSpotlightOpen(false)}>
+                    <div className="w-full max-w-lg bg-slate-900 border border-slate-700 rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200" onClick={e => e.stopPropagation()}>
+                        <div className="p-4 border-b border-slate-800 flex items-center gap-3">
+                            <Search className="w-5 h-5 text-slate-400" />
+                            <input
+                                autoFocus
+                                className="flex-1 bg-transparent border-none outline-none text-white placeholder-slate-500 text-lg"
+                                placeholder="Search City..."
+                                value={spotlightQuery}
+                                onChange={e => setSpotlightQuery(e.target.value)}
+                                onKeyDown={e => {
+                                    if (e.key === 'Enter' && spotlightQuery) {
+                                        // Select first match
+                                        const match = cities.find(c => c.name.toLowerCase().includes(spotlightQuery.toLowerCase()));
+                                        if (match) {
+                                            handleSearchSelect(match);
+                                            setIsSpotlightOpen(false);
+                                            setSpotlightQuery('');
+                                        }
+                                    }
+                                }}
+                            />
+                            <div className="flex gap-2">
+                                <span className="text-[10px] bg-slate-800 px-1.5 py-0.5 rounded text-slate-400">ESC</span>
+                            </div>
+                        </div>
+                        {spotlightQuery && (
+                            <div className="max-h-[300px] overflow-y-auto">
+                                {cities
+                                    .filter(c => c.name.toLowerCase().includes(spotlightQuery.toLowerCase()))
+                                    .slice(0, 8)
+                                    .map((city: any) => (
+                                        <button
+                                            key={city.id || city.name}
+                                            className="w-full text-left px-4 py-3 hover:bg-slate-800 flex items-center justify-between group transition-colors"
+                                            onClick={() => {
+                                                handleSearchSelect(city);
+                                                setIsSpotlightOpen(false);
+                                                setSpotlightQuery('');
+                                            }}
+                                        >
+                                            <span className="text-slate-200 font-medium group-hover:text-white">{city.name}</span>
+                                            <span className="text-xs text-slate-500 uppercase">{city.country_code}</span>
+                                        </button>
+                                    ))}
+                                {cities.filter(c => c.name.toLowerCase().includes(spotlightQuery.toLowerCase())).length === 0 && (
+                                    <div className="p-4 text-center text-slate-500 italic">No cities found</div>
+                                )}
+                            </div>
+                        )}
+                        {!spotlightQuery && (
+                            <div className="p-8 text-center text-slate-600 text-sm">
+                                Type to fly to a city...
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+        </a>
+
+            {/* Version Indicator */ }
+    <div className="absolute bottom-2 right-2 z-[100] text-[10px] text-white/30 font-mono hover:text-white/80 cursor-default select-none transition-colors">
+        v0.120.14 DEBUG
+    </div>
 
         </div >
 
