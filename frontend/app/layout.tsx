@@ -16,7 +16,7 @@ export const metadata: Metadata = {
   title: "Urbanous.net | Global News Intelligence",
   description: "Real-time AI News Discovery & Analysis",
   icons: {
-    icon: '/icon.png',
+    icon: '/icon.png?v=2',
   },
 };
 
