@@ -30,8 +30,11 @@ export default function Home() {
     <main className="relative min-h-screen bg-black overflow-hidden">
       {/* Header Overlay */}
       <div className="absolute top-0 left-0 w-full z-10 p-4 flex justify-between items-center pointer-events-none">
-        <h1 className="text-2xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-fuchsia-400 to-indigo-400 pointer-events-auto shadow-sm flex items-center gap-1 cursor-default select-none">
-          URBANOUS.NET
+        <h1 className="text-2xl font-black tracking-tighter pointer-events-auto shadow-sm flex items-center gap-0.5 cursor-default select-none">
+          <img src="/logo.png" alt="U" className="h-8 w-auto -mt-1" />
+          <span className="bg-clip-text text-transparent bg-gradient-to-r from-fuchsia-400 to-indigo-400">
+            RBANOUS.NET
+          </span>
         </h1>
 
         <div className="pointer-events-auto flex items-center gap-2">
