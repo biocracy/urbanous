@@ -1626,9 +1626,15 @@ async def summarize_selected_articles(req: SummarizeRequest, current_user: User 
         
     genai.configure(api_key=api_key)
     genai.configure(api_key=api_key)
-    
-    # Model Fallback Strategy
-    MODELS_TO_TRY = ["gemini-1.5-flash", "gemini-2.0-flash-exp", "gemini-1.5-flash-8b"]
+    # Model Fallback Strategy (Updated aliases for v1beta compatibility)
+    MODELS_TO_TRY = [
+        "gemini-1.5-flash-latest", 
+        "gemini-1.5-flash-001", 
+        "gemini-1.5-flash", 
+        "gemini-flash-latest", # Legacy alias
+        "gemini-2.0-flash-exp", # Experimental (High Quota Use)
+        "gemini-1.5-pro-latest" # Expensive but robust fallback
+    ]
     
     # 1. GENERATE SOURCE INDEX PROGRAMMATICALLY
     # This ensures 100% accuracy and perfectly formatted links (no LLM hallucination).
