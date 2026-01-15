@@ -1364,10 +1364,39 @@ async def save_digest(
     print(f"DEBUG: Saving digest '{digest.title}' for user {current_user.id}")
     import json
     
+    # AI TITLE GENERATION
+    final_title = digest.title
+    # If the default title is generic "Digest", try to improve it
+    if current_user.gemini_api_key and (not final_title or "Digest" in final_title) and len(digest.summary_markdown) > 50:
+        try:
+            print(f"DEBUG: Generating AI Title for digest...")
+            import google.generativeai as genai # Ensure import
+            genai.configure(api_key=current_user.gemini_api_key)
+            model_title = genai.GenerativeModel('gemini-1.5-flash')
+            
+            title_prompt = f"""
+            Generate a short, 3-7 word newspaper-style headline for this news summary.
+            It must be specific to the events described.
+            Do not use quotes. Do not use "Digest" or "Summary".
+            
+            Summary:
+            {digest.summary_markdown[:4000]}
+            
+            Headline:
+            """
+            
+            title_resp = await model_title.generate_content_async(title_prompt)
+            ai_title = title_resp.text.strip().replace('"', '').replace("**", "").replace("Headline:", "").strip()
+            if ai_title and len(ai_title) < 100:
+               final_title = ai_title
+               print(f"DEBUG: AI Title Generated: {final_title}")
+        except Exception as e:
+            print(f"DEBUG: AI Title Failed: {e}")
+
     try:
         db_digest = NewsDigest(
             user_id=current_user.id,
-            title=digest.title,
+            title=final_title,
             category=digest.category,
             city=digest.city,
             timeframe=digest.timeframe,
