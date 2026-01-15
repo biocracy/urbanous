@@ -2964,9 +2964,19 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                             ) : (
                                 <div className="space-y-2">
                                     {savedDigests.length === 0 ? (
-                                        <div className="text-center text-slate-500 py-8">
-                                            No saved digests.<br />
-                                            <span className="text-xs">Generate one and click Save!</span>
+                                        <div className="text-center text-slate-500 py-6 px-2 flex flex-col gap-3">
+                                            <div>No saved digests found.</div>
+
+                                            {/* Debug Info */}
+                                            <div className="bg-slate-900 border border-slate-700/50 rounded p-2 text-[10px] font-mono text-left space-y-1 w-full overflow-hidden">
+                                                <div className="text-slate-400">UID: <span className="text-white">{currentUser?.id}</span></div>
+                                                <div className="text-slate-400">Name: <span className="text-white">{currentUser?.username}</span></div>
+                                                <div className="text-slate-400">Status: <span className={digestFetchStatus.includes('error') ? "text-red-400" : "text-green-400"}>{digestFetchStatus}</span></div>
+                                            </div>
+
+                                            <button onClick={fetchSavedDigests} className="text-xs text-blue-400 hover:text-blue-300 underline">
+                                                Refresh List
+                                            </button>
                                         </div>
                                     ) : (
                                         (savedDigests || [])
