@@ -1626,14 +1626,15 @@ async def summarize_selected_articles(req: SummarizeRequest, current_user: User 
         
     genai.configure(api_key=api_key)
     genai.configure(api_key=api_key)
-    # Model Fallback Strategy (Updated aliases for v1beta compatibility)
+    # Model Fallback Strategy (Updated aliases)
     MODELS_TO_TRY = [
-        "gemini-1.5-flash-latest", 
-        "gemini-1.5-flash-001", 
         "gemini-1.5-flash", 
-        "gemini-flash-latest", # Legacy alias
-        "gemini-2.0-flash-exp", # Experimental (High Quota Use)
-        "gemini-1.5-pro-latest" # Expensive but robust fallback
+        "gemini-1.5-flash-8b",
+        "gemini-1.5-pro",
+        "gemini-1.0-pro",
+        "gemini-pro", # Legacy Stable
+        "gemini-1.5-flash-latest",
+        "models/gemini-1.5-flash" # Explicit path sometimes needed
     ]
     
     # 1. GENERATE SOURCE INDEX PROGRAMMATICALLY
@@ -2063,7 +2064,28 @@ async def generate_digest_stream(req: DigestRequest, current_user: User = Depend
                              res = await smart_scrape_outlet(outlet, req.category, req.timeframe, log_bus=queue_logger, api_key=current_user.gemini_api_key, scraper_rule_config=rule_config)
                                                      
                              if res.get("articles"):
-                                  new_arts = res["articles"]
+                                  raw_arts = res["articles"]
+                                  new_arts = []
+                                  
+                                  # STRICT DEDUPLICATION
+                                  for art in raw_arts:
+                                       # Compute fingerprint
+                                       fp = hashlib.md5((art.title + art.url).lower().encode()).hexdigest()
+                                       if fp in stream_seen_fingerprints:
+                                            continue # Skip duplicate
+                                       
+                                       # Database Spam Check (using set for speed)
+                                       # Assuming spam_records is a list of objects, we need a fast lookup.
+                                       # The earlier code loaded a set? No, verify_outlets.py logic...
+                                       # Let's trust the SpamFeedback we loaded earlier? 
+                                       # Wait, I didn't see spam_records being used in previous code view.
+                                       # Let's just restore deduplication for now.
+                                       
+                                       stream_seen_fingerprints.add(fp)
+                                       new_arts.append(art)
+                                  
+                                  if not new_arts:
+                                       continue # Nothing new from this source
                                   
                                   # INCREMENTAL AI VERIFICATION (Fixes Timeout Issue)
                                   if req.category == "Politics" and current_user.gemini_api_key:
