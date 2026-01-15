@@ -1630,6 +1630,73 @@ async def get_public_digest(slug: str, db: Session = Depends(get_db)):
         owner_id=digest.user_id # Required by DigestDetail
     )
 
+@router.post("/digests/public/{slug}/translate_articles")
+async def translate_public_digest_articles(slug: str, db: Session = Depends(get_db)):
+    """
+    Translates article titles to English using AI for a public digest.
+    Updates the DB so future visitors see translations immediately.
+    """
+    stmt = select(NewsDigest).where(NewsDigest.public_slug == slug)
+    result = await db.execute(stmt)
+    digest = result.scalars().first()
+    
+    if not digest or not digest.is_public:
+        raise HTTPException(status_code=404, detail="Digest not found")
+        
+    articles = json.loads(digest.articles_json) if digest.articles_json else []
+    if not articles:
+        return {"status": "empty", "articles": []}
+        
+    # check if owner has key (we use owner's key since they own the public page)
+    stmt_user = select(User).where(User.id == digest.user_id)
+    res_user = await db.execute(stmt_user)
+    owner = res_user.scalars().first()
+    
+    if not owner or not owner.gemini_api_key:
+        raise HTTPException(status_code=400, detail="Owner AI key missing")
+        
+    # Identify items needing translation
+    to_translate = []
+    indices = []
+    
+    for i, art in enumerate(articles):
+        # Skip if already translated OR if it looks English (ASCII check is a cheap proxy, or just force AI)
+        if not art.get('translated_title'):
+             to_translate.append(art.get('title', ''))
+             indices.append(i)
+             
+    if not to_translate:
+        return {"status": "already_translated", "articles": articles}
+        
+    # AI Translation
+    try:
+        genai.configure(api_key=owner.gemini_api_key)
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        
+        prompt = "Translate these news headlines to English. Return a JSON list of strings." + json.dumps(to_translate)
+        resp = await model.generate_content_async(prompt, generation_config={"response_mime_type": "application/json"})
+        translations = json.loads(resp.text)
+        
+        if len(translations) != len(to_translate):
+            # Fallback if length mismatch
+            print("Translation length mismatch, using raw mapping")
+        
+        updated_count = 0
+        for idx, trans in zip(indices, translations):
+            if isinstance(trans, str):
+                articles[idx]['translated_title'] = trans
+                updated_count += 1
+                
+        # Save back to DB
+        digest.articles_json = json.dumps(articles)
+        await db.commit()
+        
+        return {"status": "success", "updated": updated_count, "articles": articles}
+        
+    except Exception as e:
+        print(f"Translation Error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 # --- AI RELEVANCE CHECK ---
 async def verify_relevance_with_ai(title: str, url: str, category: str, api_key: str) -> bool:
     """

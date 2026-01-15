@@ -23,6 +23,33 @@ export default function PublicDigestPage() {
     const [activeTooltip, setActiveTooltip] = useState<any>(null);
     const hoverTimeout = useRef<NodeJS.Timeout | null>(null);
 
+    // Article Translation State
+    const [isArticlesTranslated, setIsArticlesTranslated] = useState(false);
+    const [isTranslating, setIsTranslating] = useState(false);
+
+    const handleTranslateArticles = async () => {
+        if (isArticlesTranslated) {
+            setIsArticlesTranslated(false); // Toggle Off
+            return;
+        }
+
+        setIsTranslating(true);
+        try {
+            const res = await api.post(`/digests/public/${slug}/translate_articles`);
+            if (res.data.status === 'success' || res.data.status === 'already_translated') {
+                if (res.data.articles) {
+                    setDigest((prev: any) => ({ ...prev, articles: res.data.articles }));
+                }
+                setIsArticlesTranslated(true);
+            }
+        } catch (e) {
+            console.error("Translation fail", e);
+            alert("Translation failed. Please try again.");
+        } finally {
+            setIsTranslating(false);
+        }
+    };
+
     useEffect(() => {
         if (!slug) return;
 
@@ -76,9 +103,20 @@ export default function PublicDigestPage() {
             <header className="border-b border-slate-800 bg-slate-900/50 backdrop-blur sticky top-0 z-50">
                 <div className="container mx-auto px-4 h-16 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-900/50">
-                            <span className="font-black text-white text-lg tracking-tighter">U</span>
-                        </div>
+                        {/* Logo Mask Solution */}
+                        <div
+                            className="h-8 w-6 bg-gradient-to-r from-fuchsia-400 to-indigo-400"
+                            style={{
+                                maskImage: '/logo-mask-v5.png',
+                                maskSize: 'contain',
+                                maskRepeat: 'no-repeat',
+                                maskPosition: 'center',
+                                WebkitMaskImage: '/logo-mask-v5.png',
+                                WebkitMaskSize: 'contain',
+                                WebkitMaskRepeat: 'no-repeat',
+                                WebkitMaskPosition: 'center'
+                            }}
+                        />
                         <span className="font-bold text-xl tracking-tight text-slate-100">
                             URBANOUS <span className="text-blue-500 text-sm font-normal ml-1 opacity-70">Intelligence Report</span>
                         </span>
@@ -120,20 +158,22 @@ export default function PublicDigestPage() {
                     </h1>
 
                     <div className="flex justify-between items-end">
-                        {/* Navigation Tabs (Reordered) */}
-                        <div className="flex gap-1 bg-slate-900/50 p-1 rounded-lg w-fit border border-slate-800">
-                            {['articles', 'digest', 'analytics'].map((tab) => (
-                                <button
-                                    key={tab}
-                                    onClick={() => setActiveTab(tab as any)}
-                                    className={`px-4 py-1.5 rounded-md text-sm font-bold capitalize transition-all ${activeTab === tab
-                                        ? 'bg-blue-600 text-white shadow-lg'
-                                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
-                                        }`}
-                                >
-                                    {tab}
-                                </button>
-                            ))}
+                        <div className="flex flex-col gap-2">
+                            {/* Navigation Tabs */}
+                            <div className="flex gap-1 bg-slate-900/50 p-1 rounded-lg w-fit border border-slate-800">
+                                {['articles', 'digest', 'analytics'].map((tab) => (
+                                    <button
+                                        key={tab}
+                                        onClick={() => setActiveTab(tab as any)}
+                                        className={`px-4 py-1.5 rounded-md text-sm font-bold capitalize transition-all ${activeTab === tab
+                                            ? 'bg-blue-600 text-white shadow-lg'
+                                            : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                                            }`}
+                                    >
+                                        {tab}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -141,13 +181,26 @@ export default function PublicDigestPage() {
                 {/* Content Container */}
                 <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 md:p-8 shadow-2xl min-h-[500px]">
                     {activeTab === 'articles' && (
-                        <DigestReportRenderer
-                            {...digest}
-                            selectedUrls={new Set()} // Read-only
-                            onToggle={() => { }}
-                            onAssess={() => { }}
-                            onDebug={() => { }}
-                        />
+                        <>
+                            <div className="flex justify-end mb-4">
+                                <button
+                                    onClick={handleTranslateArticles}
+                                    disabled={isTranslating}
+                                    className={`flex items-center gap-2 px-3 py-1.5 rounded text-xs font-bold transition-all border ${isArticlesTranslated ? 'bg-indigo-900/30 text-indigo-300 border-indigo-700' : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700'}`}
+                                >
+                                    {isTranslating ? <Loader2 size={14} className="animate-spin" /> : <Languages size={14} />}
+                                    {isTranslating ? "Translating..." : (isArticlesTranslated ? "Show Original" : "Translate Titles")}
+                                </button>
+                            </div>
+                            <DigestReportRenderer
+                                {...digest}
+                                isTranslated={isArticlesTranslated}
+                                selectedUrls={new Set()} // Read-only
+                                onToggle={() => { }}
+                                onAssess={() => { }}
+                                onDebug={() => { }}
+                            />
+                        </>
                     )}
 
                     {activeTab === 'digest' && (
