@@ -9,6 +9,10 @@ def process_logo():
     print(f"Loading {input_path}...")
     try:
         img = Image.open(input_path).convert("RGBA")
+        # User requested 90 degrees CLOCKWISE rotation
+        # PIL rotate is Counter-Clockwise, so -90 is Clockwise.
+        img = img.rotate(-90, expand=True) 
+        print("Rotated image 90 degrees clockwise.")
     except Exception as e:
         print(f"Error loading image: {e}")
         return
