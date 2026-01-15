@@ -1595,7 +1595,8 @@ async def get_public_digest(slug: str, db: Session = Depends(get_db)):
         articles=safe_json(digest.articles_json),
         analysis_source=safe_json(digest.analysis_source),
         analysis_digest=safe_json(digest.analysis_digest),
-        created_at=digest.created_at.isoformat()
+        created_at=(digest.created_at or datetime.now()).isoformat(),
+        owner_id=digest.user_id # Required by DigestDetail
     )
 
 # --- AI RELEVANCE CHECK ---
