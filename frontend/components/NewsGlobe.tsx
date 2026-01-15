@@ -160,6 +160,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
     const [digestFetchStatus, setDigestFetchStatus] = useState<string>('idle');
     const [isSpotlightOpen, setIsSpotlightOpen] = useState(false);
     const [spotlightQuery, setSpotlightQuery] = useState('');
+    const [spotlightSelectedIndex, setSpotlightSelectedIndex] = useState(0);
 
     const handleToggleSelection = (url: string) => {
         const newSet = new Set(selectedArticleUrls);
@@ -3271,15 +3272,29 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                                 className="flex-1 bg-transparent border-none outline-none text-white placeholder-slate-500 text-lg"
                                 placeholder="Search City..."
                                 value={spotlightQuery}
-                                onChange={e => setSpotlightQuery(e.target.value)}
+                                onChange={e => {
+                                    setSpotlightQuery(e.target.value);
+                                    setSpotlightSelectedIndex(0);
+                                }}
                                 onKeyDown={e => {
-                                    if (e.key === 'Enter' && spotlightQuery) {
-                                        // Select first match
-                                        const match = cities.find(c => c.name.toLowerCase().includes(spotlightQuery.toLowerCase()));
+                                    const candidates = cities
+                                        .filter(c => c.name.toLowerCase().includes(spotlightQuery.toLowerCase()))
+                                        .slice(0, 8);
+
+                                    if (e.key === 'ArrowDown') {
+                                        e.preventDefault();
+                                        setSpotlightSelectedIndex(prev => (prev + 1) % candidates.length);
+                                    } else if (e.key === 'ArrowUp') {
+                                        e.preventDefault();
+                                        setSpotlightSelectedIndex(prev => (prev - 1 + candidates.length) % candidates.length);
+                                    } else if (e.key === 'Enter') {
+                                        e.preventDefault();
+                                        const match = candidates[spotlightSelectedIndex];
                                         if (match) {
                                             handleSearchSelect(match);
                                             setIsSpotlightOpen(false);
                                             setSpotlightQuery('');
+                                            setSpotlightSelectedIndex(0);
                                         }
                                     }
                                 }}
@@ -3293,17 +3308,18 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                                 {cities
                                     .filter(c => c.name.toLowerCase().includes(spotlightQuery.toLowerCase()))
                                     .slice(0, 8)
-                                    .map((city: any) => (
+                                    .map((city: any, idx: number) => (
                                         <button
                                             key={city.id || city.name}
-                                            className="w-full text-left px-4 py-3 hover:bg-slate-800 flex items-center justify-between group transition-colors"
+                                            className={`w-full text-left px-4 py-3 flex items-center justify-between group transition-colors ${idx === spotlightSelectedIndex ? 'bg-slate-800 border-l-2 border-blue-500' : 'hover:bg-slate-800/50 border-l-2 border-transparent'}`}
                                             onClick={() => {
                                                 handleSearchSelect(city);
                                                 setIsSpotlightOpen(false);
                                                 setSpotlightQuery('');
                                             }}
+                                            onMouseEnter={() => setSpotlightSelectedIndex(idx)}
                                         >
-                                            <span className="text-slate-200 font-medium group-hover:text-white">{city.name}</span>
+                                            <span className={`font-medium ${idx === spotlightSelectedIndex ? 'text-white' : 'text-slate-200 group-hover:text-white'}`}>{city.name}</span>
                                             <span className="text-xs text-slate-500 uppercase">{city.country_code}</span>
                                         </button>
                                     ))}
@@ -3323,8 +3339,9 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
 
             {/* Version Indicator */}
+            {/* Version Indicator */}
             <div className="absolute bottom-2 right-2 z-[100] text-[10px] text-white/30 font-mono hover:text-white/80 cursor-default select-none transition-colors">
-                v0.120.14 DEBUG
+                v0.120.21 Spotlight
             </div>
 
         </div >
