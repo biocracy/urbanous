@@ -2069,8 +2069,12 @@ async def generate_digest_stream(req: DigestRequest, current_user: User = Depend
                                   
                                   # STRICT DEDUPLICATION
                                   for art in raw_arts:
+                                       # Handle both Dict and Object (Pydantic)
+                                       title = art.get('title', '') if isinstance(art, dict) else getattr(art, 'title', '')
+                                       url = art.get('url', '') if isinstance(art, dict) else getattr(art, 'url', '')
+                                       
                                        # Compute fingerprint
-                                       fp = hashlib.md5((art.title + art.url).lower().encode()).hexdigest()
+                                       fp = hashlib.md5((str(title) + str(url)).lower().encode()).hexdigest()
                                        if fp in stream_seen_fingerprints:
                                             continue # Skip duplicate
                                        
