@@ -1490,8 +1490,23 @@ async def list_digests(
                 owner_username=d.user.username if d.user else "Unknown"
             ))
         except Exception as e:
-             print(f"Skipping broken digest {d.id}: {e}")
-             continue
+             # DEBUG: Return broken digest so we can see the error in frontend
+             safe_digests.append(DigestRead(
+                id=d.id,
+                title=f"DEBUG ERROR {d.id}",
+                category="Error",
+                city=d.city or "Unknown",
+                timeframe="24h",
+                summary_markdown=f"### Serialization Error\n\n{str(e)}",
+                articles=[],
+                selected_article_urls=[],
+                analysis_source=[],
+                created_at=d.created_at or datetime.now(),
+                is_public=False,
+                public_slug="error",
+                owner_id=d.user_id,
+                owner_username="System"
+            ))
              
     return safe_digests
 
