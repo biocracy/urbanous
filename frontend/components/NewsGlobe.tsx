@@ -3072,6 +3072,19 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                                                         <div className="flex justify-between items-start mb-1">
                                                             <h4 className="font-bold text-slate-200 line-clamp-1 group-hover:text-blue-400">{title}</h4>
                                                             {/* Delete only if Owner - Relaxed Check & Always Visible */}
+                                                            {(() => {
+                                                                if (digest === savedDigests[0]) {
+                                                                    console.log("DIGEST_DEBUG_RENDER", {
+                                                                        digestId: digest.id,
+                                                                        ownerId: digest.owner_id,
+                                                                        ownerType: typeof digest.owner_id,
+                                                                        currentUserId: currentUser?.id,
+                                                                        currentUserType: typeof currentUser?.id,
+                                                                        match: currentUser && String(digest.owner_id) === String(currentUser.id)
+                                                                    });
+                                                                }
+                                                                return null;
+                                                            })()}
                                                             {currentUser && String(digest.owner_id) === String(currentUser.id) && (
                                                                 <button
                                                                     onClick={(e) => {
@@ -3392,7 +3405,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
             {/* Version Indicator */}
             <div className="absolute bottom-2 right-2 z-[100] text-[10px] text-white/30 font-mono hover:text-white/80 cursor-default select-none transition-colors">
-                v0.120.27 Sidebar
+                v0.120.28 Sidebar Debug
             </div>
 
         </div >
