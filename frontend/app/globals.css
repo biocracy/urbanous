@@ -5,12 +5,11 @@
   --foreground: #171717;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+
+/* @theme inline - Removed to fix lint error 
+   Note: If these variables are needed, they should be defined in :root or tailwind.config.ts
+*/
+
 
 @media (prefers-color-scheme: dark) {
   :root {

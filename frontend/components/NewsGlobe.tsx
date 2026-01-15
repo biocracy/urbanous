@@ -2027,14 +2027,15 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             backgroundImageUrl="//unpkg.com/three-globe/example/img/night-sky.png"
 
             // Polygons (Borders)
+            // Polygons (Borders)
             polygonsData={countries.features}
             polygonAltitude={0.005}
-            polygonCapColor={() => 'rgba(0, 0, 0, 0)'}
-            polygonSideColor={() => 'rgba(0, 0, 0, 0)'}
-            polygonStrokeColor={() => mapStyle.includes('day') ? '#000000' : '#888'}
+            polygonCapColor={useCallback(() => 'rgba(0, 0, 0, 0)', [])}
+            polygonSideColor={useCallback(() => 'rgba(0, 0, 0, 0)', [])}
+            polygonStrokeColor={useCallback(() => mapStyle.includes('day') ? '#000000' : '#888', [mapStyle])}
             // @ts-ignore
             polygonStrokeWidth={mapStyle.includes('day') ? 2 : 0.6}
-            onPolygonClick={(d: any) => {
+            onPolygonClick={useCallback((d: any) => {
                 setExpandedCluster(null); // Click background to close cluster
                 setSelectedCountry(d);
                 if (globeEl.current) {
@@ -2043,24 +2044,28 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                     globeEl.current.pointOfView({ lat, lng, altitude: 0.5 }, 1000);
                 }
                 if (onCountrySelect) onCountrySelect(d.properties.NAME, d.properties.ISO_A2);
-            }}
+            }, [onCountrySelect])}
 
-            // Labels (Initials on Marker)
-            labelsData={processedData.points}
-            labelLat={(d: any) => d.lat}
-            labelLng={(d: any) => d.lng}
-            labelText={(d: any) => {
+            // Labels (Initials on Marker) - OPTIMIZATION: Only show for Clusters or Large Cities
+            labelsData={useMemo(() => {
+                // Filter: Clusters (isCluster=true) OR Major Cities (pop > 1M)
+                // This reduces texture memory significantly (from ~3000 sprites to ~500)
+                return processedData.points.filter(p =>
+                    p.isCluster || (parseInt(p.pop || '0') > 1000000) || p.isCapital
+                );
+            }, [processedData.points])}
+            labelLat={getLat}
+            labelLng={getLng}
+            labelText={useCallback((d: any) => {
                 if (!d.name) return '?';
-                // Normalize to base char (e.g. Ș -> S) to ensure rendering support
                 const char = d.name.charAt(0).normalize("NFD").replace(/[\u0300-\u036f]/g, "");
                 return char.toUpperCase();
-            }}
-            labelLabel={getTooltip} // Show same tooltip when hovering letter
-            onLabelClick={handleMapClick} // Allow clicking the letter
-            onLabelHover={(d: any) => {
-                // Ensure cursor consistency
+            }, [])}
+            labelLabel={getTooltip}
+            onLabelClick={handleMapClick}
+            onLabelHover={useCallback((d: any) => {
                 document.body.style.cursor = d ? 'pointer' : 'default';
-            }}
+            }, [])}
 
             // Use default system font for max compatibility
             labelTypeFace={undefined}
@@ -2070,13 +2075,13 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             pointsData={processedData.points}
             pointLat={getLat}
             pointLng={getLng}
-            pointColor={getPointColor} // Memoized below
+            pointColor={getPointColor} // Memoized
             pointRadius={getRadius}
             pointAltitude={0.005}
             pointResolution={32}
-            onPointHover={(d: any) => {
+            onPointHover={useCallback((d: any) => {
                 document.body.style.cursor = d ? 'pointer' : 'default';
-            }}
+            }, [])}
             onPointClick={handleMapClick} // Memoized
             pointLabel={getTooltip} // Memoized
 
@@ -2108,7 +2113,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             pathDashGap={0.05}
             pathDashAnimateTime={2000}
         />
-    ), [mapStyle, countries, processedData, selectedCityData, highlightedCityId, handleMapClick, getTooltip]);
+    ), [mapStyle, countries, processedData, selectedCityData, highlightedCityId, handleMapClick, getTooltip, getPointColor, ringsData, onCountrySelect]);
 
     return (
         <div className="relative w-full h-full bg-slate-950">
@@ -2626,6 +2631,9 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                                                                                 <div className="font-bold text-slate-200">
                                                                                     {isAnalyticsTranslated && kw.translation ? kw.translation : kw.word}
                                                                                 </div>
+                                                                                <span className="text-emerald-500/80 text-[10px] font-mono absolute bottom-1 right-2 pointer-events-none opacity-50 z-20">
+                                                                                    v0.120.35 Memory Fix
+                                                                                </span>
                                                                                 <span className="text-xs text-slate-500 font-mono">{kw.importance}</span>
                                                                             </div>
                                                                             {isAnalyticsTranslated && kw.translation && kw.translation !== kw.word && (
