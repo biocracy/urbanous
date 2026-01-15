@@ -1703,17 +1703,10 @@ async def summarize_selected_articles(req: SummarizeRequest, current_user: User 
                     return f"\n### Analysis of Sources {start_idx}-{end_idx}\n(Analysis Redacted by Safety Filters)"
                     
             except Exception as e:
-                # If 429 (Resource Exhausted), continue loop
-                if "429" in str(e) or "quota" in str(e).lower():
-                    print(f"WARNING: Model {model_name} exhausted (429). Switching...")
-                    last_error = e
-                    continue # Try next model
-                
-                # Other errors (Safety, Validation) -> Fail immediately
-                print(f"Chunk {chunk_idx} error: {e}")
-                import traceback
-                traceback.print_exc()
-                return f"\n### Analysis of Sources {start_idx}-{end_idx}\n(Processing Error: {str(e)})"
+                print(f"[{model_name}] Generation Failed: {e}")
+                last_error = e
+                # Continue to next model regardless of error type (404, 429, 500, etc.)
+                continue
         
         # If loop finishes, all models failed
         return f"\n### Analysis of Sources {start_idx}-{end_idx}\n(Quota Exceeded on all models: {str(last_error)})"
