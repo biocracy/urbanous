@@ -3227,10 +3227,19 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                                         className="bg-slate-800/50 hover:bg-slate-800 border border-slate-700 hover:border-blue-500 p-3 rounded cursor-pointer transition-all group mb-2"
                                     >
                                         <div className="relative">
-                                            <div className="flex justify-between items-start pr-6">
-                                                <h4 className={`font-bold text-slate-200 text-sm whitespace-nowrap overflow-hidden ${isLongTitle ? 'group-hover:animate-marquee' : ''}`} style={{ maxWidth: 'calc(100% - 20px)' }}>
-                                                    {title}
-                                                </h4>
+                                            <div className="flex justify-between items-start pr-8 overflow-hidden">
+                                                {isLongTitle ? (
+                                                    <div className="w-full overflow-hidden">
+                                                        <div className="flex whitespace-nowrap group-hover:animate-marquee-seamless w-max">
+                                                            <h4 className="font-bold text-slate-200 text-sm mr-8">{title}</h4>
+                                                            <h4 className="font-bold text-slate-200 text-sm mr-8">{title}</h4>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <h4 className="font-bold text-slate-200 text-sm whitespace-nowrap overflow-hidden text-ellipsis">
+                                                        {title}
+                                                    </h4>
+                                                )}
                                             </div>
                                             <button
                                                 onClick={(e) => {
@@ -3432,7 +3441,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
             {/* Version Indicator */}
             <div className="absolute bottom-2 right-2 z-[100] text-[10px] text-white/30 font-mono hover:text-white/80 cursor-default select-none transition-colors">
-                v0.120.31 AI Titles & Sidebar
+                v0.120.32 Marquee Fix
             </div>
 
         </div >
