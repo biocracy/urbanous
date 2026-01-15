@@ -155,6 +155,7 @@ class UserSettingsUpdate(BaseModel):
 @router.get("/users/me")
 async def read_users_me(current_user: User = Depends(get_current_user)):
     return {
+        "id": current_user.id,
         "email": current_user.email,
         "username": current_user.username,
         "is_username_visible": current_user.is_username_visible,
