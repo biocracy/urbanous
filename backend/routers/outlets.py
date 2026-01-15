@@ -1635,13 +1635,12 @@ async def summarize_selected_articles(req: SummarizeRequest, current_user: User 
     # Model Fallback Strategy (Updated aliases)
     # Model Fallback Strategy (Updated aliases)
     MODELS_TO_TRY = [
+        "gemini-2.5-flash",
+        "gemini-2.0-flash",
+        "gemini-2.0-flash-lite-preview-02-05", 
         "gemini-1.5-flash", 
-        "gemini-1.5-flash-001",
-        "gemini-1.5-flash-002",
         "gemini-1.5-pro",
-        "gemini-1.0-pro",
-        "gemini-pro", # Legacy Stable
-        "gemini-1.5-flash-latest"
+        "gemini-pro"
     ]
     
     # 1. GENERATE SOURCE INDEX PROGRAMMATICALLY
