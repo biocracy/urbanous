@@ -392,7 +392,8 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                 summary_markdown: digestSummary || digestData.digest,
                 articles: digestData.articles,
                 selected_article_urls: Array.from(selectedArticleUrls),
-                analysis_source: analyticsKeywords.length > 0 ? analyticsKeywords : (digestData.analysis_source || [])
+                analysis_source: analyticsKeywords.length > 0 ? analyticsKeywords : (digestData.analysis_source || []),
+                analysis_digest: digestData.analysis_digest || null
             };
 
             let savedItem;
@@ -412,9 +413,11 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             await fetchSavedDigests();
             alert("Digest saved!");
             // Show toast? relying on button state for now
-        } catch (err) {
+        } catch (err: any) {
             console.error("Failed to save digest", err);
-            setErrorMessage("Failed to save digest.");
+            const msg = err.response?.data?.detail || "Failed to save digest.";
+            setErrorMessage(msg);
+            alert(`Error: ${msg}`); // Force user visibility
         } finally {
             setIsSaving(false);
         }
