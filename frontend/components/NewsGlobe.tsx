@@ -5,7 +5,13 @@ import dynamic from 'next/dynamic';
 import * as turf from '@turf/turf';
 import api from '@/lib/api'; // Use the axios instance with Auth interceptor
 import { useAuthStore } from '@/lib/store';
-import { Sliders, X, Save, Key, Loader2, LogOut, StopCircle, Languages, Wrench, Search, Map as MapIcon, Calendar, Settings, ChevronDown, ChevronRight, List, Info, FileText, Sparkles, Coffee, Share2, Copy, Check, Globe as GlobeIcon } from 'lucide-react';
+import {
+    Settings, X, Maximize2, Minimize2, ChevronRight, ChevronLeft,
+    Share2, Download, Copy, Check, ExternalLink, Search, Filter,
+    LayoutGrid, List, Map as MapIcon, Globe as GlobeIcon,
+    AlertTriangle, Shield, ShieldAlert, ShieldCheck, Info,
+    Play, Pause, RotateCcw, Calendar, Trash2
+} from 'lucide-react';
 import ScraperDebugger from './ScraperDebugger';
 import ReactMarkdown from 'react-markdown';
 import { CAPITALS } from '../utils/capitals';
@@ -3072,16 +3078,17 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                                                         <div className="flex justify-between items-start mb-1">
                                                             <h4 className="font-bold text-slate-200 line-clamp-1 group-hover:text-blue-400">{title}</h4>
                                                             {/* Delete only if Owner - Relaxed Check & Always Visible */}
+                                                            {/* Delete only if Owner */}
                                                             {currentUser && String(digest.owner_id) === String(currentUser.id) && (
                                                                 <button
                                                                     onClick={(e) => {
                                                                         e.stopPropagation();
                                                                         handleDeleteDigest(digest.id);
                                                                     }}
-                                                                    className="text-slate-500 hover:text-red-500 hover:bg-slate-700/50 rounded px-1.5 transition-colors"
+                                                                    className="text-slate-600 hover:text-red-400 hover:bg-red-900/20 rounded p-1 transition-colors ml-1"
                                                                     title="Delete Digest"
                                                                 >
-                                                                    ✕
+                                                                    <Trash2 size={12} />
                                                                 </button>
                                                             )}
                                                         </div>
@@ -3200,22 +3207,19 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                                         onClick={() => handleLoadDigest(digest)}
                                         className="bg-slate-800/50 hover:bg-slate-800 border border-slate-700 hover:border-blue-500 p-3 rounded cursor-pointer transition-all group mb-2"
                                     >
-                                        <div className="flex justify-between items-start mb-1">
-                                            <h4 className="font-bold text-slate-200 line-clamp-2 text-sm group-hover:text-blue-400">{title}</h4>
-                                            {/* Delete Button (Added for Right Sidebar) */}
-                                            {currentUser && String(digest.owner_id) === String(currentUser.id) && (
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleDeleteDigest(digest.id);
-                                                    }}
-                                                    className="text-slate-500 hover:text-red-500 hover:bg-slate-700/50 rounded px-1.5 transition-colors ml-2 flex-shrink-0"
-                                                    title="Delete Digest"
-                                                >
-                                                    ✕
-                                                </button>
-                                            )}
-                                        </div>
+                                        {/* Delete Button (Added for Right Sidebar) */}
+                                        {(globalStreamTab === 'my' || (currentUser && String(digest.owner_id) === String(currentUser.id))) && (
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleDeleteDigest(digest.id);
+                                                }}
+                                                className="text-slate-600 hover:text-red-400 hover:bg-red-900/20 rounded p-1 transition-colors ml-2 flex-shrink-0"
+                                                title="Delete Digest"
+                                            >
+                                                <Trash2 size={12} />
+                                            </button>
+                                        )}
                                         <div className="flex flex-col gap-0.5 text-[10px] text-slate-500 font-medium mt-1">
                                             <div className="flex items-center gap-2 uppercase font-bold flex-wrap">
                                                 {digest.city && <span className="text-blue-400 bg-blue-900/20 px-1 rounded">{digest.city}</span>}
@@ -3405,7 +3409,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
             {/* Version Indicator */}
             <div className="absolute bottom-2 right-2 z-[100] text-[10px] text-white/30 font-mono hover:text-white/80 cursor-default select-none transition-colors">
-                v0.120.29 Sidebar Fix
+                v0.120.30 Trash Icon
             </div>
 
         </div >
