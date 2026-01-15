@@ -1488,7 +1488,7 @@ async def list_digests(
                 is_public=getattr(d, 'is_public', False), # Safe getattr
                 public_slug=getattr(d, 'public_slug', None),
                 owner_id=d.user_id,
-                owner_username=d.user.username if d.user else "Unknown"
+                owner_username=current_user.username
             ))
         except Exception as e:
              # DEBUG: Return broken digest so we can see the error in frontend
