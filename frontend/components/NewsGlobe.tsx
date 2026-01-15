@@ -302,11 +302,14 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
     const fetchSavedDigests = async () => {
         if (!currentUser) return;
         try {
+            console.log("DIGEST_DEBUG: Fetching saved digests...");
             const res = await api.get('/digests');
             console.log("DIGEST_DEBUG: Fetched Saved Digests:", res.data);
             setSavedDigests(res.data);
-        } catch (err) {
+        } catch (err: any) {
             console.error("Failed to fetch digests", err);
+            // Robust logging
+            console.log("DIGEST_DEBUG: Digest fetch error details:", err.response?.data || err.message);
         }
     };
     // Scraper Debugger State
