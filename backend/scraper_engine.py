@@ -53,6 +53,11 @@ SCRAPER_REGISTRY: Dict[str, ScraperRule] = {
         date_selectors=[".news-info__date .date", ".news-info .date", "span.date"],
         date_regex=[r"(\d{2}\.\d{2}\.\d{4})"]
     ),
+    "qianlong.com": ScraperRule(
+        domain="qianlong.com",
+        date_selectors=[".s_laiz_box1 .row span", ".s_laiz span", ".content .date"],
+        date_regex=[r"(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2})"]
+    ),
 }
 
 # --- Helper Functions ---
