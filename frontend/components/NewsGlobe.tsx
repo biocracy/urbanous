@@ -3071,14 +3071,14 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                                                     >
                                                         <div className="flex justify-between items-start mb-1">
                                                             <h4 className="font-bold text-slate-200 line-clamp-1 group-hover:text-blue-400">{title}</h4>
-                                                            {/* Delete only if Owner */}
-                                                            {currentUser && digest.owner_id === currentUser.id && (
+                                                            {/* Delete only if Owner - Relaxed Check & Always Visible */}
+                                                            {currentUser && String(digest.owner_id) === String(currentUser.id) && (
                                                                 <button
                                                                     onClick={(e) => {
                                                                         e.stopPropagation();
                                                                         handleDeleteDigest(digest.id);
                                                                     }}
-                                                                    className="text-slate-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity px-2"
+                                                                    className="text-slate-500 hover:text-red-500 hover:bg-slate-700/50 rounded px-1.5 transition-colors"
                                                                     title="Delete Digest"
                                                                 >
                                                                     ✕
@@ -3392,7 +3392,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
             {/* Version Indicator */}
             <div className="absolute bottom-2 right-2 z-[100] text-[10px] text-white/30 font-mono hover:text-white/80 cursor-default select-none transition-colors">
-                v0.120.25 Sidebar
+                v0.120.26 Sidebar
             </div>
 
         </div >
