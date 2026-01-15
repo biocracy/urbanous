@@ -10,7 +10,8 @@ import {
     Share2, Download, Copy, Check, ExternalLink, Search, Filter,
     LayoutGrid, List, Map as MapIcon, Globe as GlobeIcon,
     AlertTriangle, Shield, ShieldAlert, ShieldCheck, Info,
-    Play, Pause, RotateCcw, Calendar, Trash2
+    Play, Pause, RotateCcw, Calendar, Trash2,
+    Sliders, Loader2, Sparkles, Languages, FileText, Coffee
 } from 'lucide-react';
 import ScraperDebugger from './ScraperDebugger';
 import ReactMarkdown from 'react-markdown';
@@ -455,7 +456,8 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
         setIsSaving(true);
         try {
             // Extract Title from Markdown (First line # Title)
-            const titleMatch = digestData.digest.match(/^# (.*)$/m);
+            const contentToCheck = digestSummary || digestData.digest;
+            const titleMatch = contentToCheck.match(/^# (.*)$/m);
             // Default to empty string so backend knows to generate one if needed, 
             // OR use a very generic one that triggers the backend check ("Digest")
             const title = titleMatch ? titleMatch[1] : `Daily ${selectedCategory} Digest`;
@@ -1541,11 +1543,18 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
         setIsDiscovering(true);
         setSelectedCityOutlets([]);
         setShowAddForm(false);
-        setActiveTab('import');
+        // Reset UI State for new generation
+        setDigestData(null);
+
+        // UX Enhancement: Reset Analytics to prevent old data persistence
+        setAnalyticsKeywords([]);
+
+        // Keep articles visible while generating? Or clear?
+        // Let's keep them for context.
         setImportUrl('');
         setImportInstructions('');
         setErrorMessage(null);
-        setDigestData(null);
+        // setDigestData(null); // This was moved up
 
         const countryCode = d.country || "XX";
         const countryName = countryMap.current[countryCode] || countryCode;
@@ -3029,7 +3038,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                                 <div className="space-y-2">
                                     {savedDigests.length === 0 ? (
                                         <div className="text-center text-slate-500 py-6 px-2 flex flex-col gap-3">
-                                            <div>No saved digests found.</div>
+                                            <div>No saved digests found for this city.</div>
 
                                             {/* Debug Info */}
                                             <div className="bg-slate-900 border border-slate-700/50 rounded p-2 text-[10px] font-mono text-left space-y-1 w-full overflow-hidden">
@@ -3044,8 +3053,8 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                                         </div>
                                     ) : (
                                         (savedDigests || [])
-                                            // Left Sidebar: Show ALL user digests (removed city filter)
-                                            // .filter((d: any) => !selectedCityName || d.city === selectedCityName)
+                                            // Left Sidebar: Show ONLY digests for current city
+                                            .filter((d: any) => !selectedCityName || d.city === selectedCityName)
                                             .map((digest: any) => {
                                                 const createdAt = digest.created_at || new Date().toISOString();
                                                 const end = new Date(createdAt);
@@ -3069,14 +3078,21 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                                                 const cat = digest.category || "";
                                                 const showCategory = cat && !title.toLowerCase().includes(cat.toLowerCase());
 
+                                                // Marquee Logic: Check length (approx chars)
+                                                const isLongTitle = title.length > 28;
+
                                                 return (
                                                     <div
                                                         key={digest.id}
                                                         onClick={() => handleLoadDigest(digest)}
                                                         className="bg-slate-800/50 hover:bg-slate-800 border border-slate-700 hover:border-blue-500 p-3 rounded cursor-pointer transition-all group"
                                                     >
-                                                        <div className="flex justify-between items-start mb-1">
-                                                            <h4 className="font-bold text-slate-200 line-clamp-1 group-hover:text-blue-400">{title}</h4>
+                                                        <div className="flex justify-between items-start mb-1 overflow-hidden">
+                                                            <div className="flex-1 overflow-hidden relative h-5">
+                                                                <h4 className={`font-bold text-slate-200 text-sm whitespace-nowrap absolute left-0 top-0 ${isLongTitle ? 'group-hover:animate-marquee' : ''}`}>
+                                                                    {title}
+                                                                </h4>
+                                                            </div>
                                                             {/* Delete only if Owner - Relaxed Check & Always Visible */}
                                                             {/* Delete only if Owner */}
                                                             {currentUser && String(digest.owner_id) === String(currentUser.id) && (
@@ -3085,7 +3101,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                                                                         e.stopPropagation();
                                                                         handleDeleteDigest(digest.id);
                                                                     }}
-                                                                    className="text-slate-600 hover:text-red-400 hover:bg-red-900/20 rounded p-1 transition-colors ml-1"
+                                                                    className="text-slate-600 hover:text-red-400 hover:bg-red-900/20 rounded p-1 transition-colors ml-1 z-10 bg-slate-800/50"
                                                                     title="Delete Digest"
                                                                 >
                                                                     <Trash2 size={12} />
@@ -3201,37 +3217,44 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                                 const cat = digest.category || "";
                                 const showCategory = cat && !title.toLowerCase().includes(cat.toLowerCase());
 
+                                // Marquee Logic
+                                const isLongTitle = title.length > 28;
+
                                 return (
                                     <div
                                         key={digest.id}
                                         onClick={() => handleLoadDigest(digest)}
                                         className="bg-slate-800/50 hover:bg-slate-800 border border-slate-700 hover:border-blue-500 p-3 rounded cursor-pointer transition-all group mb-2"
                                     >
-                                        {/* Delete Button (Added for Right Sidebar) */}
-                                        {(globalStreamTab === 'my' || (currentUser && String(digest.owner_id) === String(currentUser.id))) && (
+                                        <div className="relative">
+                                            <div className="flex justify-between items-start pr-6">
+                                                <h4 className={`font-bold text-slate-200 text-sm whitespace-nowrap overflow-hidden ${isLongTitle ? 'group-hover:animate-marquee' : ''}`} style={{ maxWidth: 'calc(100% - 20px)' }}>
+                                                    {title}
+                                                </h4>
+                                            </div>
                                             <button
                                                 onClick={(e) => {
                                                     e.stopPropagation();
-                                                    handleDeleteDigest(digest.id);
+                                                    if (confirm("Delete this digest?")) handleDeleteDigest(digest.id!);
                                                 }}
-                                                className="text-slate-600 hover:text-red-400 hover:bg-red-900/20 rounded p-1 transition-colors ml-2 flex-shrink-0"
+                                                className="absolute top-0 right-0 text-slate-600 hover:text-red-400 hover:bg-red-900/20 rounded p-1 transition-colors z-10"
                                                 title="Delete Digest"
                                             >
                                                 <Trash2 size={12} />
                                             </button>
-                                        )}
-                                        <div className="flex flex-col gap-0.5 text-[10px] text-slate-500 font-medium mt-1">
-                                            <div className="flex items-center gap-2 uppercase font-bold flex-wrap">
-                                                {digest.city && <span className="text-blue-400 bg-blue-900/20 px-1 rounded">{digest.city}</span>}
-                                                {showCategory && <span className="text-slate-400">• {cat}</span>}
-                                                {digest.is_public && (
-                                                    <span className="flex items-center gap-0.5 text-emerald-400 bg-emerald-900/30 px-1 rounded border border-emerald-800/50 text-[9px] transform scale-90" title="Public Link Active">
-                                                        <GlobeIcon size={8} /> Public
-                                                    </span>
-                                                )}
-                                            </div>
-                                            <div className="text-slate-600 font-mono mt-0.5">
-                                                {dateRange}
+                                            <div className="flex flex-col gap-0.5 text-[10px] text-slate-500 font-medium mt-1">
+                                                <div className="flex items-center gap-2 uppercase font-bold flex-wrap">
+                                                    {digest.city && <span className="text-blue-400 bg-blue-900/20 px-1 rounded">{digest.city}</span>}
+                                                    {showCategory && <span className="text-slate-400">• {cat}</span>}
+                                                    {digest.is_public && (
+                                                        <span className="flex items-center gap-0.5 text-emerald-400 bg-emerald-900/30 px-1 rounded border border-emerald-800/50 text-[9px] transform scale-90" title="Public Link Active">
+                                                            <GlobeIcon size={8} /> Public
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <div className="text-slate-600 font-mono mt-0.5">
+                                                    {dateRange}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -3409,7 +3432,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
             {/* Version Indicator */}
             <div className="absolute bottom-2 right-2 z-[100] text-[10px] text-white/30 font-mono hover:text-white/80 cursor-default select-none transition-colors">
-                v0.120.30 Trash Icon
+                v0.120.31 AI Titles & Sidebar
             </div>
 
         </div >
