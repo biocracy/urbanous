@@ -1973,6 +1973,7 @@ async def generate_digest_stream(req: DigestRequest, current_user: User = Depend
         try:
              # Explicit internal imports to prevent any scope weirdness
              import traceback
+             import hashlib # Added for deduplication fingerprinting
              from sqlalchemy import select
              from models import NewsOutlet, ScraperRule
              
