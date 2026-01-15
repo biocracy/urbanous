@@ -2951,10 +2951,16 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                                         </div>
                                     ) : (
                                         (savedDigests || [])
-                                            // Left Sidebar: Strictly City filtered (as requested)
-                                            .filter((d: any) => !selectedCityName || d.city === selectedCityName)
+                                            // Left Sidebar: Show ALL user digests (removed city filter)
+                                            // .filter((d: any) => !selectedCityName || d.city === selectedCityName)
                                             .map((digest: any) => {
-                                                const end = new Date(digest.created_at);
+                                                const createdAt = digest.created_at || new Date().toISOString();
+                                                const end = new Date(createdAt);
+                                                if (isNaN(end.getTime())) {
+                                                    // Fallback for invalid dates
+                                                    const safeDate = new Date();
+                                                    end.setTime(safeDate.getTime());
+                                                }
                                                 const start = new Date(end);
 
                                                 if (digest.timeframe === "24h") start.setDate(end.getDate() - 1);
