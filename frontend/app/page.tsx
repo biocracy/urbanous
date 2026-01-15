@@ -31,7 +31,20 @@ export default function Home() {
       {/* Header Overlay */}
       <div className="absolute top-0 left-0 w-full z-10 p-4 flex justify-between items-center pointer-events-none">
         <h1 className="text-2xl font-black tracking-tighter pointer-events-auto shadow-sm flex items-center gap-0.5 cursor-default select-none">
-          <img src="/logo.png" alt="U" className="h-8 w-auto -mt-1" />
+          {/* Logo with Gradient Mask */}
+          <div
+            className="h-8 w-6 -mt-1 bg-gradient-to-r from-fuchsia-400 to-indigo-400"
+            style={{
+              maskImage: 'url(/logo-mask.png)',
+              maskSize: 'contain',
+              maskRepeat: 'no-repeat',
+              maskPosition: 'center',
+              WebkitMaskImage: 'url(/logo-mask.png)',
+              WebkitMaskSize: 'contain',
+              WebkitMaskRepeat: 'no-repeat',
+              WebkitMaskPosition: 'center'
+            }}
+          />
           <span className="bg-clip-text text-transparent bg-gradient-to-r from-fuchsia-400 to-indigo-400">
             RBANOUS.NET
           </span>

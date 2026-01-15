@@ -12,9 +12,11 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "Urbanous.net | Global News Intelligence",
+title: "Urbanous.net | Global News Intelligence",
   description: "Real-time AI News Discovery & Analysis",
+    icons: {
+  icon: '/icon.png',
+  },
 };
 
 export default function RootLayout({
