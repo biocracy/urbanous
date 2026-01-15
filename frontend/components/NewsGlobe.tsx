@@ -3072,19 +3072,6 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                                                         <div className="flex justify-between items-start mb-1">
                                                             <h4 className="font-bold text-slate-200 line-clamp-1 group-hover:text-blue-400">{title}</h4>
                                                             {/* Delete only if Owner - Relaxed Check & Always Visible */}
-                                                            {(() => {
-                                                                if (digest === savedDigests[0]) {
-                                                                    console.log("DIGEST_DEBUG_RENDER", {
-                                                                        digestId: digest.id,
-                                                                        ownerId: digest.owner_id,
-                                                                        ownerType: typeof digest.owner_id,
-                                                                        currentUserId: currentUser?.id,
-                                                                        currentUserType: typeof currentUser?.id,
-                                                                        match: currentUser && String(digest.owner_id) === String(currentUser.id)
-                                                                    });
-                                                                }
-                                                                return null;
-                                                            })()}
                                                             {currentUser && String(digest.owner_id) === String(currentUser.id) && (
                                                                 <button
                                                                     onClick={(e) => {
@@ -3215,6 +3202,19 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                                     >
                                         <div className="flex justify-between items-start mb-1">
                                             <h4 className="font-bold text-slate-200 line-clamp-2 text-sm group-hover:text-blue-400">{title}</h4>
+                                            {/* Delete Button (Added for Right Sidebar) */}
+                                            {currentUser && String(digest.owner_id) === String(currentUser.id) && (
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleDeleteDigest(digest.id);
+                                                    }}
+                                                    className="text-slate-500 hover:text-red-500 hover:bg-slate-700/50 rounded px-1.5 transition-colors ml-2 flex-shrink-0"
+                                                    title="Delete Digest"
+                                                >
+                                                    ✕
+                                                </button>
+                                            )}
                                         </div>
                                         <div className="flex flex-col gap-0.5 text-[10px] text-slate-500 font-medium mt-1">
                                             <div className="flex items-center gap-2 uppercase font-bold flex-wrap">
@@ -3405,7 +3405,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
             {/* Version Indicator */}
             <div className="absolute bottom-2 right-2 z-[100] text-[10px] text-white/30 font-mono hover:text-white/80 cursor-default select-none transition-colors">
-                v0.120.28 Sidebar Debug
+                v0.120.29 Sidebar Fix
             </div>
 
         </div >
