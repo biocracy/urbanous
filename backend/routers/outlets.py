@@ -1468,25 +1468,31 @@ async def list_digests(
     digests = result.scalars().all()
     
     # Manual mapping to handle JSON deserialization
-    return [
-        DigestRead(
-            id=d.id,
-            title=d.title,
-            category=d.category,
-            city=d.city,
-            timeframe=d.timeframe,
-            summary_markdown=d.summary_markdown,
-            articles=json.loads(d.articles_json) if d.articles_json else [],
-            selected_article_urls=json.loads(d.selected_article_urls) if d.selected_article_urls else None,
-            analysis_source=json.loads(d.analysis_source) if d.analysis_source else [],
-            created_at=d.created_at,
-            is_public=d.is_public,
-            public_slug=d.public_slug,
-            owner_id=d.user_id,
-            owner_username=d.user.username if d.user else "Unknown"
-        )
-        for d in digests
-    ]
+    # Manual mapping with Safety Checks
+    safe_digests = []
+    for d in digests:
+        try:
+             safe_digests.append(DigestRead(
+                id=d.id,
+                title=d.title,
+                category=d.category,
+                city=d.city,
+                timeframe=d.timeframe,
+                summary_markdown=d.summary_markdown,
+                articles=json.loads(d.articles_json) if d.articles_json else [],
+                selected_article_urls=json.loads(d.selected_article_urls) if d.selected_article_urls else None,
+                analysis_source=json.loads(d.analysis_source) if d.analysis_source else [],
+                created_at=d.created_at,
+                is_public=getattr(d, 'is_public', False), # Safe getattr
+                public_slug=getattr(d, 'public_slug', None),
+                owner_id=d.user_id,
+                owner_username=d.user.username if d.user else "Unknown"
+            ))
+        except Exception as e:
+             print(f"Skipping broken digest {d.id}: {e}")
+             continue
+             
+    return safe_digests
 
 @router.delete("/digests/{digest_id}")
 async def delete_digest(
@@ -1627,14 +1633,15 @@ async def summarize_selected_articles(req: SummarizeRequest, current_user: User 
     genai.configure(api_key=api_key)
     genai.configure(api_key=api_key)
     # Model Fallback Strategy (Updated aliases)
+    # Model Fallback Strategy (Updated aliases)
     MODELS_TO_TRY = [
         "gemini-1.5-flash", 
-        "gemini-1.5-flash-8b",
+        "gemini-1.5-flash-001",
+        "gemini-1.5-flash-002",
         "gemini-1.5-pro",
         "gemini-1.0-pro",
         "gemini-pro", # Legacy Stable
-        "gemini-1.5-flash-latest",
-        "models/gemini-1.5-flash" # Explicit path sometimes needed
+        "gemini-1.5-flash-latest"
     ]
     
     # 1. GENERATE SOURCE INDEX PROGRAMMATICALLY
@@ -2068,8 +2075,15 @@ async def generate_digest_stream(req: DigestRequest, current_user: User = Depend
                                        url = art.get('url', '') if isinstance(art, dict) else getattr(art, 'url', '')
                                        
                                        # Normalize: Strip whitespace, strip query params from URL
+                                       # Normalize: Strip whitespace, strip query params, strip protocol/www/trailing slash
+                                       import re
                                        clean_title = str(title).strip().lower()
+                                       # Remove https://, http://, www.
                                        clean_url = str(url).split('?')[0].split('#')[0].strip().lower()
+                                       clean_url = re.sub(r'^https?://(www\.)?', '', clean_url).strip('/')
+                                       
+                                       # Log for debug
+                                       # await stream_queue.put({"type": "log", "message": f"Dedupe Check: {clean_url}"})
                                        
                                        # Compute fingerprint
                                        fp = hashlib.md5((clean_title + clean_url).encode()).hexdigest()
