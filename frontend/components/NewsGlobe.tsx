@@ -1311,28 +1311,27 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
     };
 
     // 2. Apply Dynamic Styling (Colors, Active News) - O(N) efficient
+    // --- OPTIMIZATION (Fix Leak): Isolate 'active' cities check from digest updates ---
+    const activeDigestCities = useMemo(() => {
+        const active = new Set<string>();
+        if (digestData?.articles && allOutlets.length > 0) {
+            const { byDomain, byName } = outletLookup;
+            digestData.articles.forEach((art: any) => {
+                try {
+                    let outlet = null;
+                    if (art.url) {
+                        try { outlet = byDomain.get(new URL(art.url).hostname.replace('www.', '')); } catch { }
+                    }
+                    if (!outlet && art.source) outlet = byName.get(art.source);
+                    if (outlet && outlet.city) active.add(outlet.city);
+                } catch { }
+            });
+        }
+        return active;
+    }, [digestData?.articles, digestData?.articles?.length, allOutlets.length, outletLookup]);
+
     const clusters = useMemo(() => {
         if (!rawClusters.length) return [];
-
-        // 1.5 Calculate Active Cities from Digest (Live Mode)
-        const activeDigestCities = new Set<string>();
-        if (digestData?.articles) {
-            // Reusing the lookup logic but simplifying since backend handles main 'hasNews'
-            // This is mostly for the SPECIFIC digest being viewed.
-            if (allOutlets.length > 0) {
-                const { byDomain, byName } = outletLookup;
-                digestData.articles.forEach((art: any) => {
-                    try {
-                        let outlet = null;
-                        if (art.url) {
-                            try { outlet = byDomain.get(new URL(art.url).hostname.replace('www.', '')); } catch { }
-                        }
-                        if (!outlet && art.source) outlet = byName.get(art.source);
-                        if (outlet && outlet.city) activeDigestCities.add(outlet.city);
-                    } catch { }
-                });
-            }
-        }
 
         return rawClusters.map(c => {
             // Determine Color
@@ -1370,7 +1369,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             };
         });
 
-    }, [rawClusters, discoveredCities, markerScale, digestData, outletLookup]); // No 'cities' dep
+    }, [rawClusters, discoveredCities, markerScale, activeDigestCities]); // Use stable 'activeDigestCities' instead of volatile 'digestData'
 
     // 2. Generate Render Objects based on Expanded State (Fast)
     useEffect(() => {
@@ -3419,7 +3418,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
             {/* Version Indicator */}
             <div className="absolute bottom-2 right-2 z-[100] text-[10px] text-white/30 font-mono hover:text-white/80 cursor-default select-none transition-colors">
-                v0.120.35 Prop Optimization
+                v0.120.36 Memory Leak Fix
             </div>
 
         </div >
