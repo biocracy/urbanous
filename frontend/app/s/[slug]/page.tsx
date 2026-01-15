@@ -21,6 +21,7 @@ export default function PublicDigestPage() {
     const [isAnalyticsTranslated, setIsAnalyticsTranslated] = useState(false);
     const [analyticsViewMode, setAnalyticsViewMode] = useState<'cloud' | 'columns'>('cloud');
     const [activeTooltip, setActiveTooltip] = useState<any>(null);
+    const [isTooltipLocked, setIsTooltipLocked] = useState(false);
     const hoverTimeout = useRef<NodeJS.Timeout | null>(null);
 
     // Article Translation State
@@ -271,85 +272,148 @@ export default function PublicDigestPage() {
                             {analyticsKeywords.length === 0 ? (
                                 <div className="text-slate-500 italic text-center py-20">No analytics data available.</div>
                             ) : (
-                                analyticsViewMode === 'cloud' ? (
-                                    <div className="flex flex-wrap gap-3 content-start justify-center py-4">
-                                        {analyticsKeywords.map((kw: any, i: number) => {
-                                            const displayWord = (isAnalyticsTranslated && kw.translation) ? kw.translation : kw.word;
-                                            const scale = 0.8 + ((kw.importance || 50) / 100) * 1.5;
-                                            let bg = "bg-slate-800 border-slate-600 text-slate-300";
-                                            if (kw.sentiment === 'Positive') bg = "bg-green-950/40 border-green-600/50 text-green-300 shadow-[0_0_10px_rgba(34,197,94,0.1)]";
-                                            if (kw.sentiment === 'Negative') bg = "bg-red-950/40 border-red-600/50 text-red-300 shadow-[0_0_10px_rgba(239,68,68,0.1)]";
-                                            if (kw.importance > 85) bg += " ring-1 ring-white/20 font-bold";
+                                <>
+                                    {analyticsViewMode === 'cloud' ? (
+                                        <div className="flex flex-wrap gap-3 content-start justify-center py-4">
+                                            {analyticsKeywords.map((kw: any, i: number) => {
+                                                const displayWord = (isAnalyticsTranslated && kw.translation) ? kw.translation : kw.word;
+                                                const scale = 0.8 + ((kw.importance || 50) / 100) * 1.5;
+                                                let bg = "bg-slate-800 border-slate-600 text-slate-300";
+                                                if (kw.sentiment === 'Positive') bg = "bg-green-950/40 border-green-600/50 text-green-300 shadow-[0_0_10px_rgba(34,197,94,0.1)]";
+                                                if (kw.sentiment === 'Negative') bg = "bg-red-950/40 border-red-600/50 text-red-300 shadow-[0_0_10px_rgba(239,68,68,0.1)]";
+                                                if (kw.importance > 85) bg += " ring-1 ring-white/20 font-bold";
 
-                                            return (
-                                                <div
-                                                    key={i}
-                                                    className={`relative group cursor-help px-4 py-2 rounded-xl border ${bg} transition-all duration-300 hover:scale-110 hover:shadow-xl hover:z-20`}
-                                                    style={{ fontSize: `${Math.max(0.75, scale)}rem` }}
-                                                    onMouseEnter={(e) => {
-                                                        const rect = e.currentTarget.getBoundingClientRect();
-                                                        setActiveTooltip({
-                                                            word: kw.word,
-                                                            kw,
-                                                            left: rect.left + rect.width / 2,
-                                                            top: rect.top
-                                                        });
-                                                    }}
-                                                    onMouseLeave={() => setActiveTooltip(null)}
-                                                >
-                                                    {displayWord}
+                                                return (
+                                                    <div
+                                                        key={i}
+                                                        className={`relative group cursor-pointer px-4 py-2 rounded-xl border ${bg} transition-all duration-300 hover:scale-110 hover:shadow-xl hover:z-20`}
+                                                        style={{ fontSize: `${Math.max(0.75, scale)}rem` }}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            const rect = e.currentTarget.getBoundingClientRect();
+                                                            setActiveTooltip({
+                                                                word: kw.word,
+                                                                kw,
+                                                                left: rect.left + rect.width / 2,
+                                                                top: rect.top
+                                                            });
+                                                            setIsTooltipLocked(true);
+                                                        }}
+                                                        onMouseEnter={(e) => {
+                                                            if (isTooltipLocked) return;
+                                                            const rect = e.currentTarget.getBoundingClientRect();
+                                                            setActiveTooltip({
+                                                                word: kw.word,
+                                                                kw,
+                                                                left: rect.left + rect.width / 2,
+                                                                top: rect.top
+                                                            });
+                                                        }}
+                                                        onMouseLeave={() => !isTooltipLocked && setActiveTooltip(null)}
+                                                    >
+                                                        {displayWord}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    ) : (
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-0 border border-slate-700 rounded-xl overflow-hidden bg-slate-900/50 min-h-[500px]">
+                                            {['Positive', 'Neutral', 'Negative'].map((sent) => (
+                                                <div key={sent} className="flex flex-col border-b md:border-b-0 md:border-r border-slate-700/50 last:border-0">
+                                                    <div className={`p-3 text-center font-bold uppercase text-sm tracking-wider sticky top-0 bg-slate-900/90 backdrop-blur z-10 ${sent === 'Positive' ? 'text-green-400 border-b border-green-900/30' : sent === 'Negative' ? 'text-red-400 border-b border-red-900/30' : 'text-slate-400 border-b border-slate-700/30'}`}>
+                                                        {sent}
+                                                    </div>
+                                                    <div className="p-3 space-y-2 overflow-y-auto max-h-[600px] custom-scrollbar">
+                                                        {analyticsKeywords.filter((k: any) => k.sentiment === sent).sort((a: any, b: any) => b.importance - a.importance).map((kw: any, i: number) => (
+                                                            <div
+                                                                key={i}
+                                                                className="bg-slate-800/40 p-3 rounded border border-white/5 hover:bg-slate-800 transition-colors cursor-pointer"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    const rect = e.currentTarget.getBoundingClientRect();
+                                                                    setActiveTooltip({
+                                                                        word: kw.word,
+                                                                        kw,
+                                                                        left: rect.left + rect.width / 2,
+                                                                        top: rect.top
+                                                                    });
+                                                                    setIsTooltipLocked(true);
+                                                                }}
+                                                                onMouseEnter={(e) => {
+                                                                    if (isTooltipLocked) return;
+                                                                    const rect = e.currentTarget.getBoundingClientRect();
+                                                                    setActiveTooltip({
+                                                                        word: kw.word,
+                                                                        kw,
+                                                                        left: rect.left + rect.width / 2,
+                                                                        top: rect.top
+                                                                    });
+                                                                }}
+                                                                onMouseLeave={() => !isTooltipLocked && setActiveTooltip(null)}
+                                                            >
+                                                                <div className="flex justify-between items-start">
+                                                                    <span className="font-bold text-slate-200 text-sm">
+                                                                        {isAnalyticsTranslated && kw.translation ? kw.translation : kw.word}
+                                                                    </span>
+                                                                    <span className="text-[10px] text-slate-500 font-mono">{kw.importance}</span>
+                                                                </div>
+                                                                {isAnalyticsTranslated && kw.translation && kw.translation !== kw.word && (
+                                                                    <div className="text-xs text-slate-500 italic">{kw.word}</div>
+                                                                )}
+                                                            </div>
+                                                        ))}
+                                                    </div>
                                                 </div>
-                                            );
-                                        })}
+                                            ))}
+                                        </div>
+                                    )}
 
-                                        {/* Simplified Tooltip Portal or Absolute */}
-                                        {activeTooltip && (
-                                            <div
-                                                className="fixed z-[100] bg-slate-900/95 backdrop-blur border border-slate-600 rounded-xl p-4 shadow-2xl w-72 pointer-events-none transform -translate-x-1/2 -translate-y-full mb-2"
-                                                style={{ left: activeTooltip.left, top: activeTooltip.top - 10 }}
-                                            >
-                                                <div className="font-bold text-white mb-1 flex justify-between">
-                                                    <span>{activeTooltip.kw.word}</span>
+                                    {/* Tooltip */}
+                                    {activeTooltip && (
+                                        <div
+                                            className="fixed z-[100] bg-slate-900/95 backdrop-blur border border-slate-600 rounded-xl p-4 shadow-2xl w-72 transform -translate-x-1/2 -translate-y-full mb-2 pointer-events-auto"
+                                            style={{ left: activeTooltip.left, top: activeTooltip.top - 10 }}
+                                        >
+                                            <div className="font-bold text-white mb-1 flex justify-between items-start">
+                                                <span>{activeTooltip.kw.word}</span>
+                                                <div className="flex items-center gap-2">
                                                     <span className={`text-[10px] px-1.5 py-0.5 rounded ${activeTooltip.kw.sentiment === 'Positive' ? 'bg-green-900 text-green-400' : activeTooltip.kw.sentiment === 'Negative' ? 'bg-red-900 text-red-400' : 'bg-slate-700 text-slate-400'}`}>
                                                         {activeTooltip.kw.sentiment}
                                                     </span>
-                                                </div>
-                                                <div className="text-xs text-slate-400 mb-2 font-mono">Importance: {activeTooltip.kw.importance}</div>
-                                                <div className="text-[10px] text-slate-500 uppercase font-bold mb-1">Sources</div>
-                                                <ul className="space-y-1">
-                                                    {(activeTooltip.kw.sources || []).slice(0, 3).map((s: any, idx: number) => (
-                                                        <li key={idx} className="text-slate-300 text-xs truncate">• {s.title || s.url}</li>
-                                                    ))}
-                                                </ul>
-                                            </div>
-                                        )}
-                                    </div>
-                                ) : (
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-0 border border-slate-700 rounded-xl overflow-hidden bg-slate-900/50 min-h-[500px]">
-                                        {['Positive', 'Neutral', 'Negative'].map((sent) => (
-                                            <div key={sent} className="flex flex-col border-b md:border-b-0 md:border-r border-slate-700/50 last:border-0">
-                                                <div className={`p-3 text-center font-bold uppercase text-sm tracking-wider sticky top-0 bg-slate-900/90 backdrop-blur z-10 ${sent === 'Positive' ? 'text-green-400 border-b border-green-900/30' : sent === 'Negative' ? 'text-red-400 border-b border-red-900/30' : 'text-slate-400 border-b border-slate-700/30'}`}>
-                                                    {sent}
-                                                </div>
-                                                <div className="p-3 space-y-2 overflow-y-auto max-h-[600px] custom-scrollbar">
-                                                    {analyticsKeywords.filter((k: any) => k.sentiment === sent).sort((a: any, b: any) => b.importance - a.importance).map((kw: any, i: number) => (
-                                                        <div key={i} className="bg-slate-800/40 p-3 rounded border border-white/5 hover:bg-slate-800 transition-colors">
-                                                            <div className="flex justify-between items-start">
-                                                                <span className="font-bold text-slate-200 text-sm">
-                                                                    {isAnalyticsTranslated && kw.translation ? kw.translation : kw.word}
-                                                                </span>
-                                                                <span className="text-[10px] text-slate-500 font-mono">{kw.importance}</span>
-                                                            </div>
-                                                            {isAnalyticsTranslated && kw.translation && kw.translation !== kw.word && (
-                                                                <div className="text-xs text-slate-500 italic">{kw.word}</div>
-                                                            )}
-                                                        </div>
-                                                    ))}
+                                                    {isTooltipLocked && (
+                                                        <button
+                                                            className="text-slate-400 hover:text-white"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setIsTooltipLocked(false);
+                                                                setActiveTooltip(null);
+                                                            }}
+                                                        >
+                                                            ✕
+                                                        </button>
+                                                    )}
                                                 </div>
                                             </div>
-                                        ))}
-                                    </div>
-                                )
+                                            <div className="text-xs text-slate-400 mb-2 font-mono">Importance: {activeTooltip.kw.importance}</div>
+                                            <div className="text-[10px] text-slate-500 uppercase font-bold mb-1">Sources</div>
+                                            <ul className="space-y-1">
+                                                {(activeTooltip.kw.sources || []).slice(0, 3).map((s: any, idx: number) => (
+                                                    <li key={idx} className="truncate">
+                                                        <a
+                                                            href={s.url}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="text-blue-400 hover:text-blue-300 hover:underline text-xs block truncate"
+                                                            title={s.title || s.url}
+                                                        >
+                                                            • {s.title || s.url}
+                                                        </a>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
+                                </>
                             )}
                         </div>
                     )}
