@@ -92,16 +92,27 @@ export default function DigestReportRenderer({ articles, category, isTranslated 
                 </button>
             )}
 
-            {visibleGroups.length === 0 && (
-                <div className="text-center py-20 text-slate-500 italic flex flex-col items-center gap-4">
-                    {isLoading ? (
-                        <>
-                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-                            <span className="animate-pulse">Gathering fresh articles for you...</span>
-                        </>
-                    ) : (
-                        "No articles found for this category."
-                    )}
+            {/* Loader - Always show if loading (even if partially populated) */}
+            {isLoading && (
+                <div className="text-center py-8 text-slate-500 italic flex flex-col items-center gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                    <span className="animate-pulse">Mining sources for more truth...</span>
+                </div>
+            )}
+
+            {/* End of Report (Only if done and has items) */}
+            {!isLoading && visibleGroups.length > 0 && (
+                <div className="text-center py-12 text-slate-600 flex flex-col items-center gap-2 animate-in fade-in duration-1000">
+                    <span className="text-2xl opacity-50">📰</span>
+                    <span className="italic">You've reached the end of the report.</span>
+                    <span className="text-xs opacity-50">Go touch some grass 🌱</span>
+                </div>
+            )}
+
+            {/* Empty State (Only if done and NO items) */}
+            {!isLoading && visibleGroups.length === 0 && (
+                <div className="text-center py-20 text-slate-500 italic">
+                    No articles found for this category.
                 </div>
             )}
         </div>
