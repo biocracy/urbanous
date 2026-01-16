@@ -3340,6 +3340,10 @@ async def generate_digest(req: DigestRequest, current_user: User = Depends(get_c
                     print(f"Translation Chunk Failed: {e}")
                     pass
 
+        except Exception as e:
+            print(f"Translation Setup Failed: {e}")
+            pass
+
     # Mapping
     outlet_articles_map = {o.name: [] for o in outlets}
     for article in filtered_articles:
