@@ -558,7 +558,7 @@ def is_valid_article_url(url: str) -> bool:
         "newsletter", "rss-feed", "sitemap", 
         "advertorial", "mediakit",
         "/tag/", "/category/", "/topic/", "/author/", "/section/", 
-        "/c/", "/szero/", # Specific taxonomies
+        "/szero/", # Specific taxonomies
         "odr/main", # EU Dispute
         "epaper", "paperindex", "html5/reader", "onelink.me",
         "/feed/", "/rss", "/search", "/cart/", "/basket/"
@@ -573,7 +573,7 @@ def is_valid_article_url(url: str) -> bool:
         "contact", "contact-us", "about", "about-us", "info", "help", "faq", "support", "feedback",
         "search", "find", "archive", "weather", "horoscope", "traffic",
         "gallery", "photos", "video", "videos", "live", "watch", "listen", "podcast", "shows",
-        "stiri", "servicii", "codul", "redactia", "echipa", "publicitate", "abonamente",
+        "servicii", "codul", "redactia", "echipa", "publicitate", "abonamente",
         "mobile", "scroll", "newmedia", "special", "specials"
     }
 
