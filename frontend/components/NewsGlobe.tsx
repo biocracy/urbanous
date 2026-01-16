@@ -1591,14 +1591,21 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
     }, [clusters, expandedCluster]);
 
 
-    // ESC Key to close cluster
+    // ESC Key to close cluster / digest report
     useEffect(() => {
         const handleEsc = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') setExpandedCluster(null);
+            if (e.key === 'Escape') {
+                // If Digest is open, ask for confirmation
+                if (digestData && !confirm("Close report? Unsaved progress will be lost.")) {
+                    return;
+                }
+                setExpandedCluster(null);
+                setDigestData(null); // Ensure digest closes too
+            }
         };
         window.addEventListener('keydown', handleEsc);
         return () => window.removeEventListener('keydown', handleEsc);
-    }, []);
+    }, [digestData]); // Add digestData dependency to access current state
 
     const getTooltip = useCallback((d: any) => {
         // STRICTER CHECK: Only show "Media Hub" if it actually has sub-points (> 0)
@@ -2059,12 +2066,31 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                 content: null // force fetch
             });
             const data = res.data;
-            return {
+            const verdict = {
                 is_politics: data.is_politics,
                 confidence: data.confidence,
                 reasoning: data.reasoning,
                 labels: data.labels
             };
+
+            // CRITICAL FIX: Update Main State (digestData) logic so Auto-Select sees this result!
+            setDigestData((prev: any) => {
+                if (!prev?.articles) return prev;
+                const newArgs = prev.articles.map((a: any) => {
+                    if (a.url === article.url) {
+                        return { ...a, ai_verdict: verdict };
+                    }
+                    return a;
+                });
+                // Also check excluded?
+                const newExcl = (prev.excluded_articles || []).map((a: any) => {
+                    if (a.url === article.url) return { ...a, ai_verdict: verdict };
+                    return a;
+                });
+                return { ...prev, articles: newArgs, excluded_articles: newExcl };
+            });
+
+            return verdict;
         } catch (err: any) {
             console.error(err);
             alert(`Assessment process failed: ${err.response?.data?.detail || err.message}`);
@@ -3508,7 +3534,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
             {/* Version Indicator */}
             <div className="absolute bottom-2 right-2 z-[100] text-[10px] text-white/30 font-mono hover:text-white/80 cursor-default select-none transition-colors">
-                v0.120.66 Strict Date Auto-Select
+                v0.120.67 Fix AutoSelect Persistence
             </div>
         </div >
 
