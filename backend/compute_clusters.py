@@ -59,6 +59,10 @@ def compute_clusters(items, radius_deg, news_city_names=set()):
         # Find existing cluster
         found_cluster = None
         for cluster in clusters:
+            # STRICT CHECK: Only cluster cities from the SAME country.
+            if cluster['country'] != country:
+                continue
+
             dist = math.sqrt((cluster['lat'] - lat)**2 + (cluster['lng'] - lng)**2)
             if dist < radius_deg:
                 found_cluster = cluster
