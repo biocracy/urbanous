@@ -1407,7 +1407,9 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             if (expandedCluster) {
                 // FOCUS MODE: Only render the expanded cluster logic.
                 // Skip everything else.
-                if (c.id === expandedCluster.id) {
+                // Use loose equality to be safe (string vs number)
+                if (c.id == expandedCluster.id) {
+                    console.log("Expanding matched cluster:", c.name);
                     const items = [c, ...c.subPoints];
                     const count = items.length;
                     const goldenAngle = Math.PI * (3 - Math.sqrt(5));
@@ -1632,7 +1634,9 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
         // If Real Cluster, Expand
         if (isMultiCity) {
+            console.log("Cluster Clicked:", d.name, d.id, "SubPoints:", d.subPoints.length);
             if (expandedCluster && expandedCluster.id === d.id) {
+                console.log(" collapsing");
                 setExpandedCluster(null); // Collapse
                 // Reset zoom? optional
             } else {
@@ -3434,7 +3438,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
             {/* Version Indicator */}
             <div className="absolute bottom-2 right-2 z-[100] text-[10px] text-white/30 font-mono hover:text-white/80 cursor-default select-none transition-colors">
-                v0.120.38 Interaction Refined
+                v0.120.39 ID Match Fix
             </div>
 
         </div >
