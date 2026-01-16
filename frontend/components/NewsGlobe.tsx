@@ -1403,134 +1403,142 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
         const renderLinks: any[] = [];
         const isAnyExpanded = !!expandedCluster;
 
-        clusters.forEach((c: any) => {
-            if (expandedCluster) {
-                // FOCUS MODE: Only render the expanded cluster logic.
-                // Skip everything else.
-                // Use loose equality to be safe (string vs number)
-                if (c.id == expandedCluster.id) {
-                    console.log("Expanding matched cluster:", c.name);
-                    const items = [c, ...c.subPoints];
-                    const count = items.length;
-                    const goldenAngle = Math.PI * (3 - Math.sqrt(5));
-                    const spreadFactor = clusterThreshold * 0.5;
+        try {
+            clusters.forEach((c: any) => {
+                if (expandedCluster) {
+                    // FOCUS MODE: Only render the expanded cluster logic.
+                    // Match by ID or Name to be robust
+                    const isMatch = (c.id && c.id == expandedCluster.id) || (c.name && c.name === expandedCluster.name);
 
-                    // 1. Prepare Items with Parsed Coordinates
-                    const preparedItems = items.map((item: any) => ({
-                        ...item,
-                        pLat: parseFloat(item.lat || item.latitude),
-                        pLng: parseFloat(item.lng || item.lon || item.longitude),
-                        pRadius: getPopScale(item.pop)
-                    }));
+                    if (isMatch) {
+                        console.log("Expanding matched cluster:", c.name);
+                        const items = [c, ...c.subPoints];
+                        const count = items.length;
+                        const goldenAngle = Math.PI * (3 - Math.sqrt(5));
+                        const spreadFactor = clusterThreshold * 0.5;
 
-                    // 2. Iterative Relaxation (Force-Directed Packing)
-                    // Instead of a single global scalar, we simulate "pushing" overlapping circles apart.
+                        // 1. Prepare Items with Parsed Coordinates
+                        const preparedItems = items.map((item: any) => ({
+                            ...item,
+                            pLat: parseFloat(item.lat || item.latitude),
+                            pLng: parseFloat(item.lng || item.lon || item.longitude),
+                            pRadius: getPopScale(item.pop)
+                        }));
 
-                    const ITERATIONS = 50; // increased for dense clusters (e.g. Tokyo)
-                    const padding = 0.035; // increased clearance
-                    console.log("Using Force Packing for Cluster:", c.name);
+                        // 2. Iterative Relaxation (Force-Directed Packing)
+                        // Instead of a single global scalar, we simulate "pushing" overlapping circles apart.
 
-                    // Clone for simulation
-                    const simItems = preparedItems.map((p: any) => ({
-                        ...p,
-                        x: p.pLng, // Longitude ~ X
-                        y: p.pLat, // Latitude ~ Y
-                        r: p.pRadius,
-                        vx: 0,
-                        vy: 0
-                    }));
+                        const ITERATIONS = 50; // increased for dense clusters (e.g. Tokyo)
+                        const padding = 0.035; // increased clearance
+                        console.log("Using Force Packing for Cluster:", c.name);
 
-                    for (let iter = 0; iter < ITERATIONS; iter++) {
-                        let moved = false;
-                        for (let i = 0; i < simItems.length; i++) {
-                            for (let j = i + 1; j < simItems.length; j++) {
-                                const p1 = simItems[i];
-                                const p2 = simItems[j];
+                        // Clone for simulation
+                        const simItems = preparedItems.map((p: any) => ({
+                            ...p,
+                            x: p.pLng, // Longitude ~ X
+                            y: p.pLat, // Latitude ~ Y
+                            r: p.pRadius,
+                            vx: 0,
+                            vy: 0
+                        }));
 
-                                const dx = p2.x - p1.x;
-                                const dy = p2.y - p1.y;
-                                const distSq = dx * dx + dy * dy;
-                                const dist = Math.sqrt(distSq);
+                        for (let iter = 0; iter < ITERATIONS; iter++) {
+                            let moved = false;
+                            for (let i = 0; i < simItems.length; i++) {
+                                for (let j = i + 1; j < simItems.length; j++) {
+                                    const p1 = simItems[i];
+                                    const p2 = simItems[j];
 
-                                const minDist = p1.r + p2.r + padding;
+                                    const dx = p2.x - p1.x;
+                                    const dy = p2.y - p1.y;
+                                    const distSq = dx * dx + dy * dy;
+                                    const dist = Math.sqrt(distSq);
 
-                                if (dist < minDist) {
-                                    // Overlap!
-                                    const overlap = minDist - dist;
-                                    const nx = dist > 0 ? dx / dist : 1; // Normalize vector
-                                    const ny = dist > 0 ? dy / dist : 0;
+                                    const minDist = p1.r + p2.r + padding;
 
-                                    // Push apart
-                                    const moveX = nx * (overlap * 0.51);
-                                    const moveY = ny * (overlap * 0.51);
+                                    if (dist < minDist) {
+                                        // Overlap!
+                                        const overlap = minDist - dist;
+                                        const nx = dist > 0 ? dx / dist : 1; // Normalize vector
+                                        const ny = dist > 0 ? dy / dist : 0;
 
-                                    if (i !== 0) {
-                                        p1.x -= moveX;
-                                        p1.y -= moveY;
+                                        // Push apart
+                                        const moveX = nx * (overlap * 0.51);
+                                        const moveY = ny * (overlap * 0.51);
+
+                                        if (i !== 0) {
+                                            p1.x -= moveX;
+                                            p1.y -= moveY;
+                                        }
+
+                                        if (j !== 0) {
+                                            p2.x += moveX;
+                                            p2.y += moveY;
+                                        }
+
+                                        moved = true;
                                     }
-
-                                    if (j !== 0) {
-                                        p2.x += moveX;
-                                        p2.y += moveY;
-                                    }
-
-                                    moved = true;
                                 }
                             }
+                            if (!moved) break;
                         }
-                        if (!moved) break;
-                    }
 
-                    simItems.forEach((item: any, idx: number) => {
-                        const isCenter = idx === 0;
-                        const exLat = item.y;
-                        const exLng = item.x;
+                        simItems.forEach((item: any, idx: number) => {
+                            const isCenter = idx === 0;
+                            const exLat = item.y;
+                            const exLng = item.x;
 
-                        let itemColor = '#a78bfa';
-                        if (discoveredCities.includes(item.name)) itemColor = '#34d399';
-                        else if (item.isCapital) itemColor = '#db2777';
+                            let itemColor = '#a78bfa';
+                            if (discoveredCities.includes(item.name)) itemColor = '#34d399';
+                            else if (item.isCapital) itemColor = '#db2777';
 
-                        renderPoints.push({
-                            ...item, // include original props
-                            lat: exLat,
-                            lng: exLng,
-                            lon: exLng,
-                            color: itemColor,
-                            radius: item.pRadius, // use parsed radius
-                            opacity: 1.0,
-                            isSpider: true
-                        });
-
-                        if (!isCenter) {
-                            renderLinks.push({
-                                startLat: c.lat,
-                                startLng: c.lng,
-                                endLat: exLat,
-                                endLng: exLng,
-                                color: 'rgba(255,255,255,0.3)'
+                            renderPoints.push({
+                                ...item, // include original props
+                                lat: exLat,
+                                lng: exLng,
+                                lon: exLng,
+                                color: itemColor,
+                                radius: item.pRadius, // use parsed radius
+                                opacity: 1.0,
+                                isSpider: true
                             });
-                        }
-                    });
-                    // Adjust ring to cover the area?
-                    renderRings.push({ lat: c.lat, lng: c.lng, maxR: spreadFactor * 2.0, color: 'rgba(255,255,255,0.05)' });
-                }
-                // ELSE: Do nothing. Hide node.
-            } else {
-                // Determine opacity based on... actually, if nothing expanded, full opacity.
-                renderPoints.push({ ...c, opacity: 1.0 });
 
-                if (c.isCluster) {
-                    renderRings.push({
-                        lat: c.lat,
-                        lng: c.lng,
-                        maxR: c.radius * 1.5,
-                        color: 'rgba(124, 58, 237, 0.3)'
-                    });
-                }
-            }
-        });
+                            if (!isCenter) {
+                                renderLinks.push({
+                                    startLat: c.lat,
+                                    startLng: c.lng,
+                                    endLat: exLat,
+                                    endLng: exLng,
+                                    color: 'rgba(255,255,255,0.3)'
+                                });
+                            }
+                        });
+                        // Adjust ring to cover the area?
+                        renderRings.push({ lat: c.lat, lng: c.lng, maxR: spreadFactor * 2.0, color: 'rgba(255,255,255,0.05)' });
+                    }
+                    // ELSE: Do nothing. Hide node.
+                } else {
+                    // Determine opacity based on... actually, if nothing expanded, full opacity.
+                    renderPoints.push({ ...c, opacity: 1.0 });
 
-        setProcessedData({ points: renderPoints, rings: renderRings, links: renderLinks });
+                    if (c.isCluster) {
+                        renderRings.push({
+                            lat: c.lat,
+                            lng: c.lng,
+                            maxR: c.radius * 1.5,
+                            color: 'rgba(124, 58, 237, 0.3)'
+                        });
+                    }
+                }
+            });
+
+            setProcessedData({ points: renderPoints, rings: renderRings, links: renderLinks });
+
+        } catch (e) {
+            console.error("Critical Error in Expansion Logic:", e);
+            // Fallback: render baseline
+            setProcessedData({ points: [], rings: [], links: [] });
+        }
     }, [clusters, expandedCluster]);
 
 
@@ -3438,7 +3446,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
             {/* Version Indicator */}
             <div className="absolute bottom-2 right-2 z-[100] text-[10px] text-white/30 font-mono hover:text-white/80 cursor-default select-none transition-colors">
-                v0.120.39 ID Match Fix
+                v0.120.40 ID/TryCatch Fix
             </div>
 
         </div >
