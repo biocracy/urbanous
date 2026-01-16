@@ -972,7 +972,7 @@ def extract_title_from_html(html: str, url: str, custom_rule_override: Optional[
         if len(text) > 5: return text
 
     # 3. Twitter Card
-    tw_title = soup.find("meta", name="twitter:title")
+    tw_title = soup.find("meta", attrs={"name": "twitter:title"})
     if tw_title and tw_title.get("content"):
         return tw_title["content"].strip()
         
