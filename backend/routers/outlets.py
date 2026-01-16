@@ -315,9 +315,10 @@ async def discover_city_outlets(req: CityDiscoveryRequest, current_user: Optiona
     # Auto-Discover
     print(f"Discovering outlets for city: {req.city}, {req.country} (Force: {req.force_refresh})")
     
-    api_key = current_user.gemini_api_key if current_user else None
+    api_key = current_user.gemini_api_key if current_user and current_user.gemini_api_key else os.getenv("GEMINI_API_KEY")
+    
     if not api_key:
-        print("DEBUG: No API key (Guest or missing), skipping AI discovery.")
+        print("DEBUG: No API key (User empty and Env empty), skipping AI discovery.")
         if existing: return existing
         return []
 
