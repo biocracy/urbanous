@@ -1832,9 +1832,10 @@ async def summarize_selected_articles(req: SummarizeRequest, current_user: User 
         1. **CITATION STRICTNESS**: Use ONLY the `[n]` format provided in the source headers.
         2. **NO HALLUCINATION**: Do not cite sources outside the range [{start_idx}-{end_idx}].
         3. **DEEP DIVE**: Write a detailed analysis of the themes found in strictly THESE sources.
-        4. **ANTI-CLUMPING**: Discuss details. Do not just list citations.
-        5. **FORMAT**: Use Markdown. Do NOT include a "Source Index" at the end (it is handled externally).
-        6. **HEADLINE**: The very first line of your output MUST be a newspaper-style H1 Headline illustrating the major stories (e.g. # Mayor announces new budget).
+        5. **ANTI-CLUMPING**: Discuss details. Do not just list citations.
+        6. **PROPAGANDA ANALYSIS**: Explicitly compare how different sources portray the SAME event. Highlight specific contradictions, omitted facts, or tonal bias between outlets (e.g., "While [Source A] verifies X, [Source B] frames it as Y").
+        7. **FORMAT**: Use Markdown. Do NOT include a "Source Index" at the end (it is handled externally).
+        8. **HEADLINE**: The very first line of your output MUST be a newspaper-style H1 Headline illustrating the major stories (e.g. # Mayor announces new budget).
         
         Analyze the conflict, nuances, and details within this batch.
         """
@@ -1910,8 +1911,9 @@ async def summarize_selected_articles(req: SummarizeRequest, current_user: User 
         2. **PRESERVE DETAILS**: Do not Summarize away the specifics. Keep the verified facts.
         3. **PRESERVE CITATIONS**: You MUST retain the `[n]` citations exactly as they appear.
            - CRITICAL: Do NOT re-number citations. If a fact has `[55]`, keep `[55]`.
-        4. **STRUCTURE**: Start directly with the first section header (e.g. ## Executive Summary or ## Key Developments).
-        5. **NO CHAT**: Do NOT output conversational filler. The output must start with the Headline.
+        4. **COMPARATIVE LENS**: Highlight conflicting narratives. If Source A and Source B disagree on a key fact, note it explicitly.
+        5. **STRUCTURE**: Start directly with the first section header (e.g. ## Executive Summary or ## Key Developments).
+        6. **NO CHAT**: Do NOT output conversational filler. The output must start with the Headline.
         6. **HEADLINE**: The very first line of your output MUST be a newspaper-style H1 Headline illustrating the key theme of the entire report (e.g. # Infrastructure Crisis Deepens in Kyiv).
         
         Write the final consolidated report in Markdown.
