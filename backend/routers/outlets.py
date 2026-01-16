@@ -3297,20 +3297,24 @@ async def generate_digest(req: DigestRequest, current_user: User = Depends(get_c
         print(f"Translating {len(filtered_articles)} titles...")
         try:
             # Robust Chunked Translation
-            chunk_size = 20
-            chunks = [filtered_articles[i:i + chunk_size] for i in range(0, len(filtered_articles), chunk_size)]
+            # Limit to top 150 articles to prevent timeout
+            LIMIT_TRANSLATE = 150
+            articles_to_translate = filtered_articles[:LIMIT_TRANSLATE]
+            
+            chunk_size = 25
+            chunks = [articles_to_translate[i:i + chunk_size] for i in range(0, len(articles_to_translate), chunk_size)]
             
             genai.configure(api_key=current_user.gemini_api_key)
             model_tr = genai.GenerativeModel('gemini-flash-latest')
             
-            for chunk in chunks:
-                titles_to_translate = [art.title for art in chunk]
+            for i, chunk in enumerate(chunks):
+                titles_p = [art.title for art in chunk]
                 
                 tr_prompt = f"""
                 Translate the following news headlines to English. 
                 Return a JSON List of Objects with keys "src" (original) and "dst" (translated).
                 Input:
-                {json.dumps(titles_to_translate, ensure_ascii=False)}
+                {json.dumps(titles_p, ensure_ascii=False)}
                 
                 Response Format:
                 [{{"src": "Original Title", "dst": "Translated Title"}}, ...]
@@ -3325,19 +3329,27 @@ async def generate_digest(req: DigestRequest, current_user: User = Depends(get_c
                     if json_match:
                         raw_list = json.loads(json_match.group(0))
                         
-                        # Create Map
-                        tr_map = {item.get("src", "").strip(): item.get("dst", "").strip() for item in raw_list}
+                        # 1. Map by Normalized Key
+                        # (Strip punctuation, spaces, lower)
+                        def normalize(s): return re.sub(r'[\W_]+', '', s.lower())
                         
-                        # Apply
-                        for art in chunk:
-                            if art.title.strip() in tr_map:
-                                art.translated_title = tr_map[art.title.strip()]
-                            else:
-                                # Fallback: Try match without strict whitespace
-                                pass
+                        tr_map = {normalize(item.get("src", "")): item.get("dst", "").strip() for item in raw_list}
+                        
+                        # 2. Check alignment for Index Fallback
+                        use_index_fallback = (len(raw_list) == len(chunk))
+                        
+                        for idx, art in enumerate(chunk):
+                            norm_title = normalize(art.title)
+                            
+                            # Try Map
+                            if norm_title in tr_map:
+                                art.translated_title = tr_map[norm_title]
+                            elif use_index_fallback:
+                                # Fallback to Index
+                                art.translated_title = raw_list[idx].get("dst", "").strip()
                                 
                 except Exception as e:
-                    print(f"Translation Chunk Failed: {e}")
+                    print(f"Translation Chunk {i} Failed: {e}")
                     pass
 
         except Exception as e:

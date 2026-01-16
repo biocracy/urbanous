@@ -227,7 +227,19 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
         const smartSet = new Set<string>();
         digestData.articles.forEach((a: any) => {
             const s = a.scores || {};
-            const isGreenDate = s.is_fresh || (a.relevance_score > 0 && s.date > 0);
+            let isGreenDate = s.is_fresh || (a.relevance_score > 0 && s.date > 0);
+
+            // Fallback: Calculate freshness manually if scores missing (Stream Mode)
+            if (!isGreenDate && a.date_str) {
+                const artDate = new Date(a.date_str);
+                const now = new Date();
+                const diffMs = now.getTime() - artDate.getTime();
+                const diffHours = diffMs / (1000 * 60 * 60);
+                if (diffHours <= 48) {
+                    isGreenDate = true;
+                }
+            }
+
             // "Green AI-Title" check (VERIFIED string OR Object with is_politics=true)
             const isVerified = a.ai_verdict === "VERIFIED" || (typeof a.ai_verdict === 'object' && a.ai_verdict?.is_politics === true);
 
@@ -3463,7 +3475,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
             {/* Version Indicator */}
             <div className="absolute bottom-2 right-2 z-[100] text-[10px] text-white/30 font-mono hover:text-white/80 cursor-default select-none transition-colors">
-                v0.120.56 Crash Fix
+                v0.120.57 Translation & Selection Fix
             </div>
         </div >
 
