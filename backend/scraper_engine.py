@@ -1,6 +1,7 @@
 
 import re
 import json
+from urllib.parse import urlparse
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 from bs4 import BeautifulSoup
@@ -534,7 +535,6 @@ def classify_url(url: str) -> tuple:
     """
     Analyzes a URL and returns (keep: bool, is_spam: bool, reason: str).
     """
-    import re
     if not url: return False, False, "Empty URL"
     
     url_lower = url.lower()
