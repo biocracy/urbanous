@@ -1728,14 +1728,16 @@ async def verify_relevance_with_ai(title: str, url: str, category: str, api_key:
         
         prompt = f"""
         Analyze if the following news article is relevant to the category '{category}'.
+        Input is likely in French, Romanian, or English. Do NOT reject based on language.
         Title: {title}
         URL: {url}
         
         Rules:
         1. Context matters. "Water cutoff" is NOT Politics. "Mayor announces water cutoff" IS Politics/Administration.
-        2. "Traffic accident" is NOT Politics/Administration.
-        3. If it is a generic utility announcement, specific crime report (robbery), or gossip, return FALSE.
-        4. If it is about city council, mayor, public spending, laws, healthcare policy, education policy, infrastructure projects, return TRUE.
+        2. "Traffic accident" is NOT Politics.
+        3. Local Administration, Budget, City Council, Public Services, Urban Planning, and Public Spending ARE Relevant.
+        4. If it mentions a Politician, Party (RN, PS, etc.), Mayor, or Law, return TRUE.
+        5. If uncertain or title is ambiguous but sounds like local news/admin, return TRUE (Fail Open).
         
         Respond with exactly ONE word: TRUE or FALSE.
         """
