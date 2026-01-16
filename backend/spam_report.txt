@@ -1,0 +1,278 @@
+Connecting to DB to scan digests...
+Found 8 digests. Scanning for spam...
+
+=== Digest: Ukraine Endures Energy Crisis and Political Scrutiny, as Tymoshenko Faces Bribery Charges Amidst Trump's Provocative Statements (Kyiv) ===
+Found 5 spam items:
+  [x] Keyword Block: /opinion/
+      URL: https://nv.ua/ukr/opinion/polshcha-i-ukrajina-yezhi-vuycik-pro-shans-stati-novim-polyusom-sili-yevropi-50575960.html
+      Title: Між Путіним і західними корпораціями. Від чого врятує польсько-український союз
+  [x] Keyword Block: /opinion/
+      URL: https://nv.ua/ukr/opinion/zelenskiy-komendantska-godina-kijiv-koli-budut-grafiki-svitla-novini-ukrajini-50576047.html
+      Title: Маятник Трампа повело на темний бік
+  [x] Keyword Block: /opinion/
+      URL: https://nv.ua/ukr/opinion/udari-po-energetici-chomu-harkiv-trimayetsya-ne-zvazhayuchi-na-obstrili-50576022.html
+      Title: Харків тримається, а Київ?
+  [x] Keyword Block: /opinion/
+      URL: https://www.liga.net/politics/opinion/parlamentskie-kacheli-verhovnaya-rada-za-sutki-proshla-put-ot-kraha-do-stabilizatsii
+      Title: Парламентские качели: Верховная Рада за сутки прошла путь от "краха" до "стабилизации"
+  [x] Keyword Block: /opinion/
+      URL: https://www.liga.net/politics/opinion/prorezhivanie-vmesto-pravil-borba-s-korruptsiei-v-ukraine-ostaetsya-fanatskim-dvizheniem
+      Title: "Прореживание" вместо правил: борьба с коррупцией в Украине остается "фанатским движением"
+
+=== Digest: Beijing Navigates Global Storms While Bolstering Domestic Governance and Innovation Drive (Beijing) ===
+Found 5 spam items:
+  [x] Keyword Block: legal
+      URL: https://www.news.cn/legal/20260114/b32c99ed6ad94625aa6528dfd92f5b91/c.html
+      Title: 电视专题片《一步不停歇 半步不退让》第四集《科技赋能反腐》
+  [x] Keyword Block: legal
+      URL: https://www.news.cn/legal/20260114/b11d0a79c4204ca59760765fa8fd13a4/c.html
+      Title: 税务部门曝光网络主播彭煊之3年间偷税超200万元
+  [x] Keyword Block: /c/
+      URL: https://news.sina.com.cn/c/2026-01-14/doc-inhhfrsv5207846.shtml
+      Title: “新国补”政策落地 消费市场热力全开
+  [x] Keyword Block: /c/
+      URL: https://news.sina.com.cn/c/2026-01-15/doc-inhhkmpx6431291.shtml
+      Title: 人社部、财政部发文进一步做好企业年金工作
+  [x] Keyword Block: /opinion/
+      URL: http://www.bjreview.com/Opinion/Pacific_Dialogue/202601/t20260113_800428031.html
+      Title: Rhetoric vs. Reality: U.S. War on Venezuela is a War on the Multipolar World
+
+=== Digest: Politics Digest (Târgu Mureş) ===
+Found 5 spam items:
+  [x] Keyword Block: admin
+      URL: https://punctul.ro/primarul-statiunii-covasna-solicita-ca-reducerea-personalului-din-administratie-sa-tina-cont-de-specificul-oraselor-turistice/
+      Title: Primarul staţiunii Covasna solicită ca reducerea personalului din administraţie să ţină cont de specificul oraşelor turistice
+  [x] Keyword Block: /stiri/
+      URL: https://www.radiomures.ro/stiri/sindicatul-din-ministerul-agriculturii-cere-autoritatilor-respingerea-acordului-ue-mercosur.html
+      Title: Sindicatul din Ministerul Agriculturii cere autorităţilor respingerea acordului UE-Mercosur - Radio Romania Targu Mures
+  [x] Keyword Block: /stiri/
+      URL: https://www.radiomures.ro/stiri/proiectul-de-reforma-in-administratia-publica-a-fost-pus-in-dezbatere-publica-de-ministerul-dezvoltarii.html
+      Title: Proiectul de reformă în administrația publică a fost pus în dezbatere publică de Ministerul Dezvoltării - Radio Romania Targu Mures
+  [x] Keyword Block: /stiri/
+      URL: https://www.radiomures.ro/stiri/premierul-ilie-bolojan-preia-interimatul-la-ministerul-educatiei.html
+      Title: Premierul Ilie Bolojan preia interimatul la Ministerul Educaţiei - Radio Romania Targu Mures
+  [x] Keyword Block: /stiri/
+      URL: https://www.radiomures.ro/stiri/opozitia-intentioneaza-sa-depuna-o-motiune-simpla-impotriva-ministrului-apararii-radu-miruta.html
+      Title: Opoziţia intenţionează să depună o moţiune simplă împotriva ministrului Apărării, Radu Miruţă - Radio Romania Targu Mures
+
+=== Digest: Politics Digest (Târgu Mureş) ===
+Found 5 spam items:
+  [x] Keyword Block: admin
+      URL: https://punctul.ro/primarul-statiunii-covasna-solicita-ca-reducerea-personalului-din-administratie-sa-tina-cont-de-specificul-oraselor-turistice/
+      Title: Primarul staţiunii Covasna solicită ca reducerea personalului din administraţie să ţină cont de specificul oraşelor turistice
+  [x] Keyword Block: /stiri/
+      URL: https://www.radiomures.ro/stiri/sindicatul-din-ministerul-agriculturii-cere-autoritatilor-respingerea-acordului-ue-mercosur.html
+      Title: Sindicatul din Ministerul Agriculturii cere autorităţilor respingerea acordului UE-Mercosur - Radio Romania Targu Mures
+  [x] Keyword Block: /stiri/
+      URL: https://www.radiomures.ro/stiri/proiectul-de-reforma-in-administratia-publica-a-fost-pus-in-dezbatere-publica-de-ministerul-dezvoltarii.html
+      Title: Proiectul de reformă în administrația publică a fost pus în dezbatere publică de Ministerul Dezvoltării - Radio Romania Targu Mures
+  [x] Keyword Block: /stiri/
+      URL: https://www.radiomures.ro/stiri/premierul-ilie-bolojan-preia-interimatul-la-ministerul-educatiei.html
+      Title: Premierul Ilie Bolojan preia interimatul la Ministerul Educaţiei - Radio Romania Targu Mures
+  [x] Keyword Block: /stiri/
+      URL: https://www.radiomures.ro/stiri/opozitia-intentioneaza-sa-depuna-o-motiune-simpla-impotriva-ministrului-apararii-radu-miruta.html
+      Title: Opoziţia intenţionează să depună o moţiune simplă împotriva ministrului Apărării, Radu Miruţă - Radio Romania Targu Mures
+
+=== Digest: Politics Digest (Târgu Mureş) ===
+Found 5 spam items:
+  [x] Keyword Block: admin
+      URL: https://punctul.ro/primarul-statiunii-covasna-solicita-ca-reducerea-personalului-din-administratie-sa-tina-cont-de-specificul-oraselor-turistice/
+      Title: Primarul staţiunii Covasna solicită ca reducerea personalului din administraţie să ţină cont de specificul oraşelor turistice
+  [x] Keyword Block: /stiri/
+      URL: https://www.radiomures.ro/stiri/sindicatul-din-ministerul-agriculturii-cere-autoritatilor-respingerea-acordului-ue-mercosur.html
+      Title: Sindicatul din Ministerul Agriculturii cere autorităţilor respingerea acordului UE-Mercosur - Radio Romania Targu Mures
+  [x] Keyword Block: /stiri/
+      URL: https://www.radiomures.ro/stiri/proiectul-de-reforma-in-administratia-publica-a-fost-pus-in-dezbatere-publica-de-ministerul-dezvoltarii.html
+      Title: Proiectul de reformă în administrația publică a fost pus în dezbatere publică de Ministerul Dezvoltării - Radio Romania Targu Mures
+  [x] Keyword Block: /stiri/
+      URL: https://www.radiomures.ro/stiri/premierul-ilie-bolojan-preia-interimatul-la-ministerul-educatiei.html
+      Title: Premierul Ilie Bolojan preia interimatul la Ministerul Educaţiei - Radio Romania Targu Mures
+  [x] Keyword Block: /stiri/
+      URL: https://www.radiomures.ro/stiri/opozitia-intentioneaza-sa-depuna-o-motiune-simpla-impotriva-ministrului-apararii-radu-miruta.html
+      Title: Opoziţia intenţionează să depună o moţiune simplă împotriva ministrului Apărării, Radu Miruţă - Radio Romania Targu Mures
+
+=== Digest: Politics Digest (Sibiu) ===
+Found 3 spam items:
+  [x] Keyword Block: codul
+      URL: https://sibiuindependent.ro/2026/01/14/anaf-modificari-la-codul-de-procedura-fiscala-noi-reguli-pentru-esalonarile-la-plata-de-la-1-ianuarie-2026/
+      Title: ANAF: Modificări la Codul de procedură fiscală – noi reguli pentru eșalonările la plată de la 1 ianuarie 2026
+  [x] Keyword Block: admin
+      URL: https://sibiu100.ro/eveniment/ultima-ora-un-primar-pnl-a-demisionat-din-cauza-reformei-administrative-care-nu-are-o-sustinere-clara-din-partea-cetatenilor/
+      Title: ULTIMA ORĂ: Un primar PNL a demisionat din cauza reformei administrative care "nu are o susținere clară din partea cetățenilor" - Sibiu 100
+  [x] Keyword Block: admin
+      URL: https://sibiunews.net/cj-sibiu-anunta-depunerea-a-doua-oferte-pentru-energia-electrica-necesara-mai-multor-institutiilor-din-administratia-judeteana/
+      Title: SibiuNews - CJ Sibiu anunță depunerea a două oferte pentru energia electrică necesară mai multor instituțiilor din administrația județeană
+
+=== Digest: Politics Digest (Cluj-Napoca) ===
+Found 7 spam items:
+  [x] Keyword Block: admin
+      URL: https://www.monitorulcj.ro/politica-administratie/134438-cutremur-la-primaria-huedin-primarul-mircea-morosan-isi-da-demisia-dupa-5-mandate
+      Title: Cutremur la Primăria Huedin. Primarul Mircea Moroșan și-a dat demisia după 5 mandate!
+  [x] Keyword Block: admin
+      URL: https://www.monitorulcj.ro/politica-administratie/134447-reforma-administratiei-in-dezbatere-publica-guvernul-taie-10-din-cheltuielile-de-personal-lista-masurilor-de-diminiuare-a-costurilor-si-de-eficientizare-a-colectarii-veniturilor
+      Title: Reforma administrației, în dezbatere publică: Guvernul taie 10% din cheltuielile de personal. Lista măsurilor de diminuare a costurilor și de eficientizare a colectării veniturilor.
+  [x] Keyword Block: admin
+      URL: https://www.monitorulcj.ro/politica-administratie/134416-decembrie-experiment-national-in-care-statul-ia-vacanta-iar-nota-de-plata-vine-in-ianuarie-alin-tise-statul-a-fost-plecat-o-luna-si-e-doar-inceputul
+      Title: Decembrie, experiment național în care statul ia vacanță, iar nota de plată vine în ianuarie. Alin Tișe: „Statul a fost plecat o lună. Și e doar începutul”.
+  [x] Keyword Block: admin
+      URL: https://www.monitorulcj.ro/politica-administratie/134408-guvernul-vrea-cresterea-varstei-de-pensionare-pentru-angajatii-din-mapn-mai-si-sri
+      Title: Guvernul vrea creșterea vârstei de pensionare pentru angajații din MApN, MAI și SRI
+  [x] Keyword Block: admin
+      URL: https://www.monitorulcj.ro/politica-administratie/134406-kelemen-hunor-sustine-ca-acordul-ue-mercosur-nu-a-fost-discutat-in-coalitie-e-inacceptabil
+      Title: Kelemen Hunor susține că acordul UE-Mercosur nu a fost discutat în coaliție: „E inacceptabil”
+  [x] Keyword Block: admin
+      URL: https://stiriletransilvaniei.eu/2026/01/14/ne-ati-lasat-ingropati-in-zapada-strigatul-primarului-pnl-din-cavnic-catre-premierul-bolojan-dupa-reducerea-drastica-a-fondurilor-alocate-administratiei-locale/
+      Title: Ne-ați lăsat îngropați în zăpadă: strigătul primarului PNL din Cavnic către premierul Bolojan, după reducerea drastică a fondurilor alocate administrației locale
+  [x] Keyword Block: tos
+      URL: https://stiriletransilvaniei.eu/2026/01/14/romanii-si-ungurii-vegheaza-santierul-bechtel-supervizare-de-15-milioane-lei-pentru-lotul-chiribis-biharia-al-autostrazii-transilvania/
+      Title: Românii şi ungurii veghează şantierul Bechtel: supervizare de 15 milioane lei pentru lotul Chiribiş–Biharia al Autostrăzii Transilvania
+
+=== Digest: Politics Digest (Minneapolis) ===
+Found 47 spam items:
+  [x] Keyword Block: admin
+      URL: https://www.mprnews.org/story/2026/01/14/federal-funds-in-the-crosshairs-as-trump-administration-raises-fraud-concerns
+      Title: Federal funds in the crosshairs as Trump administration raises fraud concerns
+  [x] Keyword Block: admin
+      URL: https://www.mprnews.org/story/2026/01/14/npr-trump-administration-letter-terminating-addiction-mental-health-grants
+      Title: Trump administration sends letter wiping out addiction, mental health grants
+  [x] Short Path Index (len=16)
+      URL: https://www.mprnews.org/ice-in-minnesota
+      Title: Immigration enforcement in Minnesota
+  [x] Short Path Index (len=18)
+      URL: https://www.mprnews.org/fraud-in-minnesota
+      Title: Fraud in Minnesota
+  [x] Keyword Block: legal
+      URL: https://www.minnpost.com/national/2026/01/ice-shooting-legal-prosecution-federal-agent/
+      Title: Immigration agents are shooting people. Is it legal?
+  [x] Keyword Block: payment
+      URL: https://www.minnpost.com/state-government/2026/01/trump-plans-to-illegally-stop-over-2-billion-in-medicaid-payments-state-says-in-latest-twist-to-fraud-saga/
+      Title: Trump plans to stop over $2 billion in Minnesota Medicaid funds
+  [x] Keyword Block: support
+      URL: https://www.minnpost.com/greater-minnesota/2026/01/minnesota-saw-a-surge-in-electric-vehicle-charging-options-come-online-then-trump-slashed-federal-support-for-ev-chargers/
+      Title: Minnesota's EV charging network growth has slowed under Trump
+  [x] Keyword Block: info
+      URL: https://www.twincities.com/2026/01/12/reader-alert-send-us-your-fish-fry-information-2/
+      Title: Fish fry info
+  [x] Keyword Block: giving
+      URL: https://www.twincities.com/2026/01/14/immigration-thanksgiving-deportation-apology/
+      Title: US apologizes for deporting a college student flying home for Thanksgiving surprise
+  [x] Keyword Block: policy
+      URL: https://www.twincities.com/2026/01/14/trudy-rubin-trumps-imperial-venezuela-policy-based-on-lies-and-delusions/
+      Title: Trudy Rubin: Trump’s imperial Venezuela policy based on lies and delusions
+  [x] Keyword Block: /opinion/
+      URL: https://www.twincities.com/opinion/letters-to-the-editor/
+      Title: Letters to the Editor – Twin Cities
+  [x] Keyword Block: admin
+      URL: https://minnesotareformer.com/2026/01/12/minnesota-twin-cities-sue-trump-administration-to-halt-federal-immigration-surge/
+      Title: Minnesota, Twin Cities sue Trump administration to halt federal immigration surge
+  [x] Keyword Block: admin
+      URL: https://minnesotareformer.com/2026/01/12/ellison-says-hell-sue-trump-administration-over-minnesota-specifc-snap-cut/
+      Title: Ellison says he’ll sue Trump administration over Minnesota-specific SNAP cut
+  [x] Keyword Block: find
+      URL: https://spokesman-recorder.com/2026/01/05/minneapolis-school-finder-fair-2026/
+      Title: Minneapolis School Finder Fair Helps Families Navigate School Choices for 2026 and Beyond
+  [x] Keyword Block: signup
+      URL: https://tix.spokesman-recorder.com/e/legacy-cruise-vendor-signup-2025/tickets
+      Title: Vendor Sign Up: Legacy Cruise
+  [x] Keyword Block: help
+      URL: https://www.hennepin.us/residents/health-medical/addiction-help
+      Title: Hennepin County
+  [x] Short Path Index (len=13)
+      URL: https://racketmn.com/send-us-a-tip
+      Title: Send Us A Tip - Racket
+  [x] Short Path Index (len=12)
+      URL: https://racketmn.com/wall-of-fame
+      Title: Wall of Fame - Racket
+  [x] Keyword Block: admin
+      URL: https://www.mprnews.org/story/2026/01/14/federal-funds-in-the-crosshairs-as-trump-administration-raises-fraud-concerns
+      Title: Federal funds in the crosshairs as Trump administration raises fraud concerns
+  [x] Keyword Block: admin
+      URL: https://www.mprnews.org/story/2026/01/14/npr-trump-administration-letter-terminating-addiction-mental-health-grants
+      Title: Trump administration sends letter wiping out addiction, mental health grants
+  [x] Short Path Index (len=16)
+      URL: https://www.mprnews.org/ice-in-minnesota
+      Title: Immigration enforcement in Minnesota
+  [x] Short Path Index (len=18)
+      URL: https://www.mprnews.org/fraud-in-minnesota
+      Title: Fraud in Minnesota
+  [x] Short Path Index (len=13)
+      URL: https://mspmag.com/eat-and-drink
+      Title: Eat and Drink
+  [x] Keyword Block: feed
+      URL: https://mspmag.com/eat-and-drink/the-feed
+      Title: The Feed
+  [x] Short Path Index (len=16)
+      URL: https://mspmag.com/arts-and-culture
+      Title: Arts & Culture
+  [x] Short Path Index (len=15)
+      URL: https://mspmag.com/kids-and-family
+      Title: Kids & Family
+  [x] Short Path Index (len=14)
+      URL: https://mspmag.com/shop-and-style
+      Title: Shop & Style
+  [x] Short Path Index (len=15)
+      URL: https://mspmag.com/home-and-design
+      Title: Home & Design
+  [x] Short Path Index (len=18)
+      URL: https://mspmag.com/health-and-fitness
+      Title: Health & Fitness
+  [x] Keyword Block: legal
+      URL: https://www.minnpost.com/national/2026/01/ice-shooting-legal-prosecution-federal-agent/
+      Title: Immigration agents are shooting people. Is it legal?
+  [x] Keyword Block: payment
+      URL: https://www.minnpost.com/state-government/2026/01/trump-plans-to-illegally-stop-over-2-billion-in-medicaid-payments-state-says-in-latest-twist-to-fraud-saga/
+      Title: Trump plans to stop over $2 billion in Minnesota Medicaid funds
+  [x] Keyword Block: support
+      URL: https://www.minnpost.com/greater-minnesota/2026/01/minnesota-saw-a-surge-in-electric-vehicle-charging-options-come-online-then-trump-slashed-federal-support-for-ev-chargers/
+      Title: Minnesota's EV charging network growth has slowed under Trump
+  [x] Keyword Block: info
+      URL: https://www.twincities.com/2026/01/12/reader-alert-send-us-your-fish-fry-information-2/
+      Title: Fish fry info
+  [x] Keyword Block: giving
+      URL: https://www.twincities.com/2026/01/14/immigration-thanksgiving-deportation-apology/
+      Title: US apologizes for deporting a college student flying home for Thanksgiving surprise
+  [x] Keyword Block: policy
+      URL: https://www.twincities.com/2026/01/14/trudy-rubin-trumps-imperial-venezuela-policy-based-on-lies-and-delusions/
+      Title: Trudy Rubin: Trump’s imperial Venezuela policy based on lies and delusions
+  [x] Domain Block
+      URL: http://www.accuweather.com/en/us/saint-paul-mn/55102/current-weather/23960_pc?lang=en-us&partner=mng_51
+      Title: St. Paul, MN Current Weather | AccuWeather
+  [x] Short Path Index (len=12)
+      URL: https://www.twincities.com/things-to-do/
+      Title: Things To Do in St. Paul-Minneapolis | Pioneer Press
+  [x] Keyword Block: /opinion/
+      URL: https://www.twincities.com/opinion/letters-to-the-editor/
+      Title: Letters to the Editor – Twin Cities
+  [x] Domain Block
+      URL: https://connect.intuit.com/pay/SouthwestVoicesDaily/scs-v1-c553228fea5b4a84b3158d0c1142d43b833b0413f9464ae8a3719d56e5d27b4ba288ef74348b4ac68ca9cd7d85bdd6d6?locale=EN_US
+      Title: Payment request from All Voices Studio, LLC
+  [x] Domain Block
+      URL: https://airtable.com/shrp5CRokApZVerMk
+      Title: Submit a story to Southwest Voices - Airtable
+  [x] Keyword Block: admin
+      URL: https://minnesotareformer.com/2026/01/12/minnesota-twin-cities-sue-trump-administration-to-halt-federal-immigration-surge/
+      Title: Minnesota, Twin Cities sue Trump administration to halt federal immigration surge
+  [x] Keyword Block: admin
+      URL: https://minnesotareformer.com/2026/01/12/ellison-says-hell-sue-trump-administration-over-minnesota-specifc-snap-cut/
+      Title: Ellison says he’ll sue Trump administration over Minnesota-specific SNAP cut
+  [x] Keyword Block: find
+      URL: https://spokesman-recorder.com/2026/01/05/minneapolis-school-finder-fair-2026/
+      Title: Minneapolis School Finder Fair Helps Families Navigate School Choices for 2026 and Beyond
+  [x] Keyword Block: signup
+      URL: https://tix.spokesman-recorder.com/e/legacy-cruise-vendor-signup-2025/tickets
+      Title: Vendor Sign Up: Legacy Cruise
+  [x] Keyword Block: help
+      URL: https://www.hennepin.us/residents/health-medical/addiction-help
+      Title: Hennepin County
+  [x] Short Path Index (len=13)
+      URL: https://racketmn.com/send-us-a-tip
+      Title: Send Us A Tip - Racket
+  [x] Short Path Index (len=12)
+      URL: https://racketmn.com/wall-of-fame
+      Title: Wall of Fame - Racket
+
+----------------------------------------
+Scan Complete.
+Total Articles Scanned: 953
+Total Spam Detected: 82
+Spam Rate: 8.6%

@@ -1,0 +1,122 @@
+Connecting to DB...
+Scanning 9 digests with Hybrid Content Analysis...
+This may take a minute (fetching pages)...
+
+=== Digest: Beijing Navigates Global Storms While Bolstering Domestic Governance and Innovation Drive (Beijing) ===
+Found 2 CONFIRMED spam items:
+  [HARD] Keyword Block: /c/
+      URL: https://news.sina.com.cn/c/2026-01-14/doc-inhhfrsv5207846.shtml
+      Title: “新国补”政策落地 消费市场热力全开
+  [HARD] Keyword Block: /c/
+      URL: https://news.sina.com.cn/c/2026-01-15/doc-inhhkmpx6431291.shtml
+      Title: 人社部、财政部发文进一步做好企业年金工作
+
+=== Digest: Politics Digest (Târgu Mureş) ===
+Found 4 CONFIRMED spam items:
+  [HARD] Keyword Block: /stiri/
+      URL: https://www.radiomures.ro/stiri/sindicatul-din-ministerul-agriculturii-cere-autoritatilor-respingerea-acordului-ue-mercosur.html
+      Title: Sindicatul din Ministerul Agriculturii cere autorităţilor respingerea acordului UE-Mercosur - Radio Romania Targu Mures
+  [HARD] Keyword Block: /stiri/
+      URL: https://www.radiomures.ro/stiri/proiectul-de-reforma-in-administratia-publica-a-fost-pus-in-dezbatere-publica-de-ministerul-dezvoltarii.html
+      Title: Proiectul de reformă în administrația publică a fost pus în dezbatere publică de Ministerul Dezvoltării - Radio Romania Targu Mures
+  [HARD] Keyword Block: /stiri/
+      URL: https://www.radiomures.ro/stiri/premierul-ilie-bolojan-preia-interimatul-la-ministerul-educatiei.html
+      Title: Premierul Ilie Bolojan preia interimatul la Ministerul Educaţiei - Radio Romania Targu Mures
+  [HARD] Keyword Block: /stiri/
+      URL: https://www.radiomures.ro/stiri/opozitia-intentioneaza-sa-depuna-o-motiune-simpla-impotriva-ministrului-apararii-radu-miruta.html
+      Title: Opoziţia intenţionează să depună o moţiune simplă împotriva ministrului Apărării, Radu Miruţă - Radio Romania Targu Mures
+
+=== Digest: Politics Digest (Târgu Mureş) ===
+Found 4 CONFIRMED spam items:
+  [HARD] Keyword Block: /stiri/
+      URL: https://www.radiomures.ro/stiri/sindicatul-din-ministerul-agriculturii-cere-autoritatilor-respingerea-acordului-ue-mercosur.html
+      Title: Sindicatul din Ministerul Agriculturii cere autorităţilor respingerea acordului UE-Mercosur - Radio Romania Targu Mures
+  [HARD] Keyword Block: /stiri/
+      URL: https://www.radiomures.ro/stiri/proiectul-de-reforma-in-administratia-publica-a-fost-pus-in-dezbatere-publica-de-ministerul-dezvoltarii.html
+      Title: Proiectul de reformă în administrația publică a fost pus în dezbatere publică de Ministerul Dezvoltării - Radio Romania Targu Mures
+  [HARD] Keyword Block: /stiri/
+      URL: https://www.radiomures.ro/stiri/premierul-ilie-bolojan-preia-interimatul-la-ministerul-educatiei.html
+      Title: Premierul Ilie Bolojan preia interimatul la Ministerul Educaţiei - Radio Romania Targu Mures
+  [HARD] Keyword Block: /stiri/
+      URL: https://www.radiomures.ro/stiri/opozitia-intentioneaza-sa-depuna-o-motiune-simpla-impotriva-ministrului-apararii-radu-miruta.html
+      Title: Opoziţia intenţionează să depună o moţiune simplă împotriva ministrului Apărării, Radu Miruţă - Radio Romania Targu Mures
+
+=== Digest: Politics Digest (Târgu Mureş) ===
+Found 4 CONFIRMED spam items:
+  [HARD] Keyword Block: /stiri/
+      URL: https://www.radiomures.ro/stiri/sindicatul-din-ministerul-agriculturii-cere-autoritatilor-respingerea-acordului-ue-mercosur.html
+      Title: Sindicatul din Ministerul Agriculturii cere autorităţilor respingerea acordului UE-Mercosur - Radio Romania Targu Mures
+  [HARD] Keyword Block: /stiri/
+      URL: https://www.radiomures.ro/stiri/proiectul-de-reforma-in-administratia-publica-a-fost-pus-in-dezbatere-publica-de-ministerul-dezvoltarii.html
+      Title: Proiectul de reformă în administrația publică a fost pus în dezbatere publică de Ministerul Dezvoltării - Radio Romania Targu Mures
+  [HARD] Keyword Block: /stiri/
+      URL: https://www.radiomures.ro/stiri/premierul-ilie-bolojan-preia-interimatul-la-ministerul-educatiei.html
+      Title: Premierul Ilie Bolojan preia interimatul la Ministerul Educaţiei - Radio Romania Targu Mures
+  [HARD] Keyword Block: /stiri/
+      URL: https://www.radiomures.ro/stiri/opozitia-intentioneaza-sa-depuna-o-motiune-simpla-impotriva-ministrului-apararii-radu-miruta.html
+      Title: Opoziţia intenţionează să depună o moţiune simplă împotriva ministrului Apărării, Radu Miruţă - Radio Romania Targu Mures
+
+=== Digest: Politics Digest (Minneapolis) ===
+Found 19 CONFIRMED spam items:
+  [SOFT] Short Path Index (len=16) + Content Unreachable (403)
+      URL: https://www.mprnews.org/ice-in-minnesota
+      Title: Immigration enforcement in Minnesota
+  [SOFT] Short Path Index (len=18) + Content Unreachable (403)
+      URL: https://www.mprnews.org/fraud-in-minnesota
+      Title: Fraud in Minnesota
+  [SOFT] Segment Block: shows + Content Unreachable (403)
+      URL: https://www.mprnews.org/shows/minnesotanow
+      Title: Minnesota Now with Nina Moini
+  [HARD] Keyword Block: signup
+      URL: https://tix.spokesman-recorder.com/e/legacy-cruise-vendor-signup-2025/tickets
+      Title: Vendor Sign Up: Legacy Cruise
+  [SOFT] Segment Block: shop + Content too short (Empty/JS-only)
+      URL: https://racketmn.square.site/s/shop
+      Title: Merch Store
+  [SOFT] Short Path Index (len=16) + Content Unreachable (403)
+      URL: https://www.mprnews.org/ice-in-minnesota
+      Title: Immigration enforcement in Minnesota
+  [SOFT] Short Path Index (len=18) + Content Unreachable (403)
+      URL: https://www.mprnews.org/fraud-in-minnesota
+      Title: Fraud in Minnesota
+  [SOFT] Segment Block: shows + Content Unreachable (403)
+      URL: https://www.mprnews.org/shows/minnesotanow
+      Title: Minnesota Now with Nina Moini
+  [SOFT] Short Path Index (len=13) + High Link Density (0.68) & Few Paragraphs (1)
+      URL: https://mspmag.com/eat-and-drink
+      Title: Eat and Drink
+  [SOFT] Short Path Index (len=16) + High Link Density (0.67) & Few Paragraphs (1)
+      URL: https://mspmag.com/arts-and-culture
+      Title: Arts & Culture
+  [SOFT] Short Path Index (len=15) + High Link Density (0.67) & Few Paragraphs (1)
+      URL: https://mspmag.com/kids-and-family
+      Title: Kids & Family
+  [SOFT] Short Path Index (len=14) + High Link Density (0.67) & Few Paragraphs (1)
+      URL: https://mspmag.com/shop-and-style
+      Title: Shop & Style
+  [SOFT] Short Path Index (len=15) + High Link Density (0.69) & Few Paragraphs (1)
+      URL: https://mspmag.com/home-and-design
+      Title: Home & Design
+  [SOFT] Short Path Index (len=18) + High Link Density (0.70) & Few Paragraphs (1)
+      URL: https://mspmag.com/health-and-fitness
+      Title: Health & Fitness
+  [HARD] Domain Block
+      URL: http://www.accuweather.com/en/us/saint-paul-mn/55102/current-weather/23960_pc?lang=en-us&partner=mng_51
+      Title: St. Paul, MN Current Weather | AccuWeather
+  [HARD] Domain Block
+      URL: https://connect.intuit.com/pay/SouthwestVoicesDaily/scs-v1-c553228fea5b4a84b3158d0c1142d43b833b0413f9464ae8a3719d56e5d27b4ba288ef74348b4ac68ca9cd7d85bdd6d6?locale=EN_US
+      Title: Payment request from All Voices Studio, LLC
+  [HARD] Domain Block
+      URL: https://airtable.com/shrp5CRokApZVerMk
+      Title: Submit a story to Southwest Voices - Airtable
+  [HARD] Keyword Block: signup
+      URL: https://tix.spokesman-recorder.com/e/legacy-cruise-vendor-signup-2025/tickets
+      Title: Vendor Sign Up: Legacy Cruise
+  [SOFT] Segment Block: shop + Content too short (Empty/JS-only)
+      URL: https://racketmn.square.site/s/shop
+      Title: Merch Store
+----------------------------------------
+Analysis Complete.
+Total Articles: 1078
+Confirmed Spam: 33
+Spam Rate: 3.1%

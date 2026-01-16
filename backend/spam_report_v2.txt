@@ -1,0 +1,176 @@
+Connecting to DB to scan digests...
+Found 9 digests. Scanning for spam...
+
+=== Digest: Ukraine Endures Energy Crisis and Political Scrutiny, as Tymoshenko Faces Bribery Charges Amidst Trump's Provocative Statements (Kyiv) ===
+Found 5 spam items:
+  [x] Keyword Block: /opinion/
+      URL: https://nv.ua/ukr/opinion/polshcha-i-ukrajina-yezhi-vuycik-pro-shans-stati-novim-polyusom-sili-yevropi-50575960.html
+      Title: Між Путіним і західними корпораціями. Від чого врятує польсько-український союз
+  [x] Keyword Block: /opinion/
+      URL: https://nv.ua/ukr/opinion/zelenskiy-komendantska-godina-kijiv-koli-budut-grafiki-svitla-novini-ukrajini-50576047.html
+      Title: Маятник Трампа повело на темний бік
+  [x] Keyword Block: /opinion/
+      URL: https://nv.ua/ukr/opinion/udari-po-energetici-chomu-harkiv-trimayetsya-ne-zvazhayuchi-na-obstrili-50576022.html
+      Title: Харків тримається, а Київ?
+  [x] Keyword Block: /opinion/
+      URL: https://www.liga.net/politics/opinion/parlamentskie-kacheli-verhovnaya-rada-za-sutki-proshla-put-ot-kraha-do-stabilizatsii
+      Title: Парламентские качели: Верховная Рада за сутки прошла путь от "краха" до "стабилизации"
+  [x] Keyword Block: /opinion/
+      URL: https://www.liga.net/politics/opinion/prorezhivanie-vmesto-pravil-borba-s-korruptsiei-v-ukraine-ostaetsya-fanatskim-dvizheniem
+      Title: "Прореживание" вместо правил: борьба с коррупцией в Украине остается "фанатским движением"
+
+=== Digest: Beijing Navigates Global Storms While Bolstering Domestic Governance and Innovation Drive (Beijing) ===
+Found 3 spam items:
+  [x] Segment Block: legal
+      URL: https://www.news.cn/legal/20260114/b32c99ed6ad94625aa6528dfd92f5b91/c.html
+      Title: 电视专题片《一步不停歇 半步不退让》第四集《科技赋能反腐》
+  [x] Segment Block: legal
+      URL: https://www.news.cn/legal/20260114/b11d0a79c4204ca59760765fa8fd13a4/c.html
+      Title: 税务部门曝光网络主播彭煊之3年间偷税超200万元
+  [x] Keyword Block: /opinion/
+      URL: http://www.bjreview.com/Opinion/Pacific_Dialogue/202601/t20260113_800428031.html
+      Title: Rhetoric vs. Reality: U.S. War on Venezuela is a War on the Multipolar World
+
+=== Digest: Politics Digest (Târgu Mureş) ===
+Found 4 spam items:
+  [x] Segment Block: stiri
+      URL: https://www.radiomures.ro/stiri/sindicatul-din-ministerul-agriculturii-cere-autoritatilor-respingerea-acordului-ue-mercosur.html
+      Title: Sindicatul din Ministerul Agriculturii cere autorităţilor respingerea acordului UE-Mercosur - Radio Romania Targu Mures
+  [x] Segment Block: stiri
+      URL: https://www.radiomures.ro/stiri/proiectul-de-reforma-in-administratia-publica-a-fost-pus-in-dezbatere-publica-de-ministerul-dezvoltarii.html
+      Title: Proiectul de reformă în administrația publică a fost pus în dezbatere publică de Ministerul Dezvoltării - Radio Romania Targu Mures
+  [x] Segment Block: stiri
+      URL: https://www.radiomures.ro/stiri/premierul-ilie-bolojan-preia-interimatul-la-ministerul-educatiei.html
+      Title: Premierul Ilie Bolojan preia interimatul la Ministerul Educaţiei - Radio Romania Targu Mures
+  [x] Segment Block: stiri
+      URL: https://www.radiomures.ro/stiri/opozitia-intentioneaza-sa-depuna-o-motiune-simpla-impotriva-ministrului-apararii-radu-miruta.html
+      Title: Opoziţia intenţionează să depună o moţiune simplă împotriva ministrului Apărării, Radu Miruţă - Radio Romania Targu Mures
+
+=== Digest: Politics Digest (Târgu Mureş) ===
+Found 4 spam items:
+  [x] Segment Block: stiri
+      URL: https://www.radiomures.ro/stiri/sindicatul-din-ministerul-agriculturii-cere-autoritatilor-respingerea-acordului-ue-mercosur.html
+      Title: Sindicatul din Ministerul Agriculturii cere autorităţilor respingerea acordului UE-Mercosur - Radio Romania Targu Mures
+  [x] Segment Block: stiri
+      URL: https://www.radiomures.ro/stiri/proiectul-de-reforma-in-administratia-publica-a-fost-pus-in-dezbatere-publica-de-ministerul-dezvoltarii.html
+      Title: Proiectul de reformă în administrația publică a fost pus în dezbatere publică de Ministerul Dezvoltării - Radio Romania Targu Mures
+  [x] Segment Block: stiri
+      URL: https://www.radiomures.ro/stiri/premierul-ilie-bolojan-preia-interimatul-la-ministerul-educatiei.html
+      Title: Premierul Ilie Bolojan preia interimatul la Ministerul Educaţiei - Radio Romania Targu Mures
+  [x] Segment Block: stiri
+      URL: https://www.radiomures.ro/stiri/opozitia-intentioneaza-sa-depuna-o-motiune-simpla-impotriva-ministrului-apararii-radu-miruta.html
+      Title: Opoziţia intenţionează să depună o moţiune simplă împotriva ministrului Apărării, Radu Miruţă - Radio Romania Targu Mures
+
+=== Digest: Politics Digest (Târgu Mureş) ===
+Found 4 spam items:
+  [x] Segment Block: stiri
+      URL: https://www.radiomures.ro/stiri/sindicatul-din-ministerul-agriculturii-cere-autoritatilor-respingerea-acordului-ue-mercosur.html
+      Title: Sindicatul din Ministerul Agriculturii cere autorităţilor respingerea acordului UE-Mercosur - Radio Romania Targu Mures
+  [x] Segment Block: stiri
+      URL: https://www.radiomures.ro/stiri/proiectul-de-reforma-in-administratia-publica-a-fost-pus-in-dezbatere-publica-de-ministerul-dezvoltarii.html
+      Title: Proiectul de reformă în administrația publică a fost pus în dezbatere publică de Ministerul Dezvoltării - Radio Romania Targu Mures
+  [x] Segment Block: stiri
+      URL: https://www.radiomures.ro/stiri/premierul-ilie-bolojan-preia-interimatul-la-ministerul-educatiei.html
+      Title: Premierul Ilie Bolojan preia interimatul la Ministerul Educaţiei - Radio Romania Targu Mures
+  [x] Segment Block: stiri
+      URL: https://www.radiomures.ro/stiri/opozitia-intentioneaza-sa-depuna-o-motiune-simpla-impotriva-ministrului-apararii-radu-miruta.html
+      Title: Opoziţia intenţionează să depună o moţiune simplă împotriva ministrului Apărării, Radu Miruţă - Radio Romania Targu Mures
+
+=== Digest: Politics Digest (Cluj-Napoca) ===
+Found 1 spam items:
+  [x] Keyword Block: special
+      URL: https://www.g4media.ro/exclusiv-inalta-curte-condusa-de-lia-savonea-trimite-la-ccr-o-expertiza-pentru-a-impiedica-reforma-pensiilor-speciale-ale-magistratilor-e-posibila-o-noua-amanare-a-unei-decizii-surse.html
+      Title: Savonea trimite CCR o expertiză pentru a împiedica reforma pensiilor speciale
+
+=== Digest: Politics Digest (Minneapolis) ===
+Found 28 spam items:
+  [x] Short Path Index (len=16)
+      URL: https://www.mprnews.org/ice-in-minnesota
+      Title: Immigration enforcement in Minnesota
+  [x] Short Path Index (len=18)
+      URL: https://www.mprnews.org/fraud-in-minnesota
+      Title: Fraud in Minnesota
+  [x] Segment Block: shows
+      URL: https://www.mprnews.org/shows/minnesotanow
+      Title: Minnesota Now with Nina Moini
+  [x] Keyword Block: special
+      URL: https://www.twincities.com/2026/01/12/inver-grove-heights-teacher-at-special-education-school-held-by-ice-for-nearly-12-hours/
+      Title: Teacher held by ICE
+  [x] Keyword Block: /opinion/
+      URL: https://www.twincities.com/opinion/letters-to-the-editor/
+      Title: Letters to the Editor – Twin Cities
+  [x] Keyword Block: signup
+      URL: https://tix.spokesman-recorder.com/e/legacy-cruise-vendor-signup-2025/tickets
+      Title: Vendor Sign Up: Legacy Cruise
+  [x] Short Path Index (len=13)
+      URL: https://racketmn.com/send-us-a-tip
+      Title: Send Us A Tip - Racket
+  [x] Segment Block: shop
+      URL: https://racketmn.square.site/s/shop
+      Title: Merch Store
+  [x] Short Path Index (len=12)
+      URL: https://racketmn.com/wall-of-fame
+      Title: Wall of Fame - Racket
+  [x] Short Path Index (len=16)
+      URL: https://www.mprnews.org/ice-in-minnesota
+      Title: Immigration enforcement in Minnesota
+  [x] Short Path Index (len=18)
+      URL: https://www.mprnews.org/fraud-in-minnesota
+      Title: Fraud in Minnesota
+  [x] Segment Block: shows
+      URL: https://www.mprnews.org/shows/minnesotanow
+      Title: Minnesota Now with Nina Moini
+  [x] Short Path Index (len=13)
+      URL: https://mspmag.com/eat-and-drink
+      Title: Eat and Drink
+  [x] Short Path Index (len=16)
+      URL: https://mspmag.com/arts-and-culture
+      Title: Arts & Culture
+  [x] Short Path Index (len=15)
+      URL: https://mspmag.com/kids-and-family
+      Title: Kids & Family
+  [x] Short Path Index (len=14)
+      URL: https://mspmag.com/shop-and-style
+      Title: Shop & Style
+  [x] Short Path Index (len=15)
+      URL: https://mspmag.com/home-and-design
+      Title: Home & Design
+  [x] Short Path Index (len=18)
+      URL: https://mspmag.com/health-and-fitness
+      Title: Health & Fitness
+  [x] Keyword Block: special
+      URL: https://www.twincities.com/2026/01/12/inver-grove-heights-teacher-at-special-education-school-held-by-ice-for-nearly-12-hours/
+      Title: Teacher held by ICE
+  [x] Domain Block
+      URL: http://www.accuweather.com/en/us/saint-paul-mn/55102/current-weather/23960_pc?lang=en-us&partner=mng_51
+      Title: St. Paul, MN Current Weather | AccuWeather
+  [x] Short Path Index (len=12)
+      URL: https://www.twincities.com/things-to-do/
+      Title: Things To Do in St. Paul-Minneapolis | Pioneer Press
+  [x] Keyword Block: /opinion/
+      URL: https://www.twincities.com/opinion/letters-to-the-editor/
+      Title: Letters to the Editor – Twin Cities
+  [x] Domain Block
+      URL: https://connect.intuit.com/pay/SouthwestVoicesDaily/scs-v1-c553228fea5b4a84b3158d0c1142d43b833b0413f9464ae8a3719d56e5d27b4ba288ef74348b4ac68ca9cd7d85bdd6d6?locale=EN_US
+      Title: Payment request from All Voices Studio, LLC
+  [x] Domain Block
+      URL: https://airtable.com/shrp5CRokApZVerMk
+      Title: Submit a story to Southwest Voices - Airtable
+  [x] Keyword Block: signup
+      URL: https://tix.spokesman-recorder.com/e/legacy-cruise-vendor-signup-2025/tickets
+      Title: Vendor Sign Up: Legacy Cruise
+  [x] Short Path Index (len=13)
+      URL: https://racketmn.com/send-us-a-tip
+      Title: Send Us A Tip - Racket
+  [x] Segment Block: shop
+      URL: https://racketmn.square.site/s/shop
+      Title: Merch Store
+  [x] Short Path Index (len=12)
+      URL: https://racketmn.com/wall-of-fame
+      Title: Wall of Fame - Racket
+
+----------------------------------------
+Scan Complete.
+Total Articles Scanned: 1078
+Total Spam Detected: 49
+Spam Rate: 4.5%

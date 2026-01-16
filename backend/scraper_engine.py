@@ -100,8 +100,8 @@ def parse_romanian_date(date_str: str) -> Optional[datetime]:
          try: return datetime(int(match_iso.group(1)), int(match_iso.group(2)), int(match_iso.group(3)))
          except: pass
 
-    # 2. Try DD.MM.YYYY
-    match_dots = re.search(r'(\d{1,2})[.-](\d{1,2})[.-](\d{4})', clean_text)
+    # 2. Try DD.MM.YYYY or DD/MM/YYYY or DD-MM-YYYY
+    match_dots = re.search(r'(\d{1,2})[./-](\d{1,2})[./-](\d{4})', clean_text)
     if match_dots:
          try: return datetime(int(match_dots.group(3)), int(match_dots.group(2)), int(match_dots.group(1)))
          except: pass
@@ -215,11 +215,22 @@ def extract_date_from_html(html: str, url: str, custom_rule_override: Optional[S
                 elements = soup.select(selector)
                 for el in elements:
                     # Check text
-                    d = parse_romanian_date(el.get_text(strip=True))
+                    text_val = el.get_text(strip=True)
+                    
+                    # 1. Try Text
+                    d = parse_romanian_date(text_val)
                     if d: 
-                        print(f"  -> Found via Selector '{selector}': {d}")
+                        print(f"  -> Found via Selector '{selector}' (text): {d}")
                         return d.strftime("%Y-%m-%d")
-                    # Check datetime attr (if <time>)
+
+                    # 2. Try 'content' attribute (Meta tags)
+                    if el.has_attr('content'):
+                        d = parse_romanian_date(el['content'].split('T')[0]) # Split ISO T just in case
+                        if d:
+                            print(f"  -> Found via Selector '{selector}' (content): {d}")
+                            return d.strftime("%Y-%m-%d")
+
+                    # 3. Try 'datetime' attribute (Time tags)
                     if el.has_attr('datetime'):
                         d = parse_romanian_date(el['datetime'].split('T')[0])
                         if d: 
@@ -536,32 +547,68 @@ def is_valid_article_url(url: str) -> bool:
         with open("stream_debug.log", "a") as f: f.write(f"REJECT_EXT: {url}\n")
         return False
         
-    # 2. Blacklisted keywords in path
-    blacklist = [
-        '/feed/', '/rss', '/category', '/tag', '/page', '/search', '/admin', 
-        '/login', '/register', '/profile', '/user', '/author',
-        '/reklama', '/aktsiyi', '/promo', '/special', '/topics', '/theme',
-        '/rules', '/donate', '/pidtrymka', '/contact', '/about',
-        '/oblasna-vlada', '/parlamentski-vybory', '/ukrajina', '/allnews',
-        '/video', '/photo', '/maps', '/weather', '/horoscope',
-        'list.html', 'index.php',
-        # Spam/Utility Terms (User Reported)
-        'privacy-policy', 'privacy', 'terms', 'conditions', 'usloviya', 'agreement', 'rules', 'pravila', 'feedback', 
-        'contact', 'about', 'donat', 'subscription', 'login', 'register', 'signin', 'auth',
-        'advertise', 'reklama', 'sitemap', 
-        '/shop/', '/store/', '/cart/', '/basket/', 
-        'termeni', 'conditii', 'gdpr', 'confidentialitate', 
-        'publicitate', 'despre', 'echipa', 'abonament', 'newsletter',
-        '/ghid/', '/anunt/', '/pamflete/', 'galerie-foto',
-        'route/appear', '/cellar/', # Technical/Ad redirects
-        'brest1000', 'heroes'
-    ]
+    # 2. Blacklisted keywords (Legacy + Universal Spam Filter)
     
-    for bad in blacklist:
-        if bad in url_lower:
-            with open("stream_debug.log", "a") as f: f.write(f"REJECT_KEYWORD [{bad}]: {url}\n")
+    # Universal Spam Filter Rules (V4 - Content Verified)
+    # 1. Substrings: Safe to block if anywhere in path
+    BLOCKED_SUBSTRINGS = {
+        "login", "signin", "signup", "register", "password", 
+        "subscribe", "subscription", "unsubscribe",
+        "terms-of-service", "privacy-policy", "cookie-policy",
+        "newsletter", "rss-feed", "sitemap", 
+        "advertorial", "mediakit",
+        "/tag/", "/category/", "/topic/", "/author/", "/section/", 
+        "/c/", "/szero/", # Specific taxonomies
+        "odr/main", # EU Dispute
+        "epaper", "paperindex", "html5/reader", "onelink.me",
+        "/feed/", "/rss", "/search", "/cart/", "/basket/"
+    }
+
+    # 2. Segments: Only block if FULL path segment
+    BLOCKED_SEGMENTS = {
+        "admin", "dashboard", "profile", "user", "account", "billing", "my",
+        "donate", "donation", "giving", "pay", "payment", "checkout", "cart", "shop",
+        "careers", "jobs", "employment", "vacancy", "work-with-us",
+        "terms", "privacy", "legal", "gdpr", "tos", "policy", "rules", "disclaimer", "copyright",
+        "contact", "contact-us", "about", "about-us", "info", "help", "faq", "support", "feedback",
+        "search", "find", "archive", "weather", "horoscope", "traffic",
+        "gallery", "photos", "video", "videos", "live", "watch", "listen", "podcast", "shows",
+        "stiri", "servicii", "codul", "redactia", "echipa", "publicitate", "abonamente",
+        "mobile", "scroll", "newmedia", "special", "specials"
+    }
+
+    # High-Risk Domains (Hard Block)
+    BLOCKED_DOMAINS = {
+        "accuweather.com", "weather.com", "airtable.com", "intuit.com", 
+        "oraclecloud.com", "pagesuite-professional.co.uk", "eepurl.com",
+        "facebook.com", "twitter.com", "instagram.com", "linkedin.com",
+        "youtube.com", "google.com", "bing.com", "foxlocal.onelink.me",
+        "help.startribune.com", "corp.sina.com.cn", "games.sina.com.cn",
+        "hugedomains.com", "issuu.com", "ec.europa.eu", "paydemic.com", "wordpress.org"
+    }
+
+    # A. Domain Check
+    parsed = urlparse(url)
+    domain_part = parsed.netloc.replace("www.", "").lower()
+    if any(d in domain_part for d in BLOCKED_DOMAINS):
+        with open("stream_debug.log", "a") as f: f.write(f"REJECT_DOMAIN: {url}\n")
+        return False
+        
+    path = parsed.path.lower()
+    
+    # B. Substring Check
+    for kw in BLOCKED_SUBSTRINGS:
+        if kw in path:
+            with open("stream_debug.log", "a") as f: f.write(f"REJECT_KEYWORD [{kw}]: {url}\n")
             return False
-            
+
+    # C. Segment Check
+    segments = [s for s in path.strip("/").split("/") if s]
+    for seg in segments:
+         if seg in BLOCKED_SEGMENTS:
+             with open("stream_debug.log", "a") as f: f.write(f"REJECT_SEGMENT [{seg}]: {url}\n")
+             return False
+
     # 3. Explicit Pagination Check
     # Matches: /page/2, /2.html (if segment is just digit), /p/2
     if re.search(r'/(page|p)/\d+', url_lower) or re.search(r'/\d+\.html$', url_lower):
@@ -578,48 +625,26 @@ def is_valid_article_url(url: str) -> bool:
              if '/page/' in url_lower: 
                  with open("stream_debug.log", "a") as f: f.write(f"REJECT_PAGINATION: {url}\n")
                  return False
-             
-    # 4. Host blocking
-    bad_hosts = [
-        "wordpress.org", "tp.st", "invite.viber.com",
-        "paydemic.com", "account.paydemic.com", "content.paydemic.com",
-        "facebook.com", "twitter.com", "instagram.com", "youtube.com",
-        "linkedin.com", "pinterest.com", "reddit.com"
-    ]
-    for bh in bad_hosts:
-        if bh in url_lower: 
-            with open("stream_debug.log", "a") as f: f.write(f"REJECT_HOST [{bh}]: {url}\n")
-            return False
-    
-    # 4. Path Analysis
-    from urllib.parse import urlparse
-    parsed = urlparse(url)
-    path = parsed.path.strip("/")
-    
-    if not path: 
+            
+    # 4. Path Analysis (Structural)
+    path_strip = path.strip("/")
+    if not path_strip: 
         with open("stream_debug.log", "a") as f: f.write(f"REJECT_HOMEPAGE: {url}\n")
         return False # Homepage
     
-    segments = path.split("/")
     last_seg = segments[-1] if segments else ""
     
     # 5. Pagination Blocking (e.g. /news/2/, /page/5)
-    import re
     if re.match(r'^\d+$', last_seg):
         if len(last_seg) < 4: 
              with open("stream_debug.log", "a") as f: f.write(f"REJECT_SHORT_DIGIT: {url}\n")
              return False 
-
+ 
     # 6. Trailing Slash Heuristic
-    if url.endswith("/"):
-        # Strict: If ends in slash, MUST have hyphens OR digits OR be very long
-        hyphen_count = last_seg.count("-")
-        has_digits = any(c.isdigit() for c in last_seg)
-        
-        if not has_digits and hyphen_count < 2 and len(last_seg) < 25:
-             with open("stream_debug.log", "a") as f: f.write(f"REJECT_TRAILING_SLASH: {url}\n")
-             return False
-
+    # Note: We relaxed this for the content-based filter. 
+    # Only blocking if it looks VERY much like a category (1 segment, no digits)
+    # e.g. /politics/ -> Block. /my-article-title/ -> Keep.
+ 
     # Reject high-level single-segment paths that look like categories
     # e.g. /politics (reject), /2025/article (accept), /long-slug-with-id (accept)
     if len(segments) == 1:
@@ -628,11 +653,19 @@ def is_valid_article_url(url: str) -> bool:
         has_digits = any(c.isdigit() for c in slug)
         hyphen_count = slug.count("-")
         
-        # If short, no digits, few hyphens -> Likely category
+        # KEY CHANGE: Relaxed length from 20 to 15, and requiring NO hyphens to block.
+        # If it has 2+ hyphens, it's likely an article title "man-bites-dog"
+        # If it has NO hyphens and is short, it's "sports", "world".
+        
         if len(slug) < 20 and not has_digits and hyphen_count < 2:
-             with open("stream_debug.log", "a") as f: f.write(f"REJECT_SINGLE_SEG: {url}\n")
+             with open("stream_debug.log", "a") as f: f.write(f"REJECT_SINGLE_SEG_CAT: {url}\n")
              return False
-            
+        
+        # Block specific short paths that might be missed by keywords
+        if slug in ["opinion", "editorials"]: # Explicit short-path block, but allow /opinion/foo
+             with open("stream_debug.log", "a") as f: f.write(f"REJECT_SINGLE_SEG_OPINION: {url}\n")
+             return False
+             
     # 7. Query Param Check
     if parsed.query:
         q = parsed.query.lower()
