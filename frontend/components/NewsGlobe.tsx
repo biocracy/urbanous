@@ -1648,14 +1648,22 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                 setExpandedCluster(null); // Collapse
                 // Reset zoom? optional
             } else {
-                const center = turf.point([parseFloat(d.lon), parseFloat(d.lat)]);
+                const lat = parseFloat(d.lat || d.latitude);
+                const lng = parseFloat(d.lng || d.lon || d.longitude);
+
+                if (isNaN(lat) || isNaN(lng)) {
+                    console.error("Invalid Cluster Coordinates:", d);
+                    return;
+                }
+
+                // const center = turf.point([lng, lat]); // Turf not strictly needed for just zooming?
                 // Adaptive Zoom: Closer! (User Req: "more zoom in")
                 const count = d.subPoints.length + 1;
                 // Min altitude 0.025 for extremely close view
                 const adaptiveAlt = Math.max(0.025, 0.25 - (count * 0.008));
 
                 if (globeEl.current) {
-                    globeEl.current.pointOfView({ lat: d.lat, lng: d.lng, altitude: adaptiveAlt }, 800);
+                    globeEl.current.pointOfView({ lat: lat, lng: lng, altitude: adaptiveAlt }, 800);
                 }
                 setExpandedCluster(d);
             }
@@ -3446,7 +3454,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
             {/* Version Indicator */}
             <div className="absolute bottom-2 right-2 z-[100] text-[10px] text-white/30 font-mono hover:text-white/80 cursor-default select-none transition-colors">
-                v0.120.40 ID/TryCatch Fix
+                v0.120.41 Coordinate Type Fix
             </div>
 
         </div >
