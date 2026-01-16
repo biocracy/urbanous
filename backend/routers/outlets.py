@@ -3296,39 +3296,49 @@ async def generate_digest(req: DigestRequest, current_user: User = Depends(get_c
     if filtered_articles and current_user.gemini_api_key:
         print(f"Translating {len(filtered_articles)} titles...")
         try:
-            titles_to_translate = [art.title for art in filtered_articles]
-            # Batch translate ~50 at a time to be safe?
-            # Simple implementation: Translate all in one go (assuming < 100 articles)
+            # Robust Chunked Translation
+            chunk_size = 20
+            chunks = [filtered_articles[i:i + chunk_size] for i in range(0, len(filtered_articles), chunk_size)]
             
             genai.configure(api_key=current_user.gemini_api_key)
             model_tr = genai.GenerativeModel('gemini-flash-latest')
             
-            # JSON Prompt
-            tr_prompt = f"""
-            Translate the following news headlines to English. Maintain the tone.
-            Input:
-            {json.dumps(titles_to_translate, ensure_ascii=False)}
-            
-            Return strictly a JSON list of strings:
-            ["Translated Title 1", "Translated Title 2", ...]
-            """
-            
-            tr_resp = await model_tr.generate_content_async(tr_prompt)
-            tr_text = tr_resp.text.replace("```json","").replace("```","").strip()
-            # Simple regex cleanup or json.loads
-            import re
-            json_match = re.search(r'\[.*\]', tr_text, re.DOTALL)
-            if json_match:
-                translated_list = json.loads(json_match.group(0))
-                if len(translated_list) == len(filtered_articles):
-                    for art, tr in zip(filtered_articles, translated_list):
-                        art.translated_title = tr
-                    print("Translation success.")
-                else:
-                    print(f"Translation mismatch: Got {len(translated_list)} vs {len(filtered_articles)}")
-        except Exception as e:
-            print(f"Batch Translation Failed: {e}")
-            pass # Continue without translation
+            for chunk in chunks:
+                titles_to_translate = [art.title for art in chunk]
+                
+                tr_prompt = f"""
+                Translate the following news headlines to English. 
+                Return a JSON List of Objects with keys "src" (original) and "dst" (translated).
+                Input:
+                {json.dumps(titles_to_translate, ensure_ascii=False)}
+                
+                Response Format:
+                [{{"src": "Original Title", "dst": "Translated Title"}}, ...]
+                """
+                
+                try:
+                    tr_resp = await model_tr.generate_content_async(tr_prompt)
+                    tr_text = tr_resp.text.replace("```json","").replace("```","").strip()
+                    
+                    import re
+                    json_match = re.search(r'\[.*\]', tr_text, re.DOTALL)
+                    if json_match:
+                        raw_list = json.loads(json_match.group(0))
+                        
+                        # Create Map
+                        tr_map = {item.get("src", "").strip(): item.get("dst", "").strip() for item in raw_list}
+                        
+                        # Apply
+                        for art in chunk:
+                            if art.title.strip() in tr_map:
+                                art.translated_title = tr_map[art.title.strip()]
+                            else:
+                                # Fallback: Try match without strict whitespace
+                                pass
+                                
+                except Exception as e:
+                    print(f"Translation Chunk Failed: {e}")
+                    pass
 
     # Mapping
     outlet_articles_map = {o.name: [] for o in outlets}
