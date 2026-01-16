@@ -2093,7 +2093,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
     // Filter Labels
     const labelsData = useMemo(() => {
         return processedData.points.filter(p =>
-            p.isCluster || (parseInt(p.pop || '0') > 1000000) || p.isCapital
+            p.isSpider || p.isCluster || (parseInt(p.pop || '0') > 1000000) || p.isCapital
         );
     }, [processedData.points]);
 
@@ -3459,7 +3459,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
             {/* Version Indicator */}
             <div className="absolute bottom-2 right-2 z-[100] text-[10px] text-white/30 font-mono hover:text-white/80 cursor-default select-none transition-colors">
-                v0.120.44 Cluster Pair Fix
+                v0.120.45 Label Fix
             </div>
 
         </div >
