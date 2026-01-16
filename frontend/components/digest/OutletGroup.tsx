@@ -35,7 +35,7 @@ export function OutletGroup({ group, isTranslated, selectedUrls, onToggle, onAss
                 <h3 className="text-xl font-bold text-slate-200 flex items-center gap-2">
                     {group.source}
                     <span className="text-sm font-normal text-slate-500">
-                        ({group.articles.length} articles)
+                        ({group.articles.length} articles - <span className="text-blue-400 font-bold">{group.articles.filter(a => selectedUrls.has(a.url)).length} selected</span>)
                     </span>
                 </h3>
                 <div className="text-slate-500 group-hover:text-slate-300">

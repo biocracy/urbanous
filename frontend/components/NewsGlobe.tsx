@@ -235,15 +235,37 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                 const now = new Date();
                 const diffMs = now.getTime() - artDate.getTime();
                 const diffHours = diffMs / (1000 * 60 * 60);
-                if (diffHours <= 48) {
+                // Be slightly more lenient (48h) for auto-select to catch recent-ish items
+                if (diffHours <= 50) {
                     isGreenDate = true;
                 }
             }
 
-            // "Green AI-Title" check (VERIFIED string OR Object with is_politics=true)
-            const isVerified = a.ai_verdict === "VERIFIED" || (typeof a.ai_verdict === 'object' && a.ai_verdict?.is_politics === true);
+            // AI Logic: Content Check > Title Check
+            const aiVerdict = a.ai_verdict;
 
-            if (isGreenDate && isVerified) {
+            // Check if we have a deep content assessment (Object)
+            const isContentAssessment = typeof aiVerdict === 'object' && aiVerdict !== null;
+
+            let shouldSelect = false;
+
+            if (isContentAssessment) {
+                // STRONG SIGNAL: If Content Check exists, we obey it strictly.
+                // If is_politics is TRUE -> Select.
+                // If FALSE -> Reject (even if title seemed ok).
+                if (aiVerdict.is_politics) {
+                    shouldSelect = true;
+                }
+            } else {
+                // WEAK SIGNAL: Fallback to Title Check
+                // "VERIFIED" string comes from the stream pipeline
+                if (aiVerdict === "VERIFIED") {
+                    shouldSelect = true;
+                }
+            }
+
+            // Must satisfy Date + AI
+            if (isGreenDate && shouldSelect) {
                 smartSet.add(a.url);
             }
         });
@@ -2219,7 +2241,11 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
                 {expandedCluster && (
                     <button
-                        onClick={() => setExpandedCluster(null)}
+                        onClick={() => {
+                            if (digestData && !confirm("Close report? Unsaved progress will be lost.")) return;
+                            setExpandedCluster(null);
+                            setDigestData(null);
+                        }}
                         className="bg-red-500/80 hover:bg-red-500 text-white p-2 rounded-lg backdrop-blur shadow-lg border border-red-400 animate-in zoom-in duration-200"
                         title="Close Cluster View"
                     >
@@ -3476,7 +3502,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
             {/* Version Indicator */}
             <div className="absolute bottom-2 right-2 z-[100] text-[10px] text-white/30 font-mono hover:text-white/80 cursor-default select-none transition-colors">
-                v0.120.64 UI Polish
+                v0.120.65 Safety & UX
             </div>
         </div >
 

@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { CheckCircle2, Wrench, Play, Loader2, Flag, Undo2 } from 'lucide-react';
 import { Article } from './types';
+import { SpamConfirmModal } from './SpamConfirmModal';
 
 interface ArticleRowProps {
     article: Article;
@@ -48,22 +49,44 @@ export function ArticleRow({ article, isTranslated, isSelected, onToggle, onAsse
         }
     };
 
-    const handleReport = async () => {
+    const [showSpamModal, setShowSpamModal] = useState(false);
+
+    const executeSpamReport = async () => {
         if (!onReportSpam) return;
-
-        // Confirmation Text
-        const msg = isSpam
-            ? "Un-flag this article? It will return to the active list."
-            : "Report this article as technical junk/spam? This will teach the system to ignore similar pages.";
-
-        if (!confirm(msg)) return;
-
         setIsReporting(true);
         try {
             await onReportSpam(article);
             setIsReported(true);
         } catch (e) { console.error(e); }
         finally { setIsReporting(false); }
+    };
+
+    const handleReport = async () => {
+        if (!onReportSpam) return;
+
+        // 1. If Un-flagging (Undo), usually just do it? Or simple confirm?
+        // User asked for "checkmark in the popup" generally for reporting.
+        if (isSpam) {
+            if (confirm("Un-flag this article?")) executeSpamReport();
+            return;
+        }
+
+        // 2. If Flagging (Reporting)
+        // Check Preference
+        const skipConfirm = localStorage.getItem('urbanous_spam_skip_confirm') === 'true';
+        if (skipConfirm) {
+            executeSpamReport();
+        } else {
+            setShowSpamModal(true);
+        }
+    };
+
+    const handleModalConfirm = (dontAsk: boolean) => {
+        if (dontAsk) {
+            localStorage.setItem('urbanous_spam_skip_confirm', 'true');
+        }
+        setShowSpamModal(false);
+        executeSpamReport();
     };
 
     const rowClass = isSpam
@@ -173,6 +196,17 @@ export function ArticleRow({ article, isTranslated, isSelected, onToggle, onAsse
                     </button>
                 )}
             </td>
+            {/* 6. MODALS */}
+            {showSpamModal && (
+                <td className="absolute">
+                    <SpamConfirmModal
+                        isOpen={showSpamModal}
+                        onClose={() => setShowSpamModal(false)}
+                        onConfirm={handleModalConfirm}
+                        articleTitle={article.title}
+                    />
+                </td>
+            )}
         </tr>
     );
 }
