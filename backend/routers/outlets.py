@@ -180,17 +180,21 @@ async def gemini_discover_city_outlets(city: str, country: str, lat: float, lng:
     genai.configure(api_key=api_key)
 
     prompt = f"""
-    You are a news outlet discovery expert. Try finding the townhall page of the {city}, {country} and see if there is information regarding the local media in {city}. For example, in "Sibiu", there is this page "https://www.sibiu.ro/sibiu/media"  which lists all media produced in the city.
-    If you cannot find such a page, then find the top 15-20 most relevant local news outlets (Newspapers, TV Stations, Radio, Online Portals) based in or covering: {city}, {country}.
-    Do not ignore national outlets if they are based in the same location: {city}, {country}
-    Focus on finding and validating live Website URLs. Do not return outdated, non-loading or broken links. 
-    After finding the outlets, assign a popularity score from 1 to 10 based on the outlet's reputation and reach.
+    You are a news outlet discovery expert. 
+    TASK: List the top 15-20 most relevant news outlets (Newspapers, TV Stations, Radio, Online Portals) based in or covering: {city}, {country}.
     
+    1. PRIORITIZE local outlets dedicated to {city}.
+    2. INCLUDE national outlets if they are headquartered in {city} or have a major local bureau.
+    3. You may check the {city} townhall website for a media list if available, but do not stop if not found.
+    4. Focus on finding and validating live Website URLs. 
+    5. Assign a popularity score (1-10) based on reputation.
+
     Return a strictly valid JSON list. Example:
     [
         {{ "name": "Monitorul de Cluj", "url": "https://www.monitorulcj.ro", "type": "Online", "popularity": 10, "focus": "Local" }},
         {{ "name": "Radio Cluj", "url": "http://radiocluj.ro", "type": "Radio", "popularity": 7, "focus": "Local and National" }}
     ]
+    Do not include any markdown formatting or explanation, just the JSON string.
     """
     
     print(f"DEBUG: Starting Gemini Discovery for {city}, {country}")
