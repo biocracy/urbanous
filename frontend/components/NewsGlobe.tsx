@@ -1354,43 +1354,47 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
         if (!rawClusters.length) return [];
 
         return rawClusters.map(c => {
-            // Determine Color
-            // Priority: Active Digest Match > Has Any News > Capital > Discovered > Default
             const isActive = activeDigestCities.has(c.name);
             const isDiscovered = discoveredCities.includes(c.name);
-            const hasNewsGeneric = c.hasNews; // From Backend
-
-            // Note: backend c.isCapital is not set, we relied on 'countryMaxPop'.
-            // Actually, we can just use the color from backend if we pre-computed it?
-            // Or re-apply logic here. Re-applying is safer for dynamic 'discovered' state.
+            const hasNewsGeneric = c.hasNews;
 
             const isCapital = CAPITALS[c.country] === c.name;
 
+            // Pre-process subPoints to identify capitals inside
+            const processedSubPoints = c.subPoints ? c.subPoints.map((sp: any) => ({
+                ...sp,
+                isCapital: CAPITALS[sp.country] === sp.name,
+                radius: getPopScale(sp.pop || 0) * markerScale
+            })) : [];
+
+            const hasCapitalInside = isCapital || processedSubPoints.some((sp: any) => sp.isCapital);
+
             let color = '#64748b'; // Default Slate-500
+
             if (isCapital) color = '#db2777'; // Pink-600
             if (isDiscovered) color = '#34d399'; // Emerald-400
-            if (hasNewsGeneric) color = '#22d3ee'; // Cyan-400 (Generic News)
-            if (isActive) color = '#4ade80'; // Bright Green (Active Digest)
+            if (hasNewsGeneric) color = '#22d3ee'; // Cyan-400
+            if (isActive) color = '#4ade80'; // Bright Green matches Digest
 
             // OPTIMIZATION: Distinct Color for Real Clusters (Multi-city)
             if (c.subPoints && c.subPoints.length > 0 && !isActive && !isDiscovered) {
-                color = '#a78bfa'; // Purple-400 for Clusters
+                // If cluster contains a capital, force "Red" (Pink-600)
+                if (hasCapitalInside) {
+                    color = '#db2777';
+                } else {
+                    color = '#a78bfa'; // Purple-400 for Normal Clusters
+                }
             }
 
             // FIX: Backend radius (1.0-4.5) is too large. tailored for backend graph.
-            // Recalculate using frontend logic:
             const radius = getPopScale(c.pop) * markerScale;
 
             return {
                 ...c,
+                isCapital, // Explicitly pass to expanded view
                 color,
                 radius,
-                // Ensure subPoints also get scaled radius if expanded
-                subPoints: c.subPoints ? c.subPoints.map((sp: any) => ({
-                    ...sp,
-                    // Use pop scale, ignore backend radius
-                    radius: getPopScale(sp.pop || 0) * markerScale
-                })) : []
+                subPoints: processedSubPoints
             };
         });
 
@@ -3459,7 +3463,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
             {/* Version Indicator */}
             <div className="absolute bottom-2 right-2 z-[100] text-[10px] text-white/30 font-mono hover:text-white/80 cursor-default select-none transition-colors">
-                v0.120.45 Label Fix
+                v0.120.46 Capital Colors
             </div>
 
         </div >
