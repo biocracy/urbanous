@@ -483,6 +483,7 @@ class ArticleMetadata(BaseModel):
     scores: Optional[Dict[str, Any]] = {}
     ai_verdict: Optional[str] = None # New field for AI Title Check status
     translated_title: Optional[str] = None # New field for Translation
+    is_spam: Optional[bool] = False # Soft block status
     
 class DigestResponse(BaseModel):
     digest: str
@@ -1191,6 +1192,19 @@ async def smart_scrape_outlet(outlet: NewsOutlet, category: str, timeframe: str 
             clean_rt = raw_title.strip()
             is_bad_title = clean_rt.isdigit() or len(clean_rt) < 5 or (len(clean_rt) < 15 and clean_rt.replace(" ","").isdigit())
             
+            # Soft Spam Check
+            if item.get('is_spam'):
+                 if full_url not in candidates_map:
+                    candidates_map[full_url] = ArticleMetadata(
+                        source=outlet.name,
+                        title=raw_title, # Keep original title
+                        url=full_url,
+                        date_str=None, 
+                        is_spam=True,
+                        relevance_score=0
+                    )
+                 continue # Skip Deep Scan
+
             if not found_date_str or is_bad_title:
                 items_to_scan.append({
                     "url": full_url, 

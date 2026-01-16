@@ -14,6 +14,7 @@ export interface Article {
     scores?: ArticleScores;
     ai_verdict?: string; // "VERIFIED" or other
     translated_title?: string;
+    is_spam?: boolean;
 }
 
 export interface DigestReportRendererProps {

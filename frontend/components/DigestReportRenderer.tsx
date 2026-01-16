@@ -16,6 +16,8 @@ export default function DigestReportRenderer({ articles, category, isTranslated 
 
             if (selectedUrls && spamUrls && spamUrls.has(art.url)) {
                 groups[art.source].spam.push(art);
+            } else if (art.is_spam) {
+                groups[art.source].spam.push(art);
             } else if (isExcludeList) {
                 groups[art.source].excluded.push(art);
             } else {

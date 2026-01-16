@@ -438,26 +438,33 @@ def extract_article_links(html: str, base_url: str) -> List[Dict[str, str]]:
             # Basic Validation
             if full_url in seen_urls: continue
             
-            # IS VALID CHECK (Wrapped)
+            # IS VALID CHECK (Refactored for Soft Spam)
             try:
-                if not is_valid_article_url(full_url): 
-                    # Log handled inside is_valid_article_url
-                    continue
+                keep, is_spam, reason = classify_url(full_url)
+                if not keep:
+                     # Log Hard Block
+                     # with open("stream_debug.log", "a") as f: f.write(f"HARD_BLOCK: {full_url} ({reason})\n")
+                     continue
             except Exception as e:
                 with open("stream_debug.log", "a") as f: f.write(f"CRASH_IN_VALIDATION: {full_url} -> {e}\n")
                 continue
                 
             if full_url == base_url or full_url + "/" == base_url: 
-                 with open("stream_debug.log", "a") as f: f.write(f"REJECT_SELF: {full_url}\n")
+                 # with open("stream_debug.log", "a") as f: f.write(f"REJECT_SELF: {full_url}\n")
                  continue # Skip self
             
             title = a.get_text(strip=True)
 
             if len(title) < 2: 
-                 with open("stream_debug.log", "a") as f: f.write(f"REJECT_EMPTY_TITLE: {full_url}\n")
+                 # with open("stream_debug.log", "a") as f: f.write(f"REJECT_EMPTY_TITLE: {full_url}\n")
                  continue 
             
-            candidates.append({'url': full_url, 'title': title})
+            candidate = {'url': full_url, 'title': title}
+            if is_spam:
+                candidate['is_spam'] = True
+                candidate['spam_reason'] = reason
+            
+            candidates.append(candidate)
             seen_urls.add(full_url)
         except Exception as e:
             with open("stream_debug.log", "a") as f: 
@@ -533,22 +540,22 @@ def is_valid_article_url(url: str) -> bool:
     url_lower = url.lower()
     
     # DEBUG LOGGING
-    with open("stream_debug.log", "a") as f:
-         # f.write(f"VALIDATING: {url}\n") 
-         pass
-         
-    # 0. Protocol Check
+    # 0. Protocol Check (Hard Block)
     if not (url_lower.startswith('http://') or url_lower.startswith('https://')):
         with open("stream_debug.log", "a") as f: f.write(f"REJECT_PROTOCOL: {url}\n")
-        return False
-        
-    # 1. Extensions to ignore
-    if any(url_lower.endswith(ext) for ext in ['.pdf', '.jpg', '.png', '.gif', '.xml', '.rss', '.atom', '.mp3', '.mp4']):
+        return False, False, "Invalid Protocol"
+
+    # 1. Hard Block: Extensions (Technical)
+    IGNORED_EXTENSIONS = (
+        '.css', '.js', '.json', '.xml', '.rss', '.atom', 
+        '.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.ico',
+        '.mp4', '.mp3', '.wav', '.avi', '.mov', 
+        '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.zip', '.tar', '.gz'
+    )
+    if url_lower.endswith(IGNORED_EXTENSIONS):
         with open("stream_debug.log", "a") as f: f.write(f"REJECT_EXT: {url}\n")
-        return False
-        
-    # 2. Blacklisted keywords (Legacy + Universal Spam Filter)
-    
+        return False, False, "Ignored Extension"
+
     # Universal Spam Filter Rules (V4 - Content Verified)
     # 1. Substrings: Safe to block if anywhere in path
     BLOCKED_SUBSTRINGS = {
@@ -574,7 +581,7 @@ def is_valid_article_url(url: str) -> bool:
         "search", "find", "archive", "weather", "horoscope", "traffic",
         "gallery", "photos", "video", "videos", "live", "watch", "listen", "podcast", "shows",
         "servicii", "codul", "redactia", "echipa", "publicitate", "abonamente",
-        "mobile", "scroll", "newmedia", "special", "specials"
+        "mobile", "scroll", "newmedia", "special", "specials" # Added specials back as it's often junk
     }
 
     # High-Risk Domains (Hard Block)
@@ -586,95 +593,88 @@ def is_valid_article_url(url: str) -> bool:
         "help.startribune.com", "corp.sina.com.cn", "games.sina.com.cn",
         "hugedomains.com", "issuu.com", "ec.europa.eu", "paydemic.com", "wordpress.org"
     }
-
-    # A. Domain Check
+    
     parsed = urlparse(url)
     domain_part = parsed.netloc.replace("www.", "").lower()
-    if any(d in domain_part for d in BLOCKED_DOMAINS):
-        with open("stream_debug.log", "a") as f: f.write(f"REJECT_DOMAIN: {url}\n")
-        return False
-        
     path = parsed.path.lower()
-    
-    # B. Substring Check
+
+    # A. Domain Check (Spam)
+    if any(d in domain_part for d in BLOCKED_DOMAINS):
+        with open("stream_debug.log", "a") as f: f.write(f"SPAM_DOMAIN: {url}\n")
+        return True, True, "Domain Block" # Keep as Spam
+        
+    # B. Substring Check (Spam)
     for kw in BLOCKED_SUBSTRINGS:
         if kw in path:
-            with open("stream_debug.log", "a") as f: f.write(f"REJECT_KEYWORD [{kw}]: {url}\n")
-            return False
+            with open("stream_debug.log", "a") as f: f.write(f"SPAM_KEYWORD [{kw}]: {url}\n")
+            return True, True, f"Keyword Block: {kw}"
 
-    # C. Segment Check
+    # C. Segment Check (Spam)
     segments = [s for s in path.strip("/").split("/") if s]
     for seg in segments:
          if seg in BLOCKED_SEGMENTS:
-             with open("stream_debug.log", "a") as f: f.write(f"REJECT_SEGMENT [{seg}]: {url}\n")
-             return False
+             with open("stream_debug.log", "a") as f: f.write(f"SPAM_SEGMENT [{seg}]: {url}\n")
+             return True, True, f"Segment Block: {seg}"
 
-    # 3. Explicit Pagination Check
-    # Matches: /page/2, /2.html (if segment is just digit), /p/2
+    # 3. Explicit Pagination Check (Spam)
     if re.search(r'/(page|p)/\d+', url_lower) or re.search(r'/\d+\.html$', url_lower):
-        # Exception: Some articles are just ID.html (e.g. /12345.html)
-        # But /1.html or /2.html are usually pages.
-        # Let's be careful. If the number is small (< 100), likely pagination.
         match = re.search(r'/(\d+)\.html$', url_lower)
         if match:
              num = int(match.group(1))
              if num < 50: 
-                 with open("stream_debug.log", "a") as f: f.write(f"REJECT_PAGINATION_ID: {url}\n")
-                 return False # Page 1-49 usually pagination
+                 with open("stream_debug.log", "a") as f: f.write(f"SPAM_PAGINATION_ID: {url}\n")
+                 return True, True, "Pagination ID"
         else:
              if '/page/' in url_lower: 
-                 with open("stream_debug.log", "a") as f: f.write(f"REJECT_PAGINATION: {url}\n")
-                 return False
+                 with open("stream_debug.log", "a") as f: f.write(f"SPAM_PAGINATION: {url}\n")
+                 return True, True, "Pagination Pattern"
             
-    # 4. Path Analysis (Structural)
+    # 4. Path Analysis (Structural) - Homepage is a Hard Block
     path_strip = path.strip("/")
     if not path_strip: 
         with open("stream_debug.log", "a") as f: f.write(f"REJECT_HOMEPAGE: {url}\n")
-        return False # Homepage
-    
+        return False, False, "Homepage" # Hard Block Homepage (redundant duplicate)
+
     last_seg = segments[-1] if segments else ""
     
-    # 5. Pagination Blocking (e.g. /news/2/, /page/5)
+    # 5. Pagination Blocking (Spam)
     if re.match(r'^\d+$', last_seg):
         if len(last_seg) < 4: 
-             with open("stream_debug.log", "a") as f: f.write(f"REJECT_SHORT_DIGIT: {url}\n")
-             return False 
- 
-    # 6. Trailing Slash Heuristic
-    # Note: We relaxed this for the content-based filter. 
-    # Only blocking if it looks VERY much like a category (1 segment, no digits)
-    # e.g. /politics/ -> Block. /my-article-title/ -> Keep.
- 
-    # Reject high-level single-segment paths that look like categories
-    # e.g. /politics (reject), /2025/article (accept), /long-slug-with-id (accept)
+             with open("stream_debug.log", "a") as f: f.write(f"SPAM_SHORT_DIGIT: {url}\n")
+             return True, True, "Short Digit (Pagination)"
+
+    # 6. Single Segment Category Heuristic (Spam)
     if len(segments) == 1:
         slug = segments[0]
-        # Heuristic: Articles usually have IDs (digits) or long slugs with hyphens
         has_digits = any(c.isdigit() for c in slug)
         hyphen_count = slug.count("-")
         
-        # KEY CHANGE: Relaxed length from 20 to 15, and requiring NO hyphens to block.
-        # If it has 2+ hyphens, it's likely an article title "man-bites-dog"
-        # If it has NO hyphens and is short, it's "sports", "world".
-        
         if len(slug) < 20 and not has_digits and hyphen_count < 2:
-             with open("stream_debug.log", "a") as f: f.write(f"REJECT_SINGLE_SEG_CAT: {url}\n")
-             return False
+             with open("stream_debug.log", "a") as f: f.write(f"SPAM_SINGLE_SEG: {url}\n")
+             return True, True, "Short Path (Category Heuristic)"
         
-        # Block specific short paths that might be missed by keywords
-        if slug in ["opinion", "editorials"]: # Explicit short-path block, but allow /opinion/foo
-             with open("stream_debug.log", "a") as f: f.write(f"REJECT_SINGLE_SEG_OPINION: {url}\n")
-             return False
-             
-    # 7. Query Param Check
+        if slug in ["opinion", "editorials"]:
+             with open("stream_debug.log", "a") as f: f.write(f"SPAM_OPINION: {url}\n")
+             return True, True, "Opinion/Editorial"
+
+    # 7. Query Param Check (Spam)
     if parsed.query:
         q = parsed.query.lower()
-        # Aggressive blocking of sort/filter params usually found on lists
-        bad_params = ['cat_id', 'tag', 'sort', 'filter', 'page', 'p=', 'limit', 'utm_source'] 
         if any(p in q for p in ['cat_id=', 'tag=', 'sort=', 'filter=', 'page=']):
-            return False
+             with open("stream_debug.log", "a") as f: f.write(f"SPAM_QUERY_PARAMS: {url}\n")
+             return True, True, "Query Params"
             
-    return True
+    return True, False, "Result: Valid"
+
+def is_valid_article_url(url: str) -> bool:
+    """
+    Strict filter to reject non-article pages (categories, feeds, ads, etc.).
+    Wrapper for legacy compatibility. Returns False if Hard Block OR Spam.
+    Used for Sitemaps where we want clean lists mostly.
+    """
+    keep, is_spam, _ = classify_url(url)
+    return keep and not is_spam
+
 
 async def fetch_sitemap_urls(base_url: str, max_urls: int = 50, days_limit: int = 3) -> List[str]:
     """
