@@ -3297,9 +3297,22 @@ async def generate_digest(req: DigestRequest, current_user: User = Depends(get_c
         print(f"Translating {len(filtered_articles)} titles...")
         try:
             # Robust Chunked Translation
-            # Limit to top 150 articles to prevent timeout
-            LIMIT_TRANSLATE = 150
-            articles_to_translate = filtered_articles[:LIMIT_TRANSLATE]
+            # Strategy: Translate Top 100 items PER SOURCE (Fair coverage)
+            articles_to_translate = []
+            
+            # Group by Source
+            from collections import defaultdict
+            by_source = defaultdict(list)
+            for art in filtered_articles:
+                by_source[art.source].append(art)
+                
+            # Take Top 100 from each
+            LIMIT_PER_SOURCE = 100
+            for source, arts in by_source.items():
+                # Assumes arts are already sorted by Date (which they are)
+                articles_to_translate.extend(arts[:LIMIT_PER_SOURCE])
+            
+            print(f"Translating {len(articles_to_translate)} articles (Fair Limit: {LIMIT_PER_SOURCE}/source)...")
             
             chunk_size = 25
             chunks = [articles_to_translate[i:i + chunk_size] for i in range(0, len(articles_to_translate), chunk_size)]
