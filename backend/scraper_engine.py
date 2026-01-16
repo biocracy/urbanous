@@ -530,12 +530,12 @@ def detect_content_type(html: str) -> str:
         
     return "unknown" 
 
-def is_valid_article_url(url: str) -> bool:
+def classify_url(url: str) -> tuple:
     """
-    Strict filter to reject non-article pages (categories, feeds, ads, etc.).
+    Analyzes a URL and returns (keep: bool, is_spam: bool, reason: str).
     """
     import re
-    if not url: return False
+    if not url: return False, False, "Empty URL"
     
     url_lower = url.lower()
     
