@@ -1505,8 +1505,8 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
                             if (!isCenter) {
                                 renderLinks.push({
-                                    startLat: c.lat,
-                                    startLng: c.lng,
+                                    startLat: parseFloat(c.lat),
+                                    startLng: parseFloat(c.lng || c.lon),
                                     endLat: exLat,
                                     endLng: exLng,
                                     color: 'rgba(255,255,255,0.3)'
@@ -1514,17 +1514,22 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                             }
                         });
                         // Adjust ring to cover the area?
-                        renderRings.push({ lat: c.lat, lng: c.lng, maxR: spreadFactor * 2.0, color: 'rgba(255,255,255,0.05)' });
+                        renderRings.push({ lat: parseFloat(c.lat), lng: parseFloat(c.lng || c.lon), maxR: spreadFactor * 2.0, color: 'rgba(255,255,255,0.05)' });
                     }
                     // ELSE: Do nothing. Hide node.
                 } else {
                     // Determine opacity based on... actually, if nothing expanded, full opacity.
-                    renderPoints.push({ ...c, opacity: 1.0 });
+                    renderPoints.push({
+                        ...c,
+                        lat: parseFloat(c.lat),
+                        lng: parseFloat(c.lng || c.lon),
+                        opacity: 1.0
+                    });
 
                     if (c.isCluster) {
                         renderRings.push({
-                            lat: c.lat,
-                            lng: c.lng,
+                            lat: parseFloat(c.lat),
+                            lng: parseFloat(c.lng || c.lon),
                             maxR: c.radius * 1.5,
                             color: 'rgba(124, 58, 237, 0.3)'
                         });
@@ -3454,7 +3459,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
             {/* Version Indicator */}
             <div className="absolute bottom-2 right-2 z-[100] text-[10px] text-white/30 font-mono hover:text-white/80 cursor-default select-none transition-colors">
-                v0.120.41 Coordinate Type Fix
+                v0.120.42 Full Coord Type Fix
             </div>
 
         </div >
