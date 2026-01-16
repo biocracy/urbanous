@@ -28,6 +28,7 @@ export interface DigestReportRendererProps {
     onReportSpam?: (article: Article) => void;
     spamUrls?: Set<string>;
     excludedArticles?: Article[];
+    isLoading?: boolean;
 }
 
 export interface Digest {

@@ -4,7 +4,7 @@ import React, { useState, useMemo } from 'react';
 import { Article, DigestReportRendererProps } from './digest/types';
 import { OutletGroup } from './digest/OutletGroup';
 
-export default function DigestReportRenderer({ articles, category, isTranslated = false, selectedUrls, onToggle, onAssess, onDebug, onReportSpam, spamUrls, excludedArticles }: DigestReportRendererProps) {
+export default function DigestReportRenderer({ articles, category, isTranslated = false, selectedUrls, onToggle, onAssess, onDebug, onReportSpam, spamUrls, excludedArticles, isLoading }: DigestReportRendererProps) {
     const [displayCount, setDisplayCount] = useState(20);
 
     // Group Articles by Outlet
@@ -93,8 +93,15 @@ export default function DigestReportRenderer({ articles, category, isTranslated 
             )}
 
             {visibleGroups.length === 0 && (
-                <div className="text-center py-20 text-slate-500 italic">
-                    No articles found for this category.
+                <div className="text-center py-20 text-slate-500 italic flex flex-col items-center gap-4">
+                    {isLoading ? (
+                        <>
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                            <span className="animate-pulse">Gathering fresh articles for you...</span>
+                        </>
+                    ) : (
+                        "No articles found for this category."
+                    )}
                 </div>
             )}
         </div>
