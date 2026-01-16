@@ -1373,7 +1373,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             if (isActive) color = '#4ade80'; // Bright Green (Active Digest)
 
             // OPTIMIZATION: Distinct Color for Real Clusters (Multi-city)
-            if (c.subPoints && c.subPoints.length > 1 && !isActive && !isDiscovered) {
+            if (c.subPoints && c.subPoints.length > 0 && !isActive && !isDiscovered) {
                 color = '#a78bfa'; // Purple-400 for Clusters
             }
 
@@ -1557,8 +1557,8 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
     }, []);
 
     const getTooltip = useCallback((d: any) => {
-        // STRICTER CHECK: Only show "Media Hub" if it actually has sub-points (> 1)
-        const isMultiCity = d.isCluster && d.subPoints && d.subPoints.length > 1;
+        // STRICTER CHECK: Only show "Media Hub" if it actually has sub-points (> 0)
+        const isMultiCity = d.isCluster && d.subPoints && d.subPoints.length > 0;
 
         if (isMultiCity && !d.isSpider) {
             return `
@@ -1637,8 +1637,8 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
     const handleMapClick = useCallback((d: any) => {
         // If Spider Point OR "Fake" Cluster (Single City), treat as city click
-        // STRICTER CHECK: > 1
-        const isMultiCity = d.isCluster && d.subPoints && d.subPoints.length > 1;
+        // STRICTER CHECK: > 0 (1+ subpoints means 2+ cities)
+        const isMultiCity = d.isCluster && d.subPoints && d.subPoints.length > 0;
 
         if (d.isSpider || !isMultiCity) {
             handleCityClick(d);
