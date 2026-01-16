@@ -3307,7 +3307,7 @@ async def generate_digest(req: DigestRequest, current_user: User = Depends(get_c
             genai.configure(api_key=current_user.gemini_api_key)
             model_tr = genai.GenerativeModel('gemini-flash-latest')
             
-            for i, chunk in enumerate(chunks):
+            async def translate_chunk(i, chunk):
                 titles_p = [art.title for art in chunk]
                 
                 tr_prompt = f"""
@@ -3330,7 +3330,6 @@ async def generate_digest(req: DigestRequest, current_user: User = Depends(get_c
                         raw_list = json.loads(json_match.group(0))
                         
                         # 1. Map by Normalized Key
-                        # (Strip punctuation, spaces, lower)
                         def normalize(s): return re.sub(r'[\W_]+', '', s.lower())
                         
                         tr_map = {normalize(item.get("src", "")): item.get("dst", "").strip() for item in raw_list}
@@ -3351,6 +3350,10 @@ async def generate_digest(req: DigestRequest, current_user: User = Depends(get_c
                 except Exception as e:
                     print(f"Translation Chunk {i} Failed: {e}")
                     pass
+
+            # Run in Parallel
+            tasks = [translate_chunk(i, chunk) for i, chunk in enumerate(chunks)]
+            await asyncio.gather(*tasks)
 
         except Exception as e:
             print(f"Translation Setup Failed: {e}")
