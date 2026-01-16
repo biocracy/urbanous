@@ -1296,6 +1296,26 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             .then(res => {
                 console.log(`Loaded ${res.data.length} clusters.`);
                 setRawClusters(res.data);
+
+                // FIX: Populate 'cities' for Spotlight Search from the loaded clusters
+                // Flatten: Clusters (centers) + SubPoints, avoiding duplicates
+                const seen = new Set<string>();
+                const flatCities: any[] = [];
+                res.data.forEach((c: any) => {
+                    if (!seen.has(c.name)) {
+                        flatCities.push(c);
+                        seen.add(c.name);
+                    }
+                    if (c.subPoints) {
+                        c.subPoints.forEach((sc: any) => {
+                            if (!seen.has(sc.name)) {
+                                flatCities.push(sc);
+                                seen.add(sc.name);
+                            }
+                        });
+                    }
+                });
+                setCities(flatCities);
             })
             .catch(err => console.error("Failed to load clusters", err));
 
@@ -1351,6 +1371,11 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             if (isDiscovered) color = '#34d399'; // Emerald-400
             if (hasNewsGeneric) color = '#22d3ee'; // Cyan-400 (Generic News)
             if (isActive) color = '#4ade80'; // Bright Green (Active Digest)
+
+            // OPTIMIZATION: Distinct Color for Real Clusters (Multi-city)
+            if (c.subPoints && c.subPoints.length > 1 && !isActive && !isDiscovered) {
+                color = '#a78bfa'; // Purple-400 for Clusters
+            }
 
             // FIX: Backend radius (1.0-4.5) is too large. tailored for backend graph.
             // Recalculate using frontend logic:
@@ -1517,12 +1542,18 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
     }, []);
 
     const getTooltip = useCallback((d: any) => {
-        if (d.isCluster && !d.isSpider) {
+        // STRICTER CHECK: Only show "Media Hub" if it actually has sub-points (> 1)
+        const isMultiCity = d.isCluster && d.subPoints && d.subPoints.length > 1;
+
+        if (isMultiCity && !d.isSpider) {
             return `
-            <div class="px-2 py-1 bg-amber-500/90 text-black font-bold rounded text-xs border border-amber-300 z-50">
-                <div class="text-[10px] uppercase opacity-80">Media Hub</div>
-                <div class="text-sm">${d.name}</div>
-                <div class="text-[10px]">+ ${d.subPoints.length} cities</div>
+            <div class="px-2 py-1 bg-amber-500/90 text-black font-bold rounded text-xs border border-amber-300 z-50 shadow-xl">
+                <div class="flex items-center gap-2 mb-0.5 border-b border-black/10 pb-0.5">
+                    <span class="text-[10px] uppercase opacity-80 tracking-wider">Media Hub</span>
+                    <span class="text-[9px] bg-black/20 px-1 rounded-full">+${d.subPoints.length}</span>
+                </div>
+                <div class="text-sm font-extrabold leading-tight">${d.name}</div>
+                <div class="text-[10px] opacity-90 font-mono mt-0.5">Pop: ${parseInt(d.pop || 0).toLocaleString()}</div>
             </div>
             `;
         }
@@ -1590,14 +1621,17 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
     }, [discoveredCities]);
 
     const handleMapClick = useCallback((d: any) => {
-        // If Spider Point (previously grouped), treat as city click
-        if (d.isSpider || !d.isCluster) {
+        // If Spider Point OR "Fake" Cluster (Single City), treat as city click
+        // STRICTER CHECK: > 1
+        const isMultiCity = d.isCluster && d.subPoints && d.subPoints.length > 1;
+
+        if (d.isSpider || !isMultiCity) {
             handleCityClick(d);
             return;
         }
 
-        // If Cluster, Expand
-        if (d.isCluster) {
+        // If Real Cluster, Expand
+        if (isMultiCity) {
             if (expandedCluster && expandedCluster.id === d.id) {
                 setExpandedCluster(null); // Collapse
                 // Reset zoom? optional
@@ -3400,7 +3434,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
             {/* Version Indicator */}
             <div className="absolute bottom-2 right-2 z-[100] text-[10px] text-white/30 font-mono hover:text-white/80 cursor-default select-none transition-colors">
-                v0.120.37 Interactivity Fix
+                v0.120.38 Interaction Refined
             </div>
 
         </div >
