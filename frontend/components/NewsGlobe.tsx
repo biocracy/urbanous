@@ -235,8 +235,14 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                 const now = new Date();
                 const diffMs = now.getTime() - artDate.getTime();
                 const diffHours = diffMs / (1000 * 60 * 60);
-                // Be slightly more lenient (48h) for auto-select to catch recent-ish items
-                if (diffHours <= 50) {
+
+                // Dynamic Cutoff based on Timeframe
+                let limitHours = 30; // 24h + buffer
+                if (selectedTimeframe === "3days") limitHours = 72 + 6;
+                else if (selectedTimeframe === "1week") limitHours = 168 + 12;
+                else if (selectedTimeframe === "1month") limitHours = 720 + 24;
+
+                if (diffHours <= limitHours) {
                     isGreenDate = true;
                 }
             }
@@ -3502,7 +3508,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
             {/* Version Indicator */}
             <div className="absolute bottom-2 right-2 z-[100] text-[10px] text-white/30 font-mono hover:text-white/80 cursor-default select-none transition-colors">
-                v0.120.65 Safety & UX
+                v0.120.66 Strict Date Auto-Select
             </div>
         </div >
 
