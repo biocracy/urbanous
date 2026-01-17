@@ -350,7 +350,7 @@ async def discover_city_outlets(req: CityDiscoveryRequest, current_user: Optiona
         
         db_outlet = NewsOutlet(
             name=disc.name,
-            country_code="RO" if "Romania" in req.country or "RO" in req.country else "XX", 
+            country_code=disc.country_code, 
             city=disc.city,
             lat=disc.lat,
             lng=disc.lng,

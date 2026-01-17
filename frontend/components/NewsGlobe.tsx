@@ -1656,8 +1656,8 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
         api.post('/outlets/discover_city', {
             city: d.name,
             country: countryName,
-            lat: parseFloat(d.lat),
-            lng: parseFloat(d.lon)
+            lat: parseFloat(d.lat || d.latitude || '0'),
+            lng: parseFloat(d.lng || d.lon || d.longitude || '0')
         })
             .then(res => {
                 const data = res.data;
@@ -3538,7 +3538,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
             {/* Version Indicator */}
             <div className="absolute bottom-2 right-2 z-[100] text-[10px] text-white/30 font-mono hover:text-white/80 cursor-default select-none transition-colors">
-                v0.120.73 Fix: Discovery
+                v0.120.74 Fix: Canberra Discovery
             </div>
         </div >
 
