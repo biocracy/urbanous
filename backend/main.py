@@ -34,12 +34,39 @@ app.add_middleware(
 # Startup
 @app.on_event("startup")
 async def startup():
-    # In dev/standalone, create tables if not exist
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    try:
+        print("STARTUP: Initializing Database...")
+        # In dev/standalone, create tables if not exist
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
         
-    # Run Schema Updates (Add missing columns)
-    await run_migrations()
+        # Run Schema Updates (Add missing columns)
+        print("STARTUP: Running Auto-Migrations...")
+        await run_migrations()
+        print("STARTUP: Complete.")
+    except Exception as e:
+        # CRITICAL: Do NOT crash. Log and continue so /debug endpoint works.
+        print(f"STARTUP ERROR: {e}") 
+
+@app.get("/debug/schema")
+async def debug_schema():
+    """Inspect the database columns remotely."""
+    try:
+        from sqlalchemy import text
+        logs = []
+        async with engine.begin() as conn:
+            # Check users
+            try:
+                # Portable way to check columns might be DB specific, but raw SQL PRAGMA or Query schema works
+                # Just try to select all columns
+                await conn.execute(text("SELECT id, viz_settings FROM users LIMIT 1"))
+                logs.append("SUCCESS: viz_settings column handles SELECT.")
+            except Exception as e:
+                logs.append(f"FAIL: SELECT viz_settings errored: {e}")
+                
+        return {"status": "debug", "logs": logs}
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
 
 # Routers
 app.include_router(auth.router, tags=["Authentication"])
