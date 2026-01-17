@@ -1236,7 +1236,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
     // --- Visual Controls ---
     const [clusterThreshold, setClusterThreshold] = useState(0.7); // Default 0.7 deg
-    const [markerScale, setMarkerScale] = useState(0.6); // Default 0.6x
+    const [markerScale, setMarkerScale] = useState(0.25); // Default 0.25 (User Request)
     const [showControls, setShowControls] = useState(false); // Toggle for Viz Controls
 
     const MAP_STYLES = [
