@@ -105,7 +105,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
     }
 
     // Use centralized version constant
-    const APP_VERSION = "0.123";
+    const APP_VERSION = "0.124";
 
     // UI States
     const [isDiscovering, setIsDiscovering] = useState(false);
@@ -1533,7 +1533,18 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                             ...p,
                             x: p.pLng,
                             y: p.pLat,
-                            r: p.pRadius * (currentMarkerScale / 0.25), // Scale radius too for collision
+                            // precise collision radius matching customThreeObject size
+                            // Hierarchy: Capital (1.5), Cluster (1.2), Dot (0.8)
+                            // Visual Scale = Hierarchy * currentMarkerScale * 1.5
+                            // Sim Radius = Visual Scale / 2 * SafetyFactor (1.1)
+                            r: (() => {
+                                // Determine effective type for sizing (mimic sprite logic)
+                                const isCap = p.isCapital || CITY_ICONS[p.name];
+                                const isClust = p.isCluster; // Note: preparedItems don't have subPoint check here yet, assume simple
+                                const hierarchy = isCap ? 1.5 : (isClust ? 1.2 : 0.8);
+                                const visualSize = hierarchy * currentMarkerScale * 1.5;
+                                return (visualSize / 2.0) * 1.1; // 10% safety margin
+                            })(),
                             vx: 0,
                             vy: 0
                         }));
