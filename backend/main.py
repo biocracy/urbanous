@@ -14,20 +14,18 @@ origins = [
     "http://127.0.0.1:3000",
     "https://urbanous.vercel.app",
     "https://urbanous.net",
-    "https://www.urbanous.net",
-    # Allow Railway generated domains
-    "https://urbanous-production.up.railway.app",
-    os.getenv("FRONTEND_URL", "*")  # Fallback to wildcard if specified, or specific URL
+    "https://www.urbanous.net"
 ]
 
-# For debugging connection issues, we can temporarily allow all if needed, but best to be specific.
-# If FRONTEND_URL is set to '*', allow_origins should be ['*']
-if os.getenv("FRONTEND_URL") == "*":
-    origins = ["*"]
+# Allow specific override if set (e.g. for staging)
+frontend_env = os.getenv("FRONTEND_URL")
+if frontend_env and frontend_env != "*":
+    origins.append(frontend_env)
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
+    allow_origin_regex=r"https://.*\.up\.railway\.app", # Dynamic Railway Previews
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
