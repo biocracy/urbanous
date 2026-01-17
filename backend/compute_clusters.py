@@ -124,6 +124,16 @@ def main():
         resp = requests.get(CITIES_URL)
         cities_data = resp.json()
         cities_data = [c for c in cities_data if int(c.get('pop', 0) or 0) > 100000] # Major only
+        
+        # INJECT MANUAL OVERRIDES (Fix missing cities)
+        cities_data.append({
+            "name": "Thimphu",
+            "lat": "27.4712",
+            "lon": "89.6339",
+            "country": "BT",
+            "pop": "114551"
+        })
+        
         print(f"Loaded {len(cities_data)} major cities.")
 
         # 4. Compute

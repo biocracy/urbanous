@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import { CheckCircle2, Wrench, Play, Loader2, Flag, Undo2 } from 'lucide-react';
 import { Article } from './types';
-import { Article } from './types';
 
 interface ArticleRowProps {
     article: Article;
