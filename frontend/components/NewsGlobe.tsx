@@ -2471,7 +2471,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                                 <span>Marker Scale: {markerScale.toFixed(1)}x</span>
                             </label>
                             <input
-                                type="range" min="0.4" max="0.8" step="0.05"
+                                type="range" min="0.05" max="0.5" step="0.05"
                                 value={markerScale}
                                 onChange={e => setMarkerScale(parseFloat(e.target.value))}
                                 className="w-full accent-blue-500"
