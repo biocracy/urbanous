@@ -2193,9 +2193,8 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
     const globeComponent = (
         <Globe
-            // MEMORY LEAK FIX: Force full remount on cluster change to reset Three.js buffers
-            // The "Buffer size too small" warning indicates react-globe.gl isn't resizing buffers correctly.
-            key={expandedCluster ? `cluster-${expandedCluster.id}` : 'global-view'}
+            // MEMORY LEAK DIAGNOSIS: Reverted forced remount (User Request)
+            // key={expandedCluster ? `cluster-${expandedCluster.id}` : 'global-view'}
 
             ref={globeEl}
             onGlobeReady={() => {
@@ -2253,8 +2252,9 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             labelResolution={1}
             labelIncludeDot={false}
 
-            // Rings
-            ringsData={ringsData}
+            // Rings - DIAGNOSIS: DISABLED to check for Animation Leak
+            ringsData={[]}
+            // ringsData={ringsData}
             ringLat={getLat}
             ringLng={getLng}
             ringMaxRadius={getRingMaxR}
@@ -3555,7 +3555,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
             {/* Version Indicator */}
             <div className="absolute bottom-2 right-2 z-[100] text-[10px] text-white/30 font-mono hover:text-white/80 cursor-default select-none transition-colors">
-                v0.121.05 KeyReset
+                v0.121.06 NoRings
             </div>
         </div >
     );
