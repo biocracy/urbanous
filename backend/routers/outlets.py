@@ -200,7 +200,13 @@ async def gemini_discover_city_outlets(city: str, country: str, lat: float, lng:
     
     print(f"DEBUG: Starting Gemini Discovery for {city}, {country}")
     # Multi-Model Fallback Strategy
-    models_to_try = ['gemini-1.5-flash', 'gemini-1.5-flash-latest', 'gemini-1.5-pro', 'gemini-pro']
+    models_to_try = [
+        'gemini-1.5-flash', 
+        'gemini-1.5-flash-latest', 
+        'gemini-1.0-pro', 
+        'gemini-pro',
+        'gemini-1.5-pro'
+    ]
     last_error = None
     text = None
 
@@ -218,8 +224,17 @@ async def gemini_discover_city_outlets(city: str, country: str, lat: float, lng:
             continue
             
     if not text:
-        # If all failed, raise the last error to be caught by trace_log
-        raise ValueError(f"All models failed. Last error: {last_error}")
+        # PROBE: List available models to find out what IS there
+        available_models = []
+        try:
+            for m in genai.list_models():
+                if 'generateContent' in m.supported_generation_methods:
+                    available_models.append(m.name)
+        except Exception as probe_e:
+            available_models.append(f"Probe Failed: {probe_e}")
+            
+        # If all failed, raise the last error with the PROBE info
+        raise ValueError(f"All models failed. Last Error: {last_error}. Available Models: {', '.join(available_models[:5])}")
     
     # Robust JSON finding using Regex
     import re
