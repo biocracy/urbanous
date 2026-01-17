@@ -2292,26 +2292,31 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             // 2D Sprite Layer
             customLayerData={processedData.sprites}
             customThreeObject={(d: any) => {
-                console.log("Creating Sprite:", d.name, d.imgUrl); // DEBUG
-                const imgTexture = new THREE.TextureLoader().load(d.imgUrl,
-                    () => { },
-                    undefined,
-                    (err) => console.error("Texture Load Error:", d.imgUrl, err)
-                );
-                imgTexture.colorSpace = THREE.SRGBColorSpace;
-                const material = new THREE.SpriteMaterial({
-                    map: imgTexture,
-                    transparent: true, // Fix for transparent PNGs
-                    opacity: 1,
-                    depthWrite: false,
-                    depthTest: false
-                });
-                const sprite = new THREE.Sprite(material);
+                // Optimization: Memoize materials outside or use a simple cache
+                // But for now, we MUST NOT create a new TextureLoader per point.
+                if (!(window as any)._spriteMaterials) {
+                    (window as any)._spriteMaterials = {};
+                }
+                const cache = (window as any)._spriteMaterials;
+                const key = d.imgUrl;
 
-                // Scale based on zoom logic or data properties
-                // Basic scaling for now:
+                if (!cache[key]) {
+                    const map = new THREE.TextureLoader().load(d.imgUrl);
+                    map.colorSpace = THREE.SRGBColorSpace;
+                    cache[key] = new THREE.SpriteMaterial({
+                        map: map,
+                        transparent: true,
+                        opacity: 1,
+                        depthWrite: false,
+                        depthTest: false
+                    });
+                }
+
+                const sprite = new THREE.Sprite(cache[key]);
+
+                // Adjusted Scale (Reduced from 4x to 0.5x based on user feedback)
                 const baseScale = d.type === 'icon' ? 1.5 : 0.6;
-                sprite.scale.set(baseScale * 4, baseScale * 4, 1);
+                sprite.scale.set(baseScale * 0.8, baseScale * 0.8, 1);
 
                 return sprite;
             }}
