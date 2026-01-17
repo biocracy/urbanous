@@ -1512,7 +1512,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
                         // SCALE LINKED SPREAD:
                         let basePadding = 0.05; // Increased default padding
-                        if (simItems.length > 10) basePadding = 0.07; // Extra space for dense clusters (e.g. London)
+                        if (preparedItems.length > 10) basePadding = 0.07; // Extra space for dense clusters (e.g. London)
 
                         const padding = basePadding * (currentMarkerScale / 0.25);
 
