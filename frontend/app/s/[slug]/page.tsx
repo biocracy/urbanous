@@ -9,9 +9,9 @@ type Props = {
 async function getDigest(slug: string) {
     // Determine API Base URL
     // In production, server-side fetch cannot use localhost unless internal networking is set up.
-    // We try to default to the public API if ENV is missing.
+    // Determined via User Input: Backend is hosted on Railway
     const isProd = process.env.NODE_ENV === 'production';
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || (isProd ? 'https://api.urbanous.net' : 'http://localhost:8000');
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || (isProd ? 'https://urbanous-production.up.railway.app' : 'http://localhost:8000');
 
     console.log(`[Metadata] Fetching digest: ${slug} from ${baseUrl}`);
     try {
