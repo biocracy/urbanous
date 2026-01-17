@@ -1498,20 +1498,23 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                         }));
 
                         // 2. Iterative Relaxation (Force-Directed Packing)
-                        const ITERATIONS = 50; // increased for dense clusters (e.g. Tokyo)
-                        const padding = 0.035; // increased clearance
-                        // console.log("Force Packing:", c.name);
+                        // 2. Iterative Relaxation (Force-Directed Packing)
+                        const ITERATIONS = 50;
+                        // SCALE LINKED SPREAD:
+                        const basePadding = 0.035;
+                        const padding = basePadding * (markerScale / 0.25); // Scale padding relative to default scale
 
-                        // Clone for simulation
+                        // ... (cloning logic)
                         const simItems = preparedItems.map((p: any) => ({
                             ...p,
-                            x: p.pLng, // Longitude ~ X
-                            y: p.pLat, // Latitude ~ Y
-                            r: p.pRadius,
+                            x: p.pLng,
+                            y: p.pLat,
+                            r: p.pRadius * (markerScale / 0.25), // Scale radius too for collision
                             vx: 0,
                             vy: 0
                         }));
 
+                        // ... (simulation loop same as before, using dynamic padding)
                         for (let iter = 0; iter < ITERATIONS; iter++) {
                             let moved = false;
                             for (let i = 0; i < simItems.length; i++) {
@@ -1527,25 +1530,14 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                                     const minDist = p1.r + p2.r + padding;
 
                                     if (dist < minDist) {
-                                        // Overlap!
                                         const overlap = minDist - dist;
-                                        const nx = dist > 0 ? dx / dist : 1; // Normalize vector
+                                        const nx = dist > 0 ? dx / dist : 1;
                                         const ny = dist > 0 ? dy / dist : 0;
-
-                                        // Push apart
                                         const moveX = nx * (overlap * 0.51);
                                         const moveY = ny * (overlap * 0.51);
 
-                                        if (i !== 0) {
-                                            p1.x -= moveX;
-                                            p1.y -= moveY;
-                                        }
-
-                                        if (j !== 0) {
-                                            p2.x += moveX;
-                                            p2.y += moveY;
-                                        }
-
+                                        if (i !== 0) { p1.x -= moveX; p1.y -= moveY; }
+                                        if (j !== 0) { p2.x += moveX; p2.y += moveY; }
                                         moved = true;
                                     }
                                 }
@@ -1554,21 +1546,19 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                         }
 
                         simItems.forEach((item: any, idx: number) => {
-                            // const isCenter = idx === 0; // Removed, not used directly in this block
                             const exLat = item.y;
                             const exLng = item.x;
-
                             let itemColor = '#a78bfa';
                             if (discoveredCities.includes(item.name)) itemColor = '#34d399';
                             else if (item.isCapital) itemColor = '#db2777';
 
                             renderPoints.push({
-                                ...item, // include original props
+                                ...item,
                                 lat: exLat,
                                 lng: exLng,
                                 lon: exLng,
                                 color: itemColor,
-                                radius: item.pRadius, // use parsed radius
+                                radius: item.pRadius,
                                 opacity: 1.0,
                                 isSpider: true
                             });
@@ -1577,7 +1567,6 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                             if (idx !== 0) { // Don't link center to itself
                                 const centerLat = parseFloat(c.lat || c.latitude);
                                 const centerLng = parseFloat(c.lng || c.lon || c.longitude);
-
                                 if (!isNaN(centerLat) && !isNaN(centerLng)) {
                                     renderLinks.push({
                                         type: 'spider',
@@ -1590,12 +1579,10 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                                 }
                             }
                         });
-                        // Adjust ring to cover the area?
-                        renderRings.push({ lat: parseFloat(c.lat), lng: parseFloat(c.lng || c.lon), maxR: spreadFactor * 2.0, color: 'rgba(255,255,255,0.05)' });
+
+                        renderRings.push({ lat: parseFloat(c.lat), lng: parseFloat(c.lng || c.lon), maxR: spreadFactor * 2.0 * (markerScale / 0.25), color: 'rgba(255,255,255,0.05)' });
                     }
-                    // ELSE: Do nothing. Hide node.
                 } else {
-                    // Determine opacity based on... actually, if nothing expanded, full opacity.
                     renderPoints.push({
                         ...c,
                         lat: parseFloat(c.lat),
@@ -1615,16 +1602,17 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             });
 
             // 2D SPRITE GENERATION
-            // 2D SPRITE GENERATION
             const spriteData = renderPoints.map(p => {
                 const isCapital = CITY_ICONS[p.name];
-                // Override isCluster for spider/expanded points
+                // Check if this is a cluster containing a hidden capital
+                const containsCapital = p.isCluster && p.subPoints && p.subPoints.some((sub: any) => CITY_ICONS[sub.name]);
+
                 const effectiveIsCluster = p.isSpider ? false : p.isCluster;
 
                 let imgUrl = GENERIC_CITY_ICON;
                 let type = 'dot';
 
-                if (isCapital) {
+                if (isCapital || containsCapital) { // Force Red if it IS or CONTAINS a capital
                     imgUrl = "/icons/capital_dot.png";
                     type = 'capital';
                 } else if (effectiveIsCluster) {
