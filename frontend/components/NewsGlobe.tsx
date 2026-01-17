@@ -1618,29 +1618,26 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             // 2D SPRITE GENERATION
             const spriteData = renderPoints.map(p => {
                 const isCapital = CITY_ICONS[p.name];
-                const isCluster = p.isCluster;
-
-                let imgUrl = GENERIC_CITY_ICON;
-                let type = 'dot';
+                // Override isCluster for spider/expanded points
+                const effectiveIsCluster = p.isSpider ? false : p.isCluster;
 
                 if (isCapital) {
-                    // Use the red capital dot (ignoring the specific URL in CITY_ICONS for now to unify style, or update CITY_ICONS later)
-                    // Actually, let's assume CITY_ICONS keys are capitals.
                     imgUrl = "/icons/capital_dot.png";
                     type = 'capital';
-                } else if (isCluster) {
+                } else if (effectiveIsCluster) {
                     imgUrl = "/icons/cluster_dot.png";
                     type = 'cluster';
                 }
 
                 return {
-                    ...p, // Spread original properties (isCluster, subPoints, id, etc.) so click handlers work
+                    ...p,
                     lat: p.lat || p.pLat,
                     lng: p.lon || p.lng || p.pLng,
                     name: p.name,
                     type: type,
                     imgUrl: imgUrl,
-                    size: isCapital ? 1.5 : (isCluster ? 1.2 : 0.8),
+                    // size prop is not used by customThreeObject, but we keep it for reference
+                    size: isCapital ? 1.5 : (effectiveIsCluster ? 1.2 : 0.8),
                     data: p
                 };
             });
@@ -2334,9 +2331,9 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
                 const sprite = new THREE.Sprite(cache[key]);
 
-                // Adjusted Scale based on type
-                // Capital: Largest, Cluster: Medium, Dot: Small
-                const baseScale = d.type === 'capital' ? 1.5 : (d.type === 'cluster' ? 1.2 : 0.8);
+                // Adjusted Scale based on type (Reduced further to prevent cluster overlap)
+                // Capital: 1.2, Cluster: 1.0, Dot: 0.6
+                const baseScale = d.type === 'capital' ? 1.2 : (d.type === 'cluster' ? 1.0 : 0.6);
                 sprite.scale.set(baseScale * 1.0, baseScale * 1.0, 1);
 
                 return sprite;
