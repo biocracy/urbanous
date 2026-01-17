@@ -53,9 +53,6 @@ def compute_clusters(items, radius_deg, news_city_names=set()):
         # Check if this city has news
         has_news = name in news_city_names
         
-        # Color Logic (to match Frontend)
-        # We store 'hasNews' boolean, frontend handles color.
-        
         # Find existing cluster
         found_cluster = None
         for cluster in clusters:
@@ -131,7 +128,7 @@ def main():
             "lat": "27.4712",
             "lon": "89.6339",
             "country": "BT",
-            "pop": "114551"
+            "pop": "500000"
         })
         
         print(f"Loaded {len(cities_data)} major cities.")
