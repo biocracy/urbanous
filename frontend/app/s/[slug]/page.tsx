@@ -13,8 +13,10 @@ async function getDigest(slug: string) {
     // Determine API Base URL
     // In production, server-side fetch cannot use localhost unless internal networking is set up.
     // Determined via User Input: Backend is hosted on Railway
-    const isProd = process.env.NODE_ENV === 'production';
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || (isProd ? 'https://urbanous-production.up.railway.app' : 'http://localhost:8000');
+    // HARDCODED to rule out bad ENV vars on Vercel
+    const baseUrl = process.env.NODE_ENV === 'production'
+        ? 'https://urbanous-production.up.railway.app'
+        : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000');
 
     console.log(`[Metadata] Fetching digest: ${slug} from ${baseUrl}`);
     try {
