@@ -5,7 +5,7 @@ import PublicDigestClient from './PublicDigestClient';
 export const dynamic = 'force-dynamic';
 
 type Props = {
-    params: { slug: string }
+    params: Promise<{ slug: string }>
 };
 
 // Fetch digest data for Metadata
@@ -18,8 +18,7 @@ async function getDigest(slug: string) {
         ? 'https://urbanous-production.up.railway.app'
         : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000');
 
-    console.log(`[Metadata] Fetching digest: ${slug} from ${baseUrl}`);
-    console.log(`[Metadata] Fetching digest: ${slug} from ${baseUrl}`);
+    // console.log(`[Metadata] Fetching digest: ${slug} from ${baseUrl}`);
     try {
         const res = await fetch(`${baseUrl}/digests/public/${slug}`, {
             cache: 'no-store',
@@ -28,14 +27,11 @@ async function getDigest(slug: string) {
                 'Accept': 'application/json'
             }
         });
-        if (!res.ok) {
-            console.error(`Metadata fetch failed: ${res.status} ${res.statusText}`);
-            return { error: `HTTP ${res.status}` };
-        }
+        if (!res.ok) return null;
         return res.json();
-    } catch (error: any) {
+    } catch (error) {
         console.error("Metadata fetch failed", error);
-        return { error: error.message || 'Unknown Error' };
+        return null;
     }
 }
 
@@ -43,13 +39,14 @@ export async function generateMetadata(
     { params }: Props,
     parent: ResolvingMetadata
 ): Promise<Metadata> {
-    const slug = params.slug;
+    // Next.js 15+: params is a Promise
+    const { slug } = await params;
     const digest = await getDigest(slug);
 
-    if (!digest || digest.error) {
+    if (!digest) {
         return {
-            title: `Error: ${digest?.error || 'No Data'} | Urbanous`,
-            description: `Could not fetch digest from server. Check URL.`
+            title: 'Digest Not Found | Urbanous',
+            description: 'The requested news digest could not be found.'
         };
     }
 
@@ -63,10 +60,6 @@ export async function generateMetadata(
     const fmt = (d: Date) => `${d.getDate()}.${(d.getMonth() + 1)}.${d.getFullYear()}`;
     const period = `${fmt(start)} - ${fmt(end)}`;
 
-    // Requested Format: 
-    // Title: Digest Title
-    // Description: City Name | Period | Category
-
     return {
         title: digest.title || 'Urbanous News Digest',
         description: `${digest.city} | ${period} | ${digest.category || 'General'}`,
@@ -74,11 +67,12 @@ export async function generateMetadata(
             title: digest.title || 'Urbanous News Digest',
             description: `${digest.city} | ${period} | ${digest.category || 'General'}`,
             type: 'article',
-            images: ['/og-image-digest.png'], // Optional: Add a custom OG image if available
         },
     };
 }
 
-export default function Page({ params }: Props) {
+export default async function Page({ params }: Props) {
+    // We don't need params here for the client component, but we must respect the async signature
+    await params;
     return <PublicDigestClient />;
 }
