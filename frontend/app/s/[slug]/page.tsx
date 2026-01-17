@@ -53,12 +53,32 @@ export async function generateMetadata(
     // Format Period
     const end = new Date(digest.created_at);
     const start = new Date(end);
-    if (digest.timeframe === '24h') start.setDate(end.getDate() - 1);
-    else if (digest.timeframe === '3days') start.setDate(end.getDate() - 3);
-    else if (digest.timeframe === '1week') start.setDate(end.getDate() - 7);
 
-    const fmt = (d: Date) => `${d.getDate()}.${(d.getMonth() + 1)}.${d.getFullYear()}`;
-    const period = `${fmt(start)} - ${fmt(end)}`;
+    // Default to 3 days if timeframe is missing or unknown, to avoid 1-day ranges which look bugged
+    // The user likely wants to see the coverage period.
+    if (digest.timeframe === '24h') start.setDate(end.getDate() - 1);
+    else if (digest.timeframe === '1week') start.setDate(end.getDate() - 7);
+    else start.setDate(end.getDate() - 3); // Default and '3days' case
+
+    const d1 = start.getDate();
+    const m1 = start.getMonth() + 1;
+    const y1 = start.getFullYear();
+
+    const d2 = end.getDate();
+    const m2 = end.getMonth() + 1;
+    const y2 = end.getFullYear();
+
+    let period = "";
+    if (y1 === y2 && m1 === m2) {
+        // Same month/year: "14-17.1.2026"
+        period = `${d1}-${d2}.${m1}.${y1}`;
+    } else if (y1 === y2) {
+        // Same year: "30.1 - 2.2.2026"
+        period = `${d1}.${m1} - ${d2}.${m2}.${y1}`;
+    } else {
+        // Diff year
+        period = `${d1}.${m1}.${y1} - ${d2}.${m2}.${y2}`;
+    }
 
     return {
         title: digest.title || 'Urbanous News Digest',
