@@ -19,6 +19,8 @@ import { CAPITALS } from '../utils/capitals';
 import DigestReportRenderer from './DigestReportRenderer';
 import SettingsModal from './SettingsModal';
 import UIMarquee from './UIMarquee';
+import * as THREE from 'three';
+import { CITY_ICONS, GENERIC_CITY_ICON } from '../data/landmarks';
 
 // Dynamically import Globe to avoid SSR issues
 const Globe = dynamic(() => import('react-globe.gl'), {
@@ -129,6 +131,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
     const [selectedOutletIds, setSelectedOutletIds] = useState<number[]>([]);
     const [isGeneratingDigest, setIsGeneratingDigest] = useState(false);
     const [cityInfo, setCityInfo] = useState<any>(null);
+    const [vizMode, setVizMode] = useState<'3d' | '2d'>('3d');
 
     // Logging State for Digest Generation
     const [progressLog, setProgressLog] = useState('');
@@ -1601,7 +1604,26 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                 }
             });
 
-            setProcessedData({ points: renderPoints, rings: renderRings, links: renderLinks });
+            // 2D SPRITE GENERATION
+            const spriteData = renderPoints.map(p => {
+                const isIcon = CITY_ICONS[p.name];
+                return {
+                    lat: p.lat || p.pLat,
+                    lng: p.lon || p.lng || p.pLng,
+                    name: p.name,
+                    type: isIcon ? 'icon' : 'dot',
+                    imgUrl: isIcon || GENERIC_CITY_ICON,
+                    size: isIcon ? 1.5 : 0.8,
+                    data: p
+                };
+            });
+
+            setProcessedData({
+                points: vizMode === '3d' ? renderPoints : [],
+                rings: vizMode === '3d' ? renderRings : [],
+                sprites: vizMode === '2d' ? spriteData : [],
+                links: renderLinks
+            });
 
         } catch (e) {
             console.error("Critical Error in Expansion Logic:", e);
@@ -2256,6 +2278,25 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             // MEMORY OPTIMIZATION: Text sprites are flat, no need for 3D resolution
             labelResolution={1}
             labelIncludeDot={false}
+
+            // 2D Sprite Layer
+            customLayerData={processedData.sprites}
+            customThreeObject={(d: any) => {
+                const imgTexture = new THREE.TextureLoader().load(d.imgUrl);
+                imgTexture.colorSpace = THREE.SRGBColorSpace;
+                const material = new THREE.SpriteMaterial({ map: imgTexture, depthWrite: false, depthTest: false });
+                const sprite = new THREE.Sprite(material);
+
+                // Scale based on zoom logic or data properties
+                // Basic scaling for now:
+                const baseScale = d.type === 'icon' ? 1.5 : 0.6;
+                sprite.scale.set(baseScale * 4, baseScale * 4, 1);
+
+                return sprite;
+            }}
+            customThreeObjectUpdate={(obj, d: any) => {
+                Object.assign(obj.position, globeEl.current?.getCoords(d.lat, d.lng, 0.02));
+            }}
 
             // Rings - DIAGNOSIS: DISABLED to check for Animation Leak
             ringsData={[]}
@@ -3397,171 +3438,180 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             {/* Settings Button (Top Right Fixed) */}
             {
                 !digestData && (
-                    <button
-                        onClick={() => setIsSettingsOpen(true)}
-                        className="fixed top-4 right-4 z-40 p-2 bg-slate-900/80 backdrop-blur border border-slate-700 rounded-full text-slate-400 hover:text-white hover:bg-slate-800 transition-all shadow-xl"
-                        title="User Settings"
-                    >
-                        <Settings size={20} />
-                    </button>
-                )
+                    <>
+                        <button
+                            onClick={() => setVizMode(prev => prev === '3d' ? '2d' : '3d')}
+                            className="fixed top-4 right-16 z-40 p-2 bg-slate-900/80 backdrop-blur border border-slate-700 rounded-full text-slate-400 hover:text-white hover:bg-slate-800 transition-all shadow-xl w-10 h-10 flex items-center justify-center font-bold text-xs"
+                            title={vizMode === '3d' ? "Switch to 2D Sprites" : "Switch to 3D Geometry"}
+                        >
+                            {vizMode === '3d' ? '2D' : '3D'}
+                        </button>
+
+                        <button
+                            onClick={() => setIsSettingsOpen(true)}
+                            className="fixed top-4 right-4 z-40 p-2 bg-slate-900/80 backdrop-blur border border-slate-700 rounded-full text-slate-400 hover:text-white hover:bg-slate-800 transition-all shadow-xl"
+                            title="User Settings"
+                        >
+                            <Settings size={20} />
+                        </button>
+                        )
             }
 
-            {/* Settings Modal */}
-            <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+                        {/* Settings Modal */}
+                        <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
 
-            {/* Global Analytics Tooltip */}
-            {
-                activeTooltip && activeTooltip.rect && (
-                    <div
-                        className="fixed z-[9999] w-80 bg-slate-950 backdrop-blur-xl border border-slate-700 rounded-xl shadow-[0_0_50px_rgba(0,0,0,0.8)] p-4 text-xs text-left cursor-auto animate-in fade-in zoom-in-95 duration-200"
-                        style={{
-                            top: activeTooltip.placement === 'bottom'
-                                ? activeTooltip.rect.bottom + 8
-                                : activeTooltip.rect.top - 8 - (200),
-                            left: activeTooltip.rect.left + (activeTooltip.rect.width / 2) - 160,
-                        }}
-                        onMouseEnter={() => {
-                            if (hoverTimeout.current) clearTimeout(hoverTimeout.current);
-                        }}
-                        onMouseLeave={() => {
-                            if (isTooltipLocked) return;
-                            hoverTimeout.current = setTimeout(() => {
-                                setActiveTooltip(null);
-                                setIsTooltipLocked(false);
-                            }, 150);
-                        }}
-                    >
-                        <div className="flex justify-between items-start border-b border-slate-800 pb-2 mb-3">
-                            <div className="font-bold text-white text-base">
-                                {isAnalyticsTranslated && activeTooltip.data?.translation ? activeTooltip.data.translation : activeTooltip.word}
-                                {isTooltipLocked && <span className="ml-2 text-[10px] text-blue-400 border border-blue-900 bg-blue-950/50 px-1 rounded align-middle">LOCKED</span>}
-                            </div>
-                            <div className="flex flex-col items-end gap-1">
-                                <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${activeTooltip.data?.sentiment === 'Positive' ? 'bg-green-900/50 text-green-400 border border-green-800' : activeTooltip.data?.sentiment === 'Negative' ? 'bg-red-900/50 text-red-400 border border-red-800' : 'bg-slate-800 text-slate-400 border border-slate-700'}`}>
-                                    {activeTooltip.data?.sentiment}
-                                </span>
-                                <span className="text-[10px] text-slate-500 font-mono">Imp: {activeTooltip.data?.importance}</span>
-                            </div>
-                        </div>
-
-                        <div className="space-y-2">
-                            <div className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-1">
-                                Found in {activeTooltip.data?.sources?.length || 0} sources
-                            </div>
-                            <ul className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar pr-1">
-                                {activeTooltip.data?.sources && activeTooltip.data.sources.length > 0 ? (
-                                    activeTooltip.data.sources.map((src: any, idx: number) => (
-                                        <li key={idx} className="flex flex-col gap-0.5 bg-slate-900/50 p-2 rounded hover:bg-slate-900 transition-colors border border-white/5">
-                                            <a href={src.url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 hover:underline font-medium line-clamp-2 leading-tight">
-                                                {src.title}
-                                            </a>
-                                            <span className="text-[10px] text-slate-500">{src.source}</span>
-                                        </li>
-                                    ))
-                                ) : (
-                                    <li className="text-slate-600 italic">No direct sources mapped.</li>
-                                )}
-                            </ul>
-                        </div>
-                    </div>
-                )
-            }
-
-            {/* Support / Donation Button */}
-            <a
-                href="https://buymeacoffee.com/urbanous"
-                target="_blank"
-                rel="noopener noreferrer"
-                title="Support OpenNews"
-                className="absolute top-4 right-16 z-20 p-2 rounded-lg bg-yellow-500/90 text-white shadow-lg shadow-yellow-500/20 hover:bg-yellow-400 hover:scale-110 transition-all flex items-center gap-2 font-bold text-sm"
-            >
-                <Coffee className="w-5 h-5" />
-                <span className="hidden group-hover:block whitespace-nowrap">Support Us</span>
-            </a>
-
-            {/* Spotlight Search Overlay */}
-            {
-                isSpotlightOpen && (
-                    <div className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 transition-opacity" onClick={() => setIsSpotlightOpen(false)}>
-                        <div className="w-full max-w-lg bg-slate-900 border border-slate-700 rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200" onClick={e => e.stopPropagation()}>
-                            <div className="p-4 border-b border-slate-800 flex items-center gap-3">
-                                <Search className="w-5 h-5 text-slate-400" />
-                                <input
-                                    autoFocus
-                                    className="flex-1 bg-transparent border-none outline-none text-white placeholder-slate-500 text-lg"
-                                    placeholder="Search City..."
-                                    value={spotlightQuery}
-                                    onChange={e => {
-                                        setSpotlightQuery(e.target.value);
-                                        setSpotlightSelectedIndex(0);
+                        {/* Global Analytics Tooltip */}
+                        {
+                            activeTooltip && activeTooltip.rect && (
+                                <div
+                                    className="fixed z-[9999] w-80 bg-slate-950 backdrop-blur-xl border border-slate-700 rounded-xl shadow-[0_0_50px_rgba(0,0,0,0.8)] p-4 text-xs text-left cursor-auto animate-in fade-in zoom-in-95 duration-200"
+                                    style={{
+                                        top: activeTooltip.placement === 'bottom'
+                                            ? activeTooltip.rect.bottom + 8
+                                            : activeTooltip.rect.top - 8 - (200),
+                                        left: activeTooltip.rect.left + (activeTooltip.rect.width / 2) - 160,
                                     }}
-                                    onKeyDown={e => {
-                                        const candidates = cities
-                                            .filter(c => c.name.toLowerCase().includes(spotlightQuery.toLowerCase()))
-                                            .slice(0, 8);
-
-                                        if (e.key === 'ArrowDown') {
-                                            e.preventDefault();
-                                            setSpotlightSelectedIndex(prev => (prev + 1) % candidates.length);
-                                        } else if (e.key === 'ArrowUp') {
-                                            e.preventDefault();
-                                            setSpotlightSelectedIndex(prev => (prev - 1 + candidates.length) % candidates.length);
-                                        } else if (e.key === 'Enter') {
-                                            e.preventDefault();
-                                            const match = candidates[spotlightSelectedIndex];
-                                            if (match) {
-                                                handleSearchSelect(match);
-                                                setIsSpotlightOpen(false);
-                                                setSpotlightQuery('');
-                                                setSpotlightSelectedIndex(0);
-                                            }
-                                        }
+                                    onMouseEnter={() => {
+                                        if (hoverTimeout.current) clearTimeout(hoverTimeout.current);
                                     }}
-                                />
-                                <div className="flex gap-2">
-                                    <span className="text-[10px] bg-slate-800 px-1.5 py-0.5 rounded text-slate-400">ESC</span>
+                                    onMouseLeave={() => {
+                                        if (isTooltipLocked) return;
+                                        hoverTimeout.current = setTimeout(() => {
+                                            setActiveTooltip(null);
+                                            setIsTooltipLocked(false);
+                                        }, 150);
+                                    }}
+                                >
+                                    <div className="flex justify-between items-start border-b border-slate-800 pb-2 mb-3">
+                                        <div className="font-bold text-white text-base">
+                                            {isAnalyticsTranslated && activeTooltip.data?.translation ? activeTooltip.data.translation : activeTooltip.word}
+                                            {isTooltipLocked && <span className="ml-2 text-[10px] text-blue-400 border border-blue-900 bg-blue-950/50 px-1 rounded align-middle">LOCKED</span>}
+                                        </div>
+                                        <div className="flex flex-col items-end gap-1">
+                                            <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${activeTooltip.data?.sentiment === 'Positive' ? 'bg-green-900/50 text-green-400 border border-green-800' : activeTooltip.data?.sentiment === 'Negative' ? 'bg-red-900/50 text-red-400 border border-red-800' : 'bg-slate-800 text-slate-400 border border-slate-700'}`}>
+                                                {activeTooltip.data?.sentiment}
+                                            </span>
+                                            <span className="text-[10px] text-slate-500 font-mono">Imp: {activeTooltip.data?.importance}</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <div className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-1">
+                                            Found in {activeTooltip.data?.sources?.length || 0} sources
+                                        </div>
+                                        <ul className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar pr-1">
+                                            {activeTooltip.data?.sources && activeTooltip.data.sources.length > 0 ? (
+                                                activeTooltip.data.sources.map((src: any, idx: number) => (
+                                                    <li key={idx} className="flex flex-col gap-0.5 bg-slate-900/50 p-2 rounded hover:bg-slate-900 transition-colors border border-white/5">
+                                                        <a href={src.url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 hover:underline font-medium line-clamp-2 leading-tight">
+                                                            {src.title}
+                                                        </a>
+                                                        <span className="text-[10px] text-slate-500">{src.source}</span>
+                                                    </li>
+                                                ))
+                                            ) : (
+                                                <li className="text-slate-600 italic">No direct sources mapped.</li>
+                                            )}
+                                        </ul>
+                                    </div>
                                 </div>
-                            </div>
-                            {spotlightQuery && (
-                                <div className="max-h-[300px] overflow-y-auto">
-                                    {cities
-                                        .filter(c => c.name.toLowerCase().includes(spotlightQuery.toLowerCase()))
-                                        .slice(0, 8)
-                                        .map((city: any, idx: number) => (
-                                            <button
-                                                key={city.id || city.name}
-                                                className={`w-full text-left px-4 py-3 flex items-center justify-between group transition-colors ${idx === spotlightSelectedIndex ? 'bg-slate-800 border-l-2 border-blue-500' : 'hover:bg-slate-800/50 border-l-2 border-transparent'}`}
-                                                onClick={() => {
-                                                    handleSearchSelect(city);
-                                                    setIsSpotlightOpen(false);
-                                                    setSpotlightQuery('');
+                            )
+                        }
+
+                        {/* Support / Donation Button */}
+                        <a
+                            href="https://buymeacoffee.com/urbanous"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title="Support OpenNews"
+                            className="absolute top-4 right-16 z-20 p-2 rounded-lg bg-yellow-500/90 text-white shadow-lg shadow-yellow-500/20 hover:bg-yellow-400 hover:scale-110 transition-all flex items-center gap-2 font-bold text-sm"
+                        >
+                            <Coffee className="w-5 h-5" />
+                            <span className="hidden group-hover:block whitespace-nowrap">Support Us</span>
+                        </a>
+
+                        {/* Spotlight Search Overlay */}
+                        {
+                            isSpotlightOpen && (
+                                <div className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 transition-opacity" onClick={() => setIsSpotlightOpen(false)}>
+                                    <div className="w-full max-w-lg bg-slate-900 border border-slate-700 rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200" onClick={e => e.stopPropagation()}>
+                                        <div className="p-4 border-b border-slate-800 flex items-center gap-3">
+                                            <Search className="w-5 h-5 text-slate-400" />
+                                            <input
+                                                autoFocus
+                                                className="flex-1 bg-transparent border-none outline-none text-white placeholder-slate-500 text-lg"
+                                                placeholder="Search City..."
+                                                value={spotlightQuery}
+                                                onChange={e => {
+                                                    setSpotlightQuery(e.target.value);
+                                                    setSpotlightSelectedIndex(0);
                                                 }}
-                                                onMouseEnter={() => setSpotlightSelectedIndex(idx)}
-                                            >
-                                                <span className={`font-medium ${idx === spotlightSelectedIndex ? 'text-white' : 'text-slate-200 group-hover:text-white'}`}>{city.name}</span>
-                                                <span className="text-xs text-slate-500 uppercase">{city.country_code}</span>
-                                            </button>
-                                        ))}
-                                    {cities.filter(c => c.name.toLowerCase().includes(spotlightQuery.toLowerCase())).length === 0 && (
-                                        <div className="p-4 text-center text-slate-500 italic">No cities found</div>
-                                    )}
-                                </div>
-                            )}
-                            {!spotlightQuery && (
-                                <div className="p-8 text-center text-slate-600 text-sm">
-                                    Type to fly to a city...
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                )
-            }
+                                                onKeyDown={e => {
+                                                    const candidates = cities
+                                                        .filter(c => c.name.toLowerCase().includes(spotlightQuery.toLowerCase()))
+                                                        .slice(0, 8);
 
-            {/* Version Indicator */}
-            <div className="absolute bottom-2 right-2 z-[100] text-[10px] text-white/30 font-mono hover:text-white/80 cursor-default select-none transition-colors">
-                v0.121.07 UI Fix
-            </div>
-        </div >
-    );
+                                                    if (e.key === 'ArrowDown') {
+                                                        e.preventDefault();
+                                                        setSpotlightSelectedIndex(prev => (prev + 1) % candidates.length);
+                                                    } else if (e.key === 'ArrowUp') {
+                                                        e.preventDefault();
+                                                        setSpotlightSelectedIndex(prev => (prev - 1 + candidates.length) % candidates.length);
+                                                    } else if (e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                        const match = candidates[spotlightSelectedIndex];
+                                                        if (match) {
+                                                            handleSearchSelect(match);
+                                                            setIsSpotlightOpen(false);
+                                                            setSpotlightQuery('');
+                                                            setSpotlightSelectedIndex(0);
+                                                        }
+                                                    }
+                                                }}
+                                            />
+                                            <div className="flex gap-2">
+                                                <span className="text-[10px] bg-slate-800 px-1.5 py-0.5 rounded text-slate-400">ESC</span>
+                                            </div>
+                                        </div>
+                                        {spotlightQuery && (
+                                            <div className="max-h-[300px] overflow-y-auto">
+                                                {cities
+                                                    .filter(c => c.name.toLowerCase().includes(spotlightQuery.toLowerCase()))
+                                                    .slice(0, 8)
+                                                    .map((city: any, idx: number) => (
+                                                        <button
+                                                            key={city.id || city.name}
+                                                            className={`w-full text-left px-4 py-3 flex items-center justify-between group transition-colors ${idx === spotlightSelectedIndex ? 'bg-slate-800 border-l-2 border-blue-500' : 'hover:bg-slate-800/50 border-l-2 border-transparent'}`}
+                                                            onClick={() => {
+                                                                handleSearchSelect(city);
+                                                                setIsSpotlightOpen(false);
+                                                                setSpotlightQuery('');
+                                                            }}
+                                                            onMouseEnter={() => setSpotlightSelectedIndex(idx)}
+                                                        >
+                                                            <span className={`font-medium ${idx === spotlightSelectedIndex ? 'text-white' : 'text-slate-200 group-hover:text-white'}`}>{city.name}</span>
+                                                            <span className="text-xs text-slate-500 uppercase">{city.country_code}</span>
+                                                        </button>
+                                                    ))}
+                                                {cities.filter(c => c.name.toLowerCase().includes(spotlightQuery.toLowerCase())).length === 0 && (
+                                                    <div className="p-4 text-center text-slate-500 italic">No cities found</div>
+                                                )}
+                                            </div>
+                                        )}
+                                        {!spotlightQuery && (
+                                            <div className="p-8 text-center text-slate-600 text-sm">
+                                                Type to fly to a city...
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )
+                        }
+
+                        {/* Version Indicator */}
+                        <div className="absolute bottom-2 right-2 z-[100] text-[10px] text-white/30 font-mono hover:text-white/80 cursor-default select-none transition-colors">
+                            v0.121.07 UI Fix
+                        </div>
+                    </div >
+            );
 }
