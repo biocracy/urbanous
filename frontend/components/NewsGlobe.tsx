@@ -2342,8 +2342,8 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                 return sprite;
             }}
             customThreeObjectUpdate={(obj, d: any) => {
-                // LOWER ALTITUDE: 0.005 (closer to ground) instead of 0.02
-                Object.assign(obj.position, globeEl.current?.getCoords(d.lat, d.lng, 0.005));
+                // LOWER ALTITUDE: 0.012 (Balance between floating and clipping)
+                Object.assign(obj.position, globeEl.current?.getCoords(d.lat, d.lng, 0.012));
             }}
 
             // Rings - DIAGNOSIS: DISABLED to check for Animation Leak
