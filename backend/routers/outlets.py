@@ -200,7 +200,7 @@ async def gemini_discover_city_outlets(city: str, country: str, lat: float, lng:
     
     print(f"DEBUG: Starting Gemini Discovery for {city}, {country}")
     # Update to newer stable model
-    model = genai.GenerativeModel('gemini-2.0-flash')
+    model = genai.GenerativeModel('gemini-1.5-flash')
     try:
         response = await model.generate_content_async(prompt, generation_config={"max_output_tokens": 4000})
         text = response.text.strip()
@@ -305,91 +305,89 @@ async def discover_city_outlets(req: CityDiscoveryRequest, current_user: Optiona
     Finds outlets for a specific city.
     Checks DB first. If not found OR force_refresh is True, uses AI to discover.
     """
-    existing = []
-    print(f"DEBUG: Request for {req.city}, force={req.force_refresh}")
-    if not req.force_refresh:
-        result = await db.execute(select(NewsOutlet).where(NewsOutlet.city.ilike(req.city)))
-        existing = result.scalars().all()
-        print(f"DEBUG: Found {len(existing)} existing outlets in DB.")
-        if existing:
-            return existing
-    
-    # Auto-Discover
-    print(f"Discovering outlets for city: {req.city}, {req.country} (Force: {req.force_refresh})")
-    
-    # 1. Try to load .env safely
     try:
-        from dotenv import load_dotenv
-        load_dotenv(override=True)
-    except ImportError:
-        print("DEBUG: python-dotenv not installed.")
-    except Exception as e:
-        print(f"DEBUG: load_dotenv failed: {e}")
-
-    api_key = current_user.gemini_api_key if current_user and current_user.gemini_api_key else os.getenv("GEMINI_API_KEY")
+        existing = []
+        print(f"DEBUG: Request for {req.city}, force={req.force_refresh}")
+        if not req.force_refresh:
+            result = await db.execute(select(NewsOutlet).where(NewsOutlet.city.ilike(req.city)))
+            existing = result.scalars().all()
+            print(f"DEBUG: Found {len(existing)} existing outlets in DB.")
+            if existing: return existing
     
-    # 2. Visual Error Reporting (Bypass CORS/Console)
-    if not api_key:
-        print("DEBUG: No API key.")
+        # Auto-Discover
+        print(f"Discovering outlets for city: {req.city}, {req.country} (Force: {req.force_refresh})")
+        
+        # 1. Try to load .env safely
+        try:
+            from dotenv import load_dotenv
+            load_dotenv(override=True)
+        except: pass
+    
+        api_key = current_user.gemini_api_key if current_user and current_user.gemini_api_key else os.getenv("GEMINI_API_KEY")
+        
+        # 2. Visual Error Reporting (Bypass CORS/Console)
+        if not api_key:
+            return [NewsOutlet(id=999998, name="⚠️ ERROR: Missing API Key", country_code="XX", city=req.city, url="#", type="Error", popularity=10, focus="Server Config Error")]
+            
+        try:
+            # Downgrade to 1.5-flash for stability
+            discovered = await gemini_discover_city_outlets(req.city, req.country, req.lat, req.lng, api_key=api_key)
+        except ResourceExhausted:
+             return [NewsOutlet(id=999997, name="⚠️ ERROR: Quota Exceeded", country_code="XX", city=req.city, url="#", type="Error", popularity=10, focus="Try again later")]
+        except Exception as e:
+            print(f"Discovery Error: {e}")
+            if existing: return existing
+            raise e # Reraise to be caught by outer block
+    
+        saved_outlets = []
+        
+        result = await db.execute(select(NewsOutlet).where(NewsOutlet.city.ilike(req.city)))
+        current_db_outlets = result.scalars().all()
+        current_urls = {o.url for o in current_db_outlets if o.url}
+        current_names = {o.name.lower() for o in current_db_outlets}
+    
+        for disc in discovered:
+            if disc.url and disc.url in current_urls: continue
+            if disc.name.lower() in current_names: continue
+            
+            db_outlet = NewsOutlet(
+                name=disc.name,
+                country_code=disc.country_code, 
+                city=disc.city,
+                lat=disc.lat,
+                lng=disc.lng,
+                url=disc.url,
+                type=disc.type,
+                popularity=disc.popularity,
+                focus=disc.focus 
+            )
+            db.add(db_outlet)
+            saved_outlets.append(db_outlet)
+        
+        if saved_outlets:
+            await db.commit()
+        
+        # Return updated list
+        result = await db.execute(select(NewsOutlet).where(NewsOutlet.city.ilike(req.city)))
+        final_outlets = result.scalars().all()
+        return final_outlets
+
+    except Exception as ie:
+        import traceback
+        trace = traceback.format_exc()
+        print(f"CRITICAL ENDPOINT CRASH: {ie}\n{trace}")
         return [
             NewsOutlet(
                 id=999999,
-                name="⚠️ ERROR: Backend Message",
-                country_code="RO",  # Valid code to prevent crash
+                name="⚠️ FATAL CRASH",
+                country_code="XX",
                 city=req.city,
-                url="https://railway.app",
+                url="#",
                 type="Error",
                 popularity=10,
-                focus=f"MISSING GEMINI_API_KEY in Env. user={current_user.email if current_user else 'None'}"
+                focus=f"Error: {str(ie)[:200]}"
             )
         ]
-
-    try:
-        discovered = await gemini_discover_city_outlets(req.city, req.country, req.lat, req.lng, api_key=api_key)
-    except ResourceExhausted:
-         raise HTTPException(status_code=429, detail="AI Quota Exceeded. Please try again later.")
-    except Exception as e:
-        print(f"Discovery Error: {e}")
-        # If we have existing data and discovery failed, return existing
-        if existing: return existing
-        return []
-
-    saved_outlets = []
-    
-    # If refreshing, we might get duplicates. Only add new ones.
-    # We re-fetch existing to be sure
-    result = await db.execute(select(NewsOutlet).where(NewsOutlet.city.ilike(req.city)))
-    current_db_outlets = result.scalars().all()
-    current_urls = {o.url for o in current_db_outlets if o.url}
-    current_names = {o.name.lower() for o in current_db_outlets}
-
-    for disc in discovered:
-        # Check duplicate by URL or Name
-        if disc.url and disc.url in current_urls: continue
-        if disc.name.lower() in current_names: continue
-        
-        db_outlet = NewsOutlet(
-            name=disc.name,
-            country_code=disc.country_code, 
-            city=disc.city,
-            lat=disc.lat,
-            lng=disc.lng,
-            url=disc.url,
-            type=disc.type,
-            popularity=disc.popularity,
-            focus=disc.focus 
-        )
-        db.add(db_outlet)
-        saved_outlets.append(db_outlet)
-    
-    if saved_outlets:
-        await db.commit()
-    
-    # Return updated list
-    result = await db.execute(select(NewsOutlet).where(NewsOutlet.city.ilike(req.city)))
-    final_outlets = result.scalars().all()
-    print(f"DEBUG: Returning {len(final_outlets)} outlets to frontend for {req.city}.")
-    return final_outlets
 
 class OutletUpdate(BaseModel):
     url: Optional[str] = None
