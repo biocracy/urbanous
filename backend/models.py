@@ -11,6 +11,7 @@ class User(Base):
     hashed_password = Column(String)
     gemini_api_key = Column(String, nullable=True) # Encrypted ideally, plain for MVP
     preferred_language = Column(String, default="English") # New: Translation Preference
+    viz_settings = Column(String, nullable=True, default="{}") # New: Persisted Globe Settings (JSON)
     
     # Identity & Privacy
     username = Column(String, unique=True, index=True, nullable=True)

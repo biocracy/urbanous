@@ -151,6 +151,7 @@ class UserSettingsUpdate(BaseModel):
     preferred_language: str | None = None
     username: str | None = None
     is_username_visible: bool | None = None
+    viz_settings: str | None = None # New: JSON String from frontend
 
 @router.get("/users/me")
 async def read_users_me(current_user: User = Depends(get_current_user)):
@@ -160,7 +161,8 @@ async def read_users_me(current_user: User = Depends(get_current_user)):
         "username": current_user.username,
         "is_username_visible": current_user.is_username_visible,
         "gemini_api_key": current_user.gemini_api_key, 
-        "preferred_language": current_user.preferred_language, # New Field
+        "preferred_language": current_user.preferred_language,
+        "viz_settings": current_user.viz_settings, # Return Persisted Settings
         "created_at": current_user.created_at
     }
 
@@ -175,6 +177,10 @@ async def update_user_settings(settings: UserSettingsUpdate, current_user: User 
             user_in_db.gemini_api_key = settings.api_key
         if settings.preferred_language is not None:
             user_in_db.preferred_language = settings.preferred_language
+        
+        # New: Update Viz Settings
+        if settings.viz_settings is not None:
+            user_in_db.viz_settings = settings.viz_settings
             
         if settings.username is not None:
             # Check Uniqueness
@@ -186,6 +192,10 @@ async def update_user_settings(settings: UserSettingsUpdate, current_user: User 
         
         if settings.is_username_visible is not None:
             user_in_db.is_username_visible = settings.is_username_visible
+            
+        await db.commit()
+        return {"status": "Updated Settings"}
+    raise HTTPException(status_code=404, detail="User not found")
             
         await db.commit()
         return {"status": "Updated Settings"}
