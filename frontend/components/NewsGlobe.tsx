@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import dynamic from 'next/dynamic';
+import { debounce } from 'lodash';
+import * as d3 from 'd3';
 import * as turf from '@turf/turf';
 import api from '@/lib/api'; // Use the axios instance with Auth interceptor
 import { useAuthStore } from '@/lib/store';
@@ -1385,6 +1387,56 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             .catch(err => console.error("Failed to load clusters", err));
 
     }, [clusterThreshold]); // Re-fetch only when user changes slider
+
+    // --- USER VIZ SETTINGS PERSISTENCE ---
+    const [vizSettingsLoaded, setVizSettingsLoaded] = useState(false);
+
+    // 1. Load Settings on Mount / User Login
+    useEffect(() => {
+        if (currentUser && currentUser.viz_settings && !vizSettingsLoaded) {
+            try {
+                const settings = JSON.parse(currentUser.viz_settings);
+                console.log("[NewsGlobe] Loading saved viz settings:", settings);
+
+                if (settings.vizMode) setVizMode(settings.vizMode);
+                if (settings.markerScales) setMarkerScales(settings.markerScales);
+                if (settings.mapStyle) setMapStyle(settings.mapStyle);
+                if (settings.clusterThreshold) setClusterThreshold(settings.clusterThreshold);
+
+                setVizSettingsLoaded(true);
+            } catch (e) {
+                console.error("Failed to parse user viz settings", e);
+            }
+        } else if (!currentUser) {
+            // Reset to defaults if logged out? Or keep last interaction?
+            // Keeping last interaction is better UX for "just checking"
+            setVizSettingsLoaded(false); // Enable re-load on next login
+        }
+    }, [currentUser]);
+
+    // 2. Auto-Save Settings (Debounced)
+    const saveVizSettings = useCallback(debounce((newSettings: any) => {
+        if (!currentUser) return;
+
+        api.put('/users/me/settings', {
+            viz_settings: JSON.stringify(newSettings)
+        }).catch(err => console.warn("Failed to auto-save viz settings", err));
+
+    }, 2000), [currentUser]);
+
+    // 3. Trigger Save on Change
+    useEffect(() => {
+        if (!currentUser || !vizSettingsLoaded) return; // Don't save initial hydration
+
+        const currentSettings = {
+            vizMode,
+            markerScales,
+            mapStyle,
+            clusterThreshold
+        };
+        saveVizSettings(currentSettings);
+
+    }, [vizMode, markerScales, mapStyle, clusterThreshold, currentUser, vizSettingsLoaded]);
 
     // Helpers
     const getPopScale = (pop: any) => {
