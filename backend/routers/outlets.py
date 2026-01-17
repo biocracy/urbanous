@@ -308,6 +308,8 @@ async def test_crash():
         import google.generativeai as genai
         model = genai.GenerativeModel('gemini-1.5-flash')
         return {"status": "Gemini Alive", "model": str(model)}
+    except Exception as e:
+        return {"status": "Gemini Dead", "error": str(e)}
 @router.get("/outlets/discover_city_debug")
 async def discover_city_debug(raw_req: Request, city: str, country: str, lat: float, lng: float, db: Session = Depends(get_db)):
     """GET version of discovery with MANUAL AUTH to prevent crashes."""
