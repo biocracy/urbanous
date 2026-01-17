@@ -311,7 +311,7 @@ async def test_crash():
     except Exception as e:
         return {"status": "Gemini Dead", "error": str(e)}
 
-@router.get("/outlets/discover_city_debug", response_model=List[OutletRead])
+@router.get("/outlets/discover_city_debug")
 async def discover_city_debug(city: str, country: str, lat: float, lng: float, db: Session = Depends(get_db)):
     """GET version of discovery to bypass POST/CORS issues."""
     from fastapi import Request
@@ -363,7 +363,7 @@ async def discover_city_debug(city: str, country: str, lat: float, lng: float, d
     except Exception as e:
          return [NewsOutlet(id=999999, name="⚠️ ERROR: GET Crash", country_code="XX", type="Error", focus=str(e))]
 
-@router.post("/outlets/discover_city", response_model=List[OutletRead])
+@router.post("/outlets/discover_city")
 async def discover_city_outlets(raw_req: Request, db: Session = Depends(get_db)):
     """
     Finds outlets for a specific city.
