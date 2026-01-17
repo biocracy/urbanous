@@ -1236,154 +1236,21 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
     // --- Visual Controls ---
     const [clusterThreshold, setClusterThreshold] = useState(0.7); // Default 0.7 deg
-    const [markerScale, setMarkerScale] = useState(0.25); // Default 0.25 (User Request)
+    // Split markerScale for 2D and 3D
+    const [markerScales, setMarkerScales] = useState({ '3d': 0.6, '2d': 0.25 });
+
+    // Derived helper to get current scale (for use in renders)
+    const currentMarkerScale = markerScales[vizMode];
+
     const [showControls, setShowControls] = useState(false); // Toggle for Viz Controls
 
-    const MAP_STYLES = [
-        { name: 'Satellite', url: '//unpkg.com/three-globe/example/img/earth-blue-marble.jpg' },
-        { name: 'Day', url: '//unpkg.com/three-globe/example/img/earth-day.jpg' },
-        { name: 'Night', url: '//unpkg.com/three-globe/example/img/earth-night.jpg' },
-        { name: 'Dark', url: '//unpkg.com/three-globe/example/img/earth-dark.jpg' }
-    ];
-    const [mapStyle, setMapStyle] = useState(MAP_STYLES[0].url);
-    const [editingOutletId, setEditingOutletId] = useState<number | null>(null);
-    const [editUrl, setEditUrl] = useState('');
-
-    // --- Advanced Visualization State ---
-
-    const [expandedCluster, setExpandedCluster] = useState<any | null>(null);
-    const [rawClusters, setRawClusters] = useState<any[]>([]); // Moved up for scope availability
-
-    // OPTIMIZATION: Memoize complex props to prevent Globe re-evaluation
-    const getPointColor = useCallback((d: any) => {
-        if (selectedCityData && d.name === selectedCityData.name) {
-            return '#00FFFF'; // Force Cyan for selected
-        }
-        // Inject opacity if present
-        if (d.opacity !== undefined && d.opacity < 1) {
-            const c = d.color;
-            if (c.startsWith('#')) {
-                const r = parseInt(c.slice(1, 3), 16);
-                const g = parseInt(c.slice(3, 5), 16);
-                const b = parseInt(c.slice(5, 7), 16);
-                return `rgba(${r},${g},${b},${d.opacity})`;
-            }
-            return d.color;
-        }
-        return d.color;
-    }, [selectedCityData]);
-
-    // State for Globe Data
-    const [processedData, setProcessedData] = useState<{ points: any[], rings: any[], links: any[], sprites: any[] }>({
-        points: [],
-        rings: [],
-        links: [],
-        sprites: []
-    });
-
-    const ringsData = useMemo(() => {
-        return [
-            ...processedData.rings,
-            // 1. Temporary Halo for Search Highlight
-            ...(highlightedCityId ? (() => {
-                const c = rawClusters.find(x => x.name === highlightedCityId); // Optimization: Use rawClusters instead of 'cities' which is empty
-                if (!c) return [];
-                return [{
-                    lat: parseFloat(c.lat),
-                    lng: parseFloat(c.lng),
-                    maxR: 2.5,
-                    color: 'rgba(50, 255, 255, 0.8)',
-                    propagationSpeed: 5,
-                    repeatPeriod: 800
-                }];
-            })() : []),
-            // 2. Persistent Halo
-            ...(selectedCityData ? (() => {
-                const lat = parseFloat(selectedCityData.lat);
-                const lng = parseFloat(selectedCityData.lng || selectedCityData.lon);
-                if (isNaN(lat) || isNaN(lng)) return [];
-                return [{
-                    lat: lat,
-                    lng: lng,
-                    maxR: 1.5,
-                    color: 'rgba(50, 200, 255, 0.6)',
-                    propagationSpeed: 2,
-                    repeatPeriod: 1500
-                }];
-            })() : [])
-        ];
-    }, [processedData.rings, highlightedCityId, selectedCityData, rawClusters]);
-
-    // Clustering Logic (Simple Distance)
-    // const CLUSTER_THRESHOLD = 2.5; // Degrees // Removed, using state variable
-
-    // OPTIMIZATION: Memoize Outlet Lookup to avoid O(N*M) in render loop
-    const outletLookup = useMemo(() => {
-        const map = new Map<string, any>();
-        const nameMap = new Map<string, any>();
-        allOutlets.forEach((o: any) => {
-            try {
-                const d = new URL(o.url).hostname.replace('www.', '');
-                map.set(d, o);
-            } catch { }
-            if (o.name) nameMap.set(o.name, o);
-        });
-        return { byDomain: map, byName: nameMap };
-    }, [allOutlets]);
-
-
-    // --- OPTIMIZED CLUSTERING (Phase 2) ---
-    // --- OPTIMIZED CLUSTERING (Phase 2) ---
-
-    // 1. Fetch Clusters from Backend (Static JSONs)
-    useEffect(() => {
-        const availableRadii = [0.1, 0.3, 0.5, 0.7, 1.0];
-        // Find closest supported radius
-        const radius = availableRadii.reduce((prev, curr) =>
-            Math.abs(curr - clusterThreshold) < Math.abs(prev - clusterThreshold) ? curr : prev
-        );
-
-        console.log(`Loading clusters for radius: ${radius} (requested: ${clusterThreshold})`);
-        const url = `/static/clusters/cities_${radius.toFixed(1)}.json?v=120.72`; // e.g. cities_0.7.json
-
-        // Use api (axios) or fetch. Since it's valid static file, fetch is fine/faster? 
-        // Using api to keep baseURL consistent if set.
-        api.get(url)
-            .then(res => {
-                console.log(`Loaded ${res.data.length} clusters.`);
-                setRawClusters(res.data);
-
-                // FIX: Populate 'cities' for Spotlight Search from the loaded clusters
-                // Flatten: Clusters (centers) + SubPoints, avoiding duplicates
-                const seen = new Set<string>();
-                const flatCities: any[] = [];
-                res.data.forEach((c: any) => {
-                    if (!seen.has(c.name)) {
-                        flatCities.push(c);
-                        seen.add(c.name);
-                    }
-                    if (c.subPoints) {
-                        c.subPoints.forEach((sc: any) => {
-                            if (!seen.has(sc.name)) {
-                                flatCities.push(sc);
-                                seen.add(sc.name);
-                            }
-                        });
-                    }
-                });
-                setCities(flatCities);
-            })
-            .catch(err => console.error("Failed to load clusters", err));
-
-    }, [clusterThreshold]); // Re-fetch only when user changes slider
+    // ... (rest of code)
 
     // Helpers
     const getPopScale = (pop: any) => {
         const val = parseInt(pop || '0');
-        if (val < 1000) return 0.02 * markerScale;
-        // Ensure visible minimum even with small scale
-        // Log10(1M)=6 -> 0.18. * 0.6 = 0.108
-        return Math.max(0.08, Math.log10(val) * 0.03) * markerScale;
+        if (val < 1000) return 0.02 * currentMarkerScale;
+        return Math.max(0.08, Math.log10(val) * 0.03) * currentMarkerScale;
     };
 
     // 2. Apply Dynamic Styling (Colors, Active News) - O(N) efficient
@@ -1445,7 +1312,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             }
 
             // FIX: Backend radius (1.0-4.5) is too large. tailored for backend graph.
-            const radius = getPopScale(c.pop) * markerScale;
+            const radius = getPopScale(c.pop) * currentMarkerScale;
 
             return {
                 ...c,
@@ -1455,7 +1322,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                 subPoints: processedSubPoints
             };
         });
-    }, [rawClusters, activeDigestCities, discoveredCities, markerScale]);
+    }, [rawClusters, activeDigestCities, discoveredCities, currentMarkerScale]);
 
     // ----------------------------------------------------
     // COMPONENT RENDER LOGGING
@@ -1646,7 +1513,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             // Fallback: render baseline
             setProcessedData({ points: [], rings: [], links: [], sprites: [] });
         }
-    }, [clusters, expandedCluster, vizMode, markerScale]);
+    }, [clusters, expandedCluster, vizMode, currentMarkerScale]);
 
 
     // ESC Key to close cluster / digest report
@@ -2456,12 +2323,15 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                         </div>
                         <div>
                             <label className="flex justify-between mb-1">
-                                <span>Marker Scale: {markerScale.toFixed(1)}x</span>
+                                <span>Marker Scale ({vizMode === '2d' ? '2D' : '3D'}): {currentMarkerScale.toFixed(2)}x</span>
                             </label>
                             <input
-                                type="range" min="0.05" max="0.5" step="0.05"
-                                value={markerScale}
-                                onChange={e => setMarkerScale(parseFloat(e.target.value))}
+                                type="range"
+                                min={vizMode === '2d' ? "0.05" : "0.2"}
+                                max={vizMode === '2d' ? "0.5" : "2.0"}
+                                step={vizMode === '2d' ? "0.05" : "0.1"}
+                                value={currentMarkerScale}
+                                onChange={e => setMarkerScales(prev => ({ ...prev, [vizMode]: parseFloat(e.target.value) }))}
                                 className="w-full accent-blue-500"
                             />
                         </div>
