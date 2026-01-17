@@ -2307,8 +2307,8 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                         map: map,
                         transparent: true,
                         opacity: 1,
-                        depthWrite: false,
-                        depthTest: false
+                        depthWrite: false, // Keep false for sprites to avoid z-fighting with themselves
+                        depthTest: true   // FIX: Enable depth testing so Globe occludes sprites
                     });
                 }
 
