@@ -1328,7 +1328,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
         );
 
         console.log(`Loading clusters for radius: ${radius} (requested: ${clusterThreshold})`);
-        const url = `/static/clusters/cities_${radius.toFixed(1)}.json`; // e.g. cities_0.7.json
+        const url = `/static/clusters/cities_${radius.toFixed(1)}.json?v=120.72`; // e.g. cities_0.7.json
 
         // Use api (axios) or fetch. Since it's valid static file, fetch is fine/faster? 
         // Using api to keep baseURL consistent if set.
@@ -3538,7 +3538,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
             {/* Version Indicator */}
             <div className="absolute bottom-2 right-2 z-[100] text-[10px] text-white/30 font-mono hover:text-white/80 cursor-default select-none transition-colors">
-                v0.120.71 Fix: Thimphu Visibility
+                v0.120.72 Cache Buster
             </div>
         </div >
 
