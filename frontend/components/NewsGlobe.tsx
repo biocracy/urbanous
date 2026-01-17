@@ -1550,14 +1550,19 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
                             // Add spider legs
                             if (idx !== 0) { // Don't link center to itself
-                                renderLinks.push({
-                                    type: 'spider',
-                                    startLat: c.lat ? parseFloat(c.lat) : 0,
-                                    startLng: c.lon ? parseFloat(c.lon) : 0,
-                                    endLat: exLat,
-                                    endLng: exLng,
-                                    color: 'rgba(255,255,255,0.2)'
-                                });
+                                const centerLat = parseFloat(c.lat || c.latitude);
+                                const centerLng = parseFloat(c.lng || c.lon || c.longitude);
+
+                                if (!isNaN(centerLat) && !isNaN(centerLng)) {
+                                    renderLinks.push({
+                                        type: 'spider',
+                                        startLat: centerLat,
+                                        startLng: centerLng,
+                                        endLat: exLat,
+                                        endLng: exLng,
+                                        color: 'rgba(255,255,255,0.2)'
+                                    });
+                                }
                             }
                         });
                         // Adjust ring to cover the area?
@@ -3538,7 +3543,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
             {/* Version Indicator */}
             <div className="absolute bottom-2 right-2 z-[100] text-[10px] text-white/30 font-mono hover:text-white/80 cursor-default select-none transition-colors">
-                v0.121.00 Debug
+                v0.121.01 Stable
             </div>
         </div >
 
