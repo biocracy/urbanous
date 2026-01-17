@@ -68,6 +68,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
     const [cities, setCities] = useState<any[]>([]);
     const [hoverPoint, setHoverPoint] = useState<any | null>(null);
     const [digestData, setDigestData] = useState<any>(null);
+    const [isReportSaved, setIsReportSaved] = useState(false); // Track unsaved changes
     const [isTranslateActive, setIsTranslateActive] = useState(false);
     const [debuggerConfig, setDebuggerConfig] = useState<{ isOpen: boolean; url: string; domain: string }>({
         isOpen: false,
@@ -185,6 +186,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
     const [spotlightSelectedIndex, setSpotlightSelectedIndex] = useState(0);
 
     const handleToggleSelection = (url: string) => {
+        setIsReportSaved(false); // Mark as modified
         const newSet = new Set(selectedArticleUrls);
         if (newSet.has(url)) newSet.delete(url);
         else newSet.add(url);
@@ -544,6 +546,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             setDigestData((prev: any) => ({ ...prev, id: savedItem.id }));
 
             await fetchSavedDigests();
+            setIsReportSaved(true); // Mark as saved
             alert("Digest saved!");
             // Show toast? relying on button state for now
         } catch (err: any) {
@@ -1613,7 +1616,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
         const handleEsc = (e: KeyboardEvent) => {
             if (e.key === 'Escape') {
                 // If Digest is open, ask for confirmation
-                if (digestData && !confirm("Close report? Unsaved progress will be lost.")) {
+                if (digestData && !isReportSaved && !confirm("Close report? Unsaved progress will be lost.")) {
                     return;
                 }
                 setExpandedCluster(null);
@@ -2071,6 +2074,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
     };
 
     const handleAssessArticle = async (article: any) => {
+        setIsReportSaved(false); // Mark as modified
         if (!article.url || !article.title) return null;
 
         try {
@@ -2113,6 +2117,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
     };
 
     const handleReportSpam = async (article: any) => {
+        setIsReportSaved(false); // Mark as modified
         if (!article.url) return;
         const url = article.url;
 
@@ -2292,7 +2297,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                 {expandedCluster && (
                     <button
                         onClick={() => {
-                            if (digestData && !confirm("Close report? Unsaved progress will be lost.")) return;
+                            if (digestData && !isReportSaved && !confirm("Close report? Unsaved progress will be lost.")) return;
                             setExpandedCluster(null);
                             setDigestData(null);
                         }}
@@ -2461,7 +2466,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                                     </button>
                                     <button
                                         onClick={() => {
-                                            if (confirm("Close report? Unsaved progress will be lost.")) {
+                                            if (isReportSaved || confirm("Close report? Unsaved progress will be lost.")) {
                                                 setDigestData(null);
                                             }
                                         }}
@@ -3555,7 +3560,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
             {/* Version Indicator */}
             <div className="absolute bottom-2 right-2 z-[100] text-[10px] text-white/30 font-mono hover:text-white/80 cursor-default select-none transition-colors">
-                v0.121.06 NoRings
+                v0.121.07 UI Fix
             </div>
         </div >
     );
