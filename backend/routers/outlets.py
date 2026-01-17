@@ -300,6 +300,59 @@ async def gemini_scrape_outlets(html_content: str, city: str, country: str, lat:
 from dependencies import get_current_user, get_current_user_optional
 
 from fastapi import Request
+
+@router.get("/outlets/discover_city_debug", response_model=List[OutletRead])
+async def discover_city_debug(city: str, country: str, lat: float, lng: float, db: Session = Depends(get_db)):
+    """GET version of discovery to bypass POST/CORS issues."""
+    from fastapi import Request
+    # Mock a request object
+    class MockReq:
+        pass
+    req = MockReq()
+    req.json = lambda: {"city": city, "country": country, "lat": lat, "lng": lng}
+    req.body = lambda: b"{}"
+    
+    # Init manual req object
+    manual_req = MockReq()
+    manual_req.city = city
+    manual_req.country = country
+    manual_req.lat = lat
+    manual_req.lng = lng
+    manual_req.force_refresh = False
+    
+    # Call internal logic (duplicated essentially or refactored)
+    # For speed, I'll copy the core logic here or refactor. 
+    # Let's just create a new minimal flow for debugging.
+    
+    # 1. Env Check
+    try:
+        from dotenv import load_dotenv
+        load_dotenv(override=True)
+    except: pass
+    
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+         return [NewsOutlet(id=999998, name="⚠️ ERROR: Missing API Key", country_code="XX", type="Error", focus="Env Missing")]
+
+    try:
+        discovered = await gemini_discover_city_outlets(city, country, lat, lng, api_key=api_key)
+        
+        # Save logic skipped for debug, just return
+        return [OutletCreate(
+            name=d.name, 
+            city=d.city, 
+            country_code=d.country_code,
+            url=d.url, 
+            type=d.type,
+            popularity=d.popularity,
+            focus=d.focus,
+            lat=d.lat,
+            lng=d.lng
+        ) for d in discovered]
+        
+    except Exception as e:
+         return [NewsOutlet(id=999999, name="⚠️ ERROR: GET Crash", country_code="XX", type="Error", focus=str(e))]
+
 @router.post("/outlets/discover_city", response_model=List[OutletRead])
 async def discover_city_outlets(raw_req: Request, db: Session = Depends(get_db)):
     """

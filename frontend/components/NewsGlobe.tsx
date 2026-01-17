@@ -1653,12 +1653,16 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
         const countryCode = d.country || "XX";
         const countryName = countryMap.current[countryCode] || countryCode;
 
+        // DEBUG: Switch to GET to bypass POST/Option issues
+        /*
         api.post('/outlets/discover_city', {
             city: d.name,
             country: countryName,
             lat: parseFloat(d.lat || d.latitude || '0'),
             lng: parseFloat(d.lng || d.lon || d.longitude || '0')
         })
+        */
+        api.get(`/outlets/discover_city_debug?city=${encodeURIComponent(d.name)}&country=${encodeURIComponent(countryName)}&lat=${parseFloat(d.lat || 0)}&lng=${parseFloat(d.lng || d.lon || 0)}`)
             .then(res => {
                 const data = res.data;
                 if (Array.isArray(data)) {
@@ -3536,7 +3540,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
             {/* Version Indicator */}
             <div className="absolute bottom-2 right-2 z-[100] text-[10px] text-white/30 font-mono hover:text-white/80 cursor-default select-none transition-colors">
-                v0.120.81 Debug: NoAuth
+                v0.120.82 Debug: GET Method
             </div>
         </div >
 

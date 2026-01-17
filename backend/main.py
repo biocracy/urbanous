@@ -27,7 +27,7 @@ app.add_middleware(
     allow_origins=origins,
     allow_origin_regex=r"https://.*\.up\.railway\.app", # Dynamic Railway Previews
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "OPTIONS", "PUT", "DELETE"],
     allow_headers=["*"],
 )
 
