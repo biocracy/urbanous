@@ -340,44 +340,26 @@ async def discover_city_debug(raw_req: Request, city: str, country: str, lat: fl
             existing = result.scalars().all()
             if existing:
                 return existing
-            trace_log = ["DB Miss"]
-        except Exception as e:
-            trace_log = [f"DB Error: {str(e)}"]
-    else:
-        trace_log = [f"Force Refresh: {force_refresh}"]
+        except Exception:
+            pass # DB read fail, proceed to discovery
 
     # 2. Manual Auth Retrieval (DEFENSIVE MODE)
     current_user = None
-    current_user = None
-    # Use trace_log for Auth steps too
-
-    
     try:
         auth_header = raw_req.headers.get("Authorization")
         if auth_header and auth_header.startswith("Bearer "):
             token = auth_header.split(" ")[1]
+            from jose import jwt
+            from security import SECRET_KEY, ALGORITHM
+            from models import User
             
-            # Inner Try for JWT
-            try:
-                from jose import jwt
-                from security import SECRET_KEY, ALGORITHM
-                from models import User
-                from sqlalchemy import select
-                
-                payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-                email: str = payload.get("sub")
-                if email:
-                    result = await db.execute(select(User).where(User.email == email))
-                    current_user = result.scalars().first()
-                    if not current_user: trace_log.append("User DB Miss manually")
-                else: trace_log.append("No email in token")
-            except Exception as jwt_e:
-                trace_log.append(f"JWT Fail: {str(jwt_e)}")
-        else:
-            trace_log.append("No Bearer Header")
-            
-    except Exception as e:
-        trace_log.append(f"General Auth Crash: {str(e)}")
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            email: str = payload.get("sub")
+            if email:
+                result = await db.execute(select(User).where(User.email == email))
+                current_user = result.scalars().first()
+    except Exception:
+        pass # Auth fail, fallback to system key
 
     # 3. Env/Key Check
     try:
@@ -390,25 +372,31 @@ async def discover_city_debug(raw_req: Request, city: str, country: str, lat: fl
         api_key = current_user.gemini_api_key
     elif os.getenv("GEMINI_API_KEY"):
         api_key = os.getenv("GEMINI_API_KEY")
-    else:
-        auth_debug_info.append("Env Key Missing")
-
+    
     if not api_key:
-         error_msg = f"Auth Failed. Details: {'; '.join(auth_debug_info)}"
-         return [NewsOutlet(id=999998, name="⚠️ ERROR: Missing API Key", country_code="XX", type="Error", focus=error_msg[:250])]
+         return [NewsOutlet(id=999998, name="⚠️ ERROR: Missing API Key", city=city, country_code="XX", type="Error", focus="Please set GEMINI_API_KEY")]
 
     try:
-        trace_log.append("Gemini: Starting...")
+        # 4. Perform Discovery with Fallback
         new_outlets = await gemini_discover_city_outlets(city, country, lat, lng, api_key)
-        trace_log.append(f"Gemini: Returned {len(new_outlets)} items")
         
         if not new_outlets:
-            error_val = f"TRACE: {'; '.join(trace_log)}"
-            return [NewsOutlet(id=999999, name="⚠️ DEBUG TRACE (Empty)", city=city, country_code="XX", type="Error", focus=error_val)]
+            return []
 
         # 5. Save to DB
         saved_count = 0
+        current_names = set()
+        
+        # Check for duplicates
+        try:
+            existing_check = await db.execute(select(NewsOutlet).where(NewsOutlet.city.ilike(city)))
+            for ex in existing_check.scalars().all():
+                current_names.add(ex.name.lower())
+        except: pass
+
         for outlet in new_outlets:
+             if outlet.name.lower() in current_names: continue
+             
              db_outlet = NewsOutlet(
                 name=outlet.name,
                 city=outlet.city,
@@ -426,25 +414,15 @@ async def discover_city_debug(raw_req: Request, city: str, country: str, lat: fl
              saved_count += 1
             
         if saved_count > 0:
-            trace_log.append(f"DB: Saving {saved_count} items...")
             await db.commit()
-            trace_log.append("DB: Commit OK")
         
         # Return updated list
         result = await db.execute(select(NewsOutlet).where(NewsOutlet.city.ilike(city)))
-        final_list = result.scalars().all()
-        trace_log.append(f"Final: Returning {len(final_list)} items")
-        
-        if not final_list:
-             error_val = f"TRACE (Save Fail?): {'; '.join(trace_log)}"
-             return [NewsOutlet(id=999997, name="⚠️ SAVE ERROR", city=city, country_code="XX", type="Error", focus=error_val)]
-             
-        return final_list
+        return result.scalars().all()
 
     except Exception as e:
-        trace_log.append(f"Process Crash: {str(e)}")
-        error_val = f"CRASH TRACE: {'; '.join(trace_log)}"
-        return [NewsOutlet(id=999996, name="⚠️ CRASH", city=city, country_code="XX", type="Error", focus=error_val)]
+        print(f"Discovery Error: {e}")
+        return [NewsOutlet(id=999999, name="⚠️ ERROR: System Crash", city=city, country_code="XX", type="Error", focus=str(e))]
 
 @router.post("/outlets/discover_city")
 async def discover_city_outlets(raw_req: Request, db: Session = Depends(get_db)):
