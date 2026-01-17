@@ -1640,7 +1640,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             // Fallback: render baseline
             setProcessedData({ points: [], rings: [], links: [], sprites: [] });
         }
-    }, [clusters, expandedCluster]);
+    }, [clusters, expandedCluster, vizMode]);
 
 
     // ESC Key to close cluster / digest report
@@ -3451,7 +3451,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                     <>
                         <button
                             onClick={() => setVizMode(prev => prev === '3d' ? '2d' : '3d')}
-                            className="fixed top-4 right-16 z-40 p-2 bg-slate-900/80 backdrop-blur border border-slate-700 rounded-full text-slate-400 hover:text-white hover:bg-slate-800 transition-all shadow-xl w-10 h-10 flex items-center justify-center font-bold text-xs"
+                            className="fixed top-4 right-48 z-40 p-2 bg-slate-900/80 backdrop-blur border border-slate-700 rounded-full text-slate-400 hover:text-white hover:bg-slate-800 transition-all shadow-xl w-10 h-10 flex items-center justify-center font-bold text-xs"
                             title={vizMode === '3d' ? "Switch to 2D Sprites" : "Switch to 3D Geometry"}
                         >
                             {vizMode === '3d' ? '2D' : '3D'}
