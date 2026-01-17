@@ -1438,8 +1438,11 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             if (hasNewsGeneric) color = '#22d3ee'; // Cyan-400
             if (isActive) color = '#4ade80'; // Bright Green matches Digest
 
+            const isMultiCity = c.subPoints && c.subPoints.length > 0;
+            const isCluster = isMultiCity; // Explicit assignment
+
             // OPTIMIZATION: Distinct Color for Real Clusters (Multi-city)
-            if (c.subPoints && c.subPoints.length > 0 && !isActive && !isDiscovered) {
+            if (isMultiCity && !isActive && !isDiscovered) {
                 // If cluster contains a capital, force "Red" (Pink-600)
                 if (hasCapitalInside) {
                     color = '#db2777';
@@ -1453,7 +1456,8 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
             return {
                 ...c,
-                isCapital, // Explicitly pass to expanded view
+                isCapital,
+                isCluster, // Pass explicitly
                 color,
                 radius,
                 subPoints: processedSubPoints
@@ -2319,7 +2323,8 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                 const cache = (window as any)._canvasTextures;
 
                 // Key based on type+initial (only ~26*3 = 78 vars max)
-                const key = `${d.type}_${d.initial || ''}`;
+                // CACHE BUST v2: Added version prefix to force color update
+                const key = `v2_${d.type}_${d.initial || ''}`;
 
                 if (!cache[key]) {
                     const canvas = document.createElement('canvas');
