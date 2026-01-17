@@ -69,12 +69,7 @@ async def run_migrations():
                 await conn.execute(text("ALTER TABLE news_digests ADD COLUMN created_at TIMESTAMP"))
                 log("MIGRATION: Added 'created_at'.")
             except Exception as e: log(f"Error {e}")
-             log("MIGRATION: 'created_at' missing. Adding column...")
-             try:
-                 # SQLite doesn't support adding column with default timestamp easily in same statement
-                 await conn.execute(text("ALTER TABLE news_digests ADD COLUMN created_at TIMESTAMP"))
-             except Exception as e:
-                 log(f"MIGRATION ERROR adding created_at: {e}")
+
 
     log("MIGRATION: Schema check complete.")
     return logs
