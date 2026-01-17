@@ -42,7 +42,19 @@ async def run_migrations():
             except Exception as e:
                 log(f"MIGRATION ERROR adding public_slug: {e}")
                 
-        # 3. Check for 'created_at' (just in case)
+        # 3. Check for 'viz_settings' in 'users' table
+        try:
+            await conn.execute(text("SELECT viz_settings FROM users LIMIT 1"))
+            log("MIGRATION: 'viz_settings' column exists in 'users'.")
+        except Exception:
+            log("MIGRATION: 'viz_settings' missing in 'users'. Adding column...")
+            try:
+                await conn.execute(text("ALTER TABLE users ADD COLUMN viz_settings TEXT DEFAULT '{}'"))
+                log("MIGRATION: Added 'viz_settings' to 'users'.")
+            except Exception as e:
+                log(f"MIGRATION ERROR adding viz_settings to users: {e}")
+                
+        # 4. Check for 'created_at' (just in case)
         try:
             await conn.execute(text("SELECT created_at FROM news_digests LIMIT 1"))
         except Exception:
