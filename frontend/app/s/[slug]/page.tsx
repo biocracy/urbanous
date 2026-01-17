@@ -1,6 +1,9 @@
 import { Metadata, ResolvingMetadata } from 'next';
 import PublicDigestClient from './PublicDigestClient';
 
+// Ensure fresh fetch every time (fixes caching of "Not Found" errors)
+export const dynamic = 'force-dynamic';
+
 type Props = {
     params: { slug: string }
 };
@@ -15,7 +18,7 @@ async function getDigest(slug: string) {
 
     console.log(`[Metadata] Fetching digest: ${slug} from ${baseUrl}`);
     try {
-        const res = await fetch(`${baseUrl}/digests/public/${slug}`, { next: { revalidate: 60 } });
+        const res = await fetch(`${baseUrl}/digests/public/${slug}`, { cache: 'no-store' });
         if (!res.ok) return null;
         return res.json();
     } catch (error) {
