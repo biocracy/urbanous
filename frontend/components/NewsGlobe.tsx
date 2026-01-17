@@ -1637,8 +1637,9 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                     lat: p.lat || p.pLat,
                     lng: p.lon || p.lng || p.pLng,
                     name: p.name,
+                    initial: p.name ? p.name.charAt(0).toUpperCase() : '',
                     type: type,
-                    imgUrl: imgUrl,
+                    // imgUrl removed, using type+initial for canvas gen
                     // size prop is not used by customThreeObject, but we keep it for reference
                     size: isCapital ? 1.5 : (effectiveIsCluster ? 1.2 : 0.8),
                     data: p
@@ -2312,32 +2313,78 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             // ENABLE INTERACTION:
             onCustomLayerClick={handleMapClick}
             customThreeObject={(d: any) => {
-                // Optimization: Memoize materials outside or use a simple cache
-                // But for now, we MUST NOT create a new TextureLoader per point.
-                if (!(window as any)._spriteMaterials) {
-                    (window as any)._spriteMaterials = {};
+                // Optimization: Memoize textures globally
+                if (!(window as any)._canvasTextures) {
+                    (window as any)._canvasTextures = {};
                 }
-                const cache = (window as any)._spriteMaterials;
-                const key = d.imgUrl;
+                const cache = (window as any)._canvasTextures;
+
+                // Key based on type+initial (only ~26*3 = 78 vars max)
+                const key = `${d.type}_${d.initial || ''}`;
 
                 if (!cache[key]) {
-                    const map = new THREE.TextureLoader().load(d.imgUrl);
-                    map.colorSpace = THREE.SRGBColorSpace;
+                    const canvas = document.createElement('canvas');
+                    const size = 128;
+                    canvas.width = size;
+                    canvas.height = size;
+                    const ctx = canvas.getContext('2d');
+                    if (ctx) {
+                        ctx.imageSmoothingEnabled = true;
+
+                        // Colors
+                        let fillColor = '#3B82F6'; // Std Blue
+                        let strokeColor = '#FFFFFF';
+
+                        if (d.type === 'capital') fillColor = '#A0283C'; // Wine Red
+                        else if (d.type === 'cluster') fillColor = '#06B6D4'; // Cyan
+
+                        // Draw Circle
+                        const radius = size / 2 - 4;
+                        ctx.beginPath();
+                        ctx.arc(size / 2, size / 2, radius, 0, 2 * Math.PI);
+                        ctx.fillStyle = fillColor;
+                        ctx.fill();
+                        ctx.lineWidth = 6;
+                        ctx.strokeStyle = strokeColor;
+                        ctx.stroke();
+
+                        // Draw Initial
+                        if (d.initial) {
+                            ctx.fillStyle = "#FFFFFF";
+                            ctx.font = "bold 60px Inter, sans-serif";
+                            ctx.textAlign = "center";
+                            ctx.textBaseline = "middle";
+                            // Slight y-offset for visual centering
+                            ctx.fillText(d.initial, size / 2, size / 2 + 4);
+                        }
+                    }
+
+                    const texture = new THREE.CanvasTexture(canvas);
+                    texture.colorSpace = THREE.SRGBColorSpace;
+
                     cache[key] = new THREE.SpriteMaterial({
-                        map: map,
+                        map: texture,
                         transparent: true,
                         opacity: 1,
-                        depthWrite: false, // Keep false for sprites to avoid z-fighting with themselves
-                        depthTest: true   // FIX: Enable depth testing so Globe occludes sprites
+                        depthWrite: false,
+                        depthTest: true
                     });
                 }
 
                 const sprite = new THREE.Sprite(cache[key]);
 
-                // Adjusted Scale based on type (Reduced further to prevent cluster overlap)
+                // Scale Logic: Base * markerScale
                 // Capital: 1.2, Cluster: 1.0, Dot: 0.6
-                const baseScale = d.type === 'capital' ? 1.2 : (d.type === 'cluster' ? 1.0 : 0.6);
-                sprite.scale.set(baseScale * 1.0, baseScale * 1.0, 1);
+                // const baseScale = d.type === 'capital' ? 1.2 : (d.type === 'cluster' ? 1.0 : 0.6);
+
+                // Using markerScale directly now for easier control
+                // But preserving relative hierarchy
+                const hierarchyMult = d.type === 'capital' ? 1.5 : (d.type === 'cluster' ? 1.2 : 0.8);
+
+                // Final Scale = Hierarchy * UserSlider * BaseUnit
+                const finalScale = hierarchyMult * markerScale * 1.5;
+
+                sprite.scale.set(finalScale, finalScale, 1);
 
                 return sprite;
             }}
