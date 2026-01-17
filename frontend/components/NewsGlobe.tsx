@@ -1507,10 +1507,23 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
                         // 2. Iterative Relaxation (Force-Directed Packing)
                         // 2. Iterative Relaxation (Force-Directed Packing)
-                        const ITERATIONS = 50;
+                        // 2. Iterative Relaxation (Force-Directed Packing)
+                        const ITERATIONS = 80; // Increased for better settling
+
                         // SCALE LINKED SPREAD:
-                        const basePadding = 0.035;
-                        const padding = basePadding * (currentMarkerScale / 0.25); // Scale padding relative to default scale
+                        let basePadding = 0.05; // Increased default padding
+                        if (simItems.length > 10) basePadding = 0.07; // Extra space for dense clusters (e.g. London)
+
+                        const padding = basePadding * (currentMarkerScale / 0.25);
+
+                        // ... (cloning logic)
+                        // ... existing loop ...
+
+                        // (Skipping to Color Logic below loop) for context match in next replace block
+
+                        /* Keeping the loop logic implied, replacing the BLOCK around it if needed or just the settings?
+                           The tool 'replace_file_content' replaces a contiguous block. 
+                           I'll target the top variable block first. */
 
                         // ... (cloning logic)
                         const simItems = preparedItems.map((p: any) => ({
@@ -1611,9 +1624,12 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
             // 2D SPRITE GENERATION
             const spriteData = renderPoints.map(p => {
-                const isCapital = CITY_ICONS[p.name];
+                // ROBUST Check: Use the prop calculated in 'clusters' memo, fallback to name lookup
+                const isCapital = p.isCapital || CITY_ICONS[p.name];
+
                 // Check if this is a cluster containing a hidden capital
-                const containsCapital = p.isCluster && p.subPoints && p.subPoints.some((sub: any) => CITY_ICONS[sub.name]);
+                // Use the sub-point's 'isCapital' prop if available
+                const containsCapital = p.isCluster && p.subPoints && p.subPoints.some((sub: any) => sub.isCapital || CITY_ICONS[sub.name]);
 
                 const effectiveIsCluster = p.isSpider ? false : p.isCluster;
 
