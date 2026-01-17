@@ -1440,187 +1440,195 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             };
         });
 
-    }, [rawClusters, discoveredCities, markerScale, activeDigestCities]); // Use stable 'activeDigestCities' instead of volatile 'digestData'
+        // ----------------------------------------------------
+        // COMPONENT RENDER LOGGING
+        // ----------------------------------------------------
+        // console.log("[NewsGlobe] RENDER CALL"); // If this spams, parent is cause or state loop.
 
-    // 2. Generate Render Objects based on Expanded State (Fast)
-    useEffect(() => {
-        // console.log("[NewsGlobe] Generating Processed Data", { expId: expandedCluster?.id });
-        const renderPoints: any[] = [];
-        const renderRings: any[] = [];
-        const renderLinks: any[] = [];
-        const isAnyExpanded = !!expandedCluster;
+        useEffect(() => {
+            console.log("[NewsGlobe] MOUNTED");
+            return () => console.log("[NewsGlobe] UNMOUNTED");
+        }, []);
 
-        try {
-            clusters.forEach((c: any) => {
-                if (expandedCluster) {
-                    // FOCUS MODE: Only render the expanded cluster logic.
-                    // Match by ID or Name to be robust
-                    const isMatch = (c.id && c.id == expandedCluster.id) || (c.name && c.name === expandedCluster.name);
+        // 2. Generate Render Objects based on Expanded State (Fast)
+        useEffect(() => {
+            // console.log("[NewsGlobe] Generating Processed Data", { expId: expandedCluster?.id });
+            const renderPoints: any[] = [];
+            const renderRings: any[] = [];
+            const renderLinks: any[] = [];
+            const isAnyExpanded = !!expandedCluster;
 
-                    if (isMatch) {
-                        // console.log("Expanding matched cluster:", c.name);
-                        const items = [c, ...c.subPoints];
-                        // const count = items.length; // Removed, not used
-                        // const goldenAngle = Math.PI * (3 - Math.sqrt(5)); // Removed, not used
-                        const spreadFactor = clusterThreshold * 0.5;
+            try {
+                clusters.forEach((c: any) => {
+                    if (expandedCluster) {
+                        // FOCUS MODE: Only render the expanded cluster logic.
+                        // Match by ID or Name to be robust
+                        const isMatch = (c.id && c.id == expandedCluster.id) || (c.name && c.name === expandedCluster.name);
 
-                        // 1. Prepare Items with Parsed Coordinates
-                        const preparedItems = items.map((item: any) => ({
-                            ...item,
-                            pLat: parseFloat(item.lat || item.latitude),
-                            pLng: parseFloat(item.lng || item.lon || item.longitude),
-                            pRadius: getPopScale(item.pop)
-                        }));
+                        if (isMatch) {
+                            // console.log("Expanding matched cluster:", c.name);
+                            const items = [c, ...c.subPoints];
+                            // const count = items.length; // Removed, not used
+                            // const goldenAngle = Math.PI * (3 - Math.sqrt(5)); // Removed, not used
+                            const spreadFactor = clusterThreshold * 0.5;
 
-                        // 2. Iterative Relaxation (Force-Directed Packing)
-                        const ITERATIONS = 50; // increased for dense clusters (e.g. Tokyo)
-                        const padding = 0.035; // increased clearance
-                        // console.log("Force Packing:", c.name);
+                            // 1. Prepare Items with Parsed Coordinates
+                            const preparedItems = items.map((item: any) => ({
+                                ...item,
+                                pLat: parseFloat(item.lat || item.latitude),
+                                pLng: parseFloat(item.lng || item.lon || item.longitude),
+                                pRadius: getPopScale(item.pop)
+                            }));
 
-                        // Clone for simulation
-                        const simItems = preparedItems.map((p: any) => ({
-                            ...p,
-                            x: p.pLng, // Longitude ~ X
-                            y: p.pLat, // Latitude ~ Y
-                            r: p.pRadius,
-                            vx: 0,
-                            vy: 0
-                        }));
+                            // 2. Iterative Relaxation (Force-Directed Packing)
+                            const ITERATIONS = 50; // increased for dense clusters (e.g. Tokyo)
+                            const padding = 0.035; // increased clearance
+                            // console.log("Force Packing:", c.name);
 
-                        for (let iter = 0; iter < ITERATIONS; iter++) {
-                            let moved = false;
-                            for (let i = 0; i < simItems.length; i++) {
-                                for (let j = i + 1; j < simItems.length; j++) {
-                                    const p1 = simItems[i];
-                                    const p2 = simItems[j];
+                            // Clone for simulation
+                            const simItems = preparedItems.map((p: any) => ({
+                                ...p,
+                                x: p.pLng, // Longitude ~ X
+                                y: p.pLat, // Latitude ~ Y
+                                r: p.pRadius,
+                                vx: 0,
+                                vy: 0
+                            }));
 
-                                    const dx = p2.x - p1.x;
-                                    const dy = p2.y - p1.y;
-                                    const distSq = dx * dx + dy * dy;
-                                    const dist = Math.sqrt(distSq);
+                            for (let iter = 0; iter < ITERATIONS; iter++) {
+                                let moved = false;
+                                for (let i = 0; i < simItems.length; i++) {
+                                    for (let j = i + 1; j < simItems.length; j++) {
+                                        const p1 = simItems[i];
+                                        const p2 = simItems[j];
 
-                                    const minDist = p1.r + p2.r + padding;
+                                        const dx = p2.x - p1.x;
+                                        const dy = p2.y - p1.y;
+                                        const distSq = dx * dx + dy * dy;
+                                        const dist = Math.sqrt(distSq);
 
-                                    if (dist < minDist) {
-                                        // Overlap!
-                                        const overlap = minDist - dist;
-                                        const nx = dist > 0 ? dx / dist : 1; // Normalize vector
-                                        const ny = dist > 0 ? dy / dist : 0;
+                                        const minDist = p1.r + p2.r + padding;
 
-                                        // Push apart
-                                        const moveX = nx * (overlap * 0.51);
-                                        const moveY = ny * (overlap * 0.51);
+                                        if (dist < minDist) {
+                                            // Overlap!
+                                            const overlap = minDist - dist;
+                                            const nx = dist > 0 ? dx / dist : 1; // Normalize vector
+                                            const ny = dist > 0 ? dy / dist : 0;
 
-                                        if (i !== 0) {
-                                            p1.x -= moveX;
-                                            p1.y -= moveY;
+                                            // Push apart
+                                            const moveX = nx * (overlap * 0.51);
+                                            const moveY = ny * (overlap * 0.51);
+
+                                            if (i !== 0) {
+                                                p1.x -= moveX;
+                                                p1.y -= moveY;
+                                            }
+
+                                            if (j !== 0) {
+                                                p2.x += moveX;
+                                                p2.y += moveY;
+                                            }
+
+                                            moved = true;
                                         }
-
-                                        if (j !== 0) {
-                                            p2.x += moveX;
-                                            p2.y += moveY;
-                                        }
-
-                                        moved = true;
                                     }
                                 }
+                                if (!moved) break;
                             }
-                            if (!moved) break;
-                        }
 
-                        simItems.forEach((item: any, idx: number) => {
-                            // const isCenter = idx === 0; // Removed, not used directly in this block
-                            const exLat = item.y;
-                            const exLng = item.x;
+                            simItems.forEach((item: any, idx: number) => {
+                                // const isCenter = idx === 0; // Removed, not used directly in this block
+                                const exLat = item.y;
+                                const exLng = item.x;
 
-                            let itemColor = '#a78bfa';
-                            if (discoveredCities.includes(item.name)) itemColor = '#34d399';
-                            else if (item.isCapital) itemColor = '#db2777';
+                                let itemColor = '#a78bfa';
+                                if (discoveredCities.includes(item.name)) itemColor = '#34d399';
+                                else if (item.isCapital) itemColor = '#db2777';
 
-                            renderPoints.push({
-                                ...item, // include original props
-                                lat: exLat,
-                                lng: exLng,
-                                lon: exLng,
-                                color: itemColor,
-                                radius: item.pRadius, // use parsed radius
-                                opacity: 1.0,
-                                isSpider: true
-                            });
+                                renderPoints.push({
+                                    ...item, // include original props
+                                    lat: exLat,
+                                    lng: exLng,
+                                    lon: exLng,
+                                    color: itemColor,
+                                    radius: item.pRadius, // use parsed radius
+                                    opacity: 1.0,
+                                    isSpider: true
+                                });
 
-                            // Add spider legs
-                            if (idx !== 0) { // Don't link center to itself
-                                const centerLat = parseFloat(c.lat || c.latitude);
-                                const centerLng = parseFloat(c.lng || c.lon || c.longitude);
+                                // Add spider legs
+                                if (idx !== 0) { // Don't link center to itself
+                                    const centerLat = parseFloat(c.lat || c.latitude);
+                                    const centerLng = parseFloat(c.lng || c.lon || c.longitude);
 
-                                if (!isNaN(centerLat) && !isNaN(centerLng)) {
-                                    renderLinks.push({
-                                        type: 'spider',
-                                        startLat: centerLat,
-                                        startLng: centerLng,
-                                        endLat: exLat,
-                                        endLng: exLng,
-                                        color: 'rgba(255,255,255,0.2)'
-                                    });
+                                    if (!isNaN(centerLat) && !isNaN(centerLng)) {
+                                        renderLinks.push({
+                                            type: 'spider',
+                                            startLat: centerLat,
+                                            startLng: centerLng,
+                                            endLat: exLat,
+                                            endLng: exLng,
+                                            color: 'rgba(255,255,255,0.2)'
+                                        });
+                                    }
                                 }
-                            }
-                        });
-                        // Adjust ring to cover the area?
-                        renderRings.push({ lat: parseFloat(c.lat), lng: parseFloat(c.lng || c.lon), maxR: spreadFactor * 2.0, color: 'rgba(255,255,255,0.05)' });
-                    }
-                    // ELSE: Do nothing. Hide node.
-                } else {
-                    // Determine opacity based on... actually, if nothing expanded, full opacity.
-                    renderPoints.push({
-                        ...c,
-                        lat: parseFloat(c.lat),
-                        lng: parseFloat(c.lng || c.lon),
-                        opacity: 1.0
-                    });
-
-                    if (c.isCluster) {
-                        renderRings.push({
+                            });
+                            // Adjust ring to cover the area?
+                            renderRings.push({ lat: parseFloat(c.lat), lng: parseFloat(c.lng || c.lon), maxR: spreadFactor * 2.0, color: 'rgba(255,255,255,0.05)' });
+                        }
+                        // ELSE: Do nothing. Hide node.
+                    } else {
+                        // Determine opacity based on... actually, if nothing expanded, full opacity.
+                        renderPoints.push({
+                            ...c,
                             lat: parseFloat(c.lat),
                             lng: parseFloat(c.lng || c.lon),
-                            maxR: c.radius * 1.5,
-                            color: 'rgba(124, 58, 237, 0.3)'
+                            opacity: 1.0
                         });
+
+                        if (c.isCluster) {
+                            renderRings.push({
+                                lat: parseFloat(c.lat),
+                                lng: parseFloat(c.lng || c.lon),
+                                maxR: c.radius * 1.5,
+                                color: 'rgba(124, 58, 237, 0.3)'
+                            });
+                        }
                     }
-                }
-            });
+                });
 
-            setProcessedData({ points: renderPoints, rings: renderRings, links: renderLinks });
+                setProcessedData({ points: renderPoints, rings: renderRings, links: renderLinks });
 
-        } catch (e) {
-            console.error("Critical Error in Expansion Logic:", e);
-            // Fallback: render baseline
-            setProcessedData({ points: [], rings: [], links: [] });
-        }
-    }, [clusters, expandedCluster]);
-
-
-    // ESC Key to close cluster / digest report
-    useEffect(() => {
-        const handleEsc = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') {
-                // If Digest is open, ask for confirmation
-                if (digestData && !confirm("Close report? Unsaved progress will be lost.")) {
-                    return;
-                }
-                setExpandedCluster(null);
-                setDigestData(null); // Ensure digest closes too
+            } catch (e) {
+                console.error("Critical Error in Expansion Logic:", e);
+                // Fallback: render baseline
+                setProcessedData({ points: [], rings: [], links: [] });
             }
-        };
-        window.addEventListener('keydown', handleEsc);
-        return () => window.removeEventListener('keydown', handleEsc);
-    }, [digestData]); // Add digestData dependency to access current state
+        }, [clusters, expandedCluster]);
 
-    const getTooltip = useCallback((d: any) => {
-        // STRICTER CHECK: Only show "Media Hub" if it actually has sub-points (> 0)
-        const isMultiCity = d.isCluster && d.subPoints && d.subPoints.length > 0;
 
-        if (isMultiCity && !d.isSpider) {
-            return `
+        // ESC Key to close cluster / digest report
+        useEffect(() => {
+            const handleEsc = (e: KeyboardEvent) => {
+                if (e.key === 'Escape') {
+                    // If Digest is open, ask for confirmation
+                    if (digestData && !confirm("Close report? Unsaved progress will be lost.")) {
+                        return;
+                    }
+                    setExpandedCluster(null);
+                    setDigestData(null); // Ensure digest closes too
+                }
+            };
+            window.addEventListener('keydown', handleEsc);
+            return () => window.removeEventListener('keydown', handleEsc);
+        }, [digestData]); // Add digestData dependency to access current state
+
+        const getTooltip = useCallback((d: any) => {
+            // STRICTER CHECK: Only show "Media Hub" if it actually has sub-points (> 0)
+            const isMultiCity = d.isCluster && d.subPoints && d.subPoints.length > 0;
+
+            if (isMultiCity && !d.isSpider) {
+                return `
             <div class="px-2 py-1 bg-amber-500/90 text-black font-bold rounded text-xs border border-amber-300 z-50 shadow-xl">
                 <div class="flex items-center gap-2 mb-0.5 border-b border-black/10 pb-0.5">
                     <span class="text-[10px] uppercase opacity-80 tracking-wider">Media Hub</span>
@@ -1630,351 +1638,235 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                 <div class="text-[10px] opacity-90 font-mono mt-0.5">Pop: ${parseInt(d.pop || 0).toLocaleString()}</div>
             </div>
             `;
-        }
-        return `
+            }
+            return `
             <div style="background: rgba(0,0,0,0.9); color: ${d.color}; padding: 4px 8px; border-radius: 4px; font-family: sans-serif; font-weight: bold; font-size: 12px; border: 1px solid ${d.color}; pointer-events: none;">
                 ${d.name} <span style="opacity:0.7">(${parseInt(d.pop || 0).toLocaleString()})</span>
             </div>
             `;
-    }, []);
+        }, []);
 
-    const handleCityClick = useCallback((d: any) => {
-        setSelectedCityName(d.name);
-        setSelectedCityData(d);
-        setShowOutletPanel(true);
-        setIsDiscovering(true);
-        setSelectedCityOutlets([]);
-        setShowAddForm(false);
-        // Reset UI State for new generation
-        setDigestData(null);
+        const handleCityClick = useCallback((d: any) => {
+            setSelectedCityName(d.name);
+            setSelectedCityData(d);
+            setShowOutletPanel(true);
+            setIsDiscovering(true);
+            setSelectedCityOutlets([]);
+            setShowAddForm(false);
+            // Reset UI State for new generation
+            setDigestData(null);
 
-        // UX Enhancement: Reset Analytics to prevent old data persistence
-        setAnalyticsKeywords([]);
+            // UX Enhancement: Reset Analytics to prevent old data persistence
+            setAnalyticsKeywords([]);
 
-        // Keep articles visible while generating? Or clear?
-        // Let's keep them for context.
-        setImportUrl('');
-        setImportInstructions('');
-        setErrorMessage(null);
-        // setDigestData(null); // This was moved up
+            // Keep articles visible while generating? Or clear?
+            // Let's keep them for context.
+            setImportUrl('');
+            setImportInstructions('');
+            setErrorMessage(null);
+            // setDigestData(null); // This was moved up
 
-        const countryCode = d.country || "XX";
-        const countryName = countryMap.current[countryCode] || countryCode;
-        const forceRefresh = false;
+            const countryCode = d.country || "XX";
+            const countryName = countryMap.current[countryCode] || countryCode;
+            const forceRefresh = false;
 
-        // DEBUG: Switch to GET to bypass POST/Option issues
-        /*
-        api.post('/outlets/discover_city', {
-            city: d.name,
-            country: countryName,
-            lat: parseFloat(d.lat || d.latitude || '0'),
-            lng: parseFloat(d.lng || d.lon || d.longitude || '0')
-        })
-        */
-        api.get(`/outlets/discover_city_debug?city=${encodeURIComponent(d.name)}&country=${encodeURIComponent(countryName)}&lat=${parseFloat(d.lat || 0)}&lng=${parseFloat(d.lng || d.lon || 0)}&force_refresh=${forceRefresh}`)
-            .then(res => {
-                const data = res.data;
-                if (Array.isArray(data)) {
-                    setSelectedCityOutlets(data);
-                    setSelectedOutletIds(data.map((o: any) => o.id));
-                    if (data.length > 0 && !discoveredCities.includes(d.name)) {
-                        setDiscoveredCities(prev => [...prev, d.name]);
+            // DEBUG: Switch to GET to bypass POST/Option issues
+            /*
+            api.post('/outlets/discover_city', {
+                city: d.name,
+                country: countryName,
+                lat: parseFloat(d.lat || d.latitude || '0'),
+                lng: parseFloat(d.lng || d.lon || d.longitude || '0')
+            })
+            */
+            api.get(`/outlets/discover_city_debug?city=${encodeURIComponent(d.name)}&country=${encodeURIComponent(countryName)}&lat=${parseFloat(d.lat || 0)}&lng=${parseFloat(d.lng || d.lon || 0)}&force_refresh=${forceRefresh}`)
+                .then(res => {
+                    const data = res.data;
+                    if (Array.isArray(data)) {
+                        setSelectedCityOutlets(data);
+                        setSelectedOutletIds(data.map((o: any) => o.id));
+                        if (data.length > 0 && !discoveredCities.includes(d.name)) {
+                            setDiscoveredCities(prev => [...prev, d.name]);
+                        }
                     }
-                }
-            })
-            .catch(err => {
-                const msg = err.response?.data?.detail || err.message || "Discovery Failed";
-                console.error("Discovery failed", err);
-                setErrorMessage(`Error: ${msg}`);
-                if (err.response?.status === 429) setQuotaError(true);
-            })
-            .finally(() => setIsDiscovering(false));
+                })
+                .catch(err => {
+                    const msg = err.response?.data?.detail || err.message || "Discovery Failed";
+                    console.error("Discovery failed", err);
+                    setErrorMessage(`Error: ${msg}`);
+                    if (err.response?.status === 429) setQuotaError(true);
+                })
+                .finally(() => setIsDiscovering(false));
 
-        // Get City Info
-        setCityInfo(null);
-        api.get(`/outlets/city_info?city=${d.name}&country=${countryName}`)
-            .then(res => setCityInfo(res.data))
-            .catch(err => console.error("City Info failed", err));
-    }, [discoveredCities]);
+            // Get City Info
+            setCityInfo(null);
+            api.get(`/outlets/city_info?city=${d.name}&country=${countryName}`)
+                .then(res => setCityInfo(res.data))
+                .catch(err => console.error("City Info failed", err));
+        }, [discoveredCities]);
 
-    const handleMapClick = useCallback((d: any) => {
-        // If Spider Point OR "Fake" Cluster (Single City), treat as city click
-        // STRICTER CHECK: > 0 (1+ subpoints means 2+ cities)
-        const isMultiCity = d.isCluster && d.subPoints && d.subPoints.length > 0;
+        const handleMapClick = useCallback((d: any) => {
+            // If Spider Point OR "Fake" Cluster (Single City), treat as city click
+            // STRICTER CHECK: > 0 (1+ subpoints means 2+ cities)
+            const isMultiCity = d.isCluster && d.subPoints && d.subPoints.length > 0;
 
-        if (d.isSpider || !isMultiCity) {
-            handleCityClick(d);
-            return;
-        }
-
-        // If Real Cluster, Expand
-        if (isMultiCity) {
-            console.log("Cluster Clicked:", d.name, d.id, "SubPoints:", d.subPoints.length);
-            if (expandedCluster && expandedCluster.id === d.id) {
-                console.log(" collapsing");
-                setExpandedCluster(null); // Collapse
-                // Reset zoom? optional
-            } else {
-                const lat = parseFloat(d.lat || d.latitude);
-                const lng = parseFloat(d.lng || d.lon || d.longitude);
-
-                if (isNaN(lat) || isNaN(lng)) {
-                    console.error("Invalid Cluster Coordinates:", d);
-                    return;
-                }
-
-                // const center = turf.point([lng, lat]); // Turf not strictly needed for just zooming?
-                // Adaptive Zoom: Closer! (User Req: "more zoom in")
-                const count = d.subPoints.length + 1;
-                // Min altitude 0.025 for extremely close view
-                const adaptiveAlt = Math.max(0.025, 0.25 - (count * 0.008));
-
-                if (globeEl.current) {
-                    globeEl.current.pointOfView({ lat: lat, lng: lng, altitude: adaptiveAlt }, 800);
-                }
-                setExpandedCluster(d);
+            if (d.isSpider || !isMultiCity) {
+                handleCityClick(d);
+                return;
             }
-        }
-    }, [expandedCluster, handleCityClick]);
 
+            // If Real Cluster, Expand
+            if (isMultiCity) {
+                console.log("Cluster Clicked:", d.name, d.id, "SubPoints:", d.subPoints.length);
+                if (expandedCluster && expandedCluster.id === d.id) {
+                    console.log(" collapsing");
+                    setExpandedCluster(null); // Collapse
+                    // Reset zoom? optional
+                } else {
+                    const lat = parseFloat(d.lat || d.latitude);
+                    const lng = parseFloat(d.lng || d.lon || d.longitude);
 
-    const handleRediscoverCity = () => {
-        if (!selectedCityData) return;
-        setIsDiscovering(true);
-        setQuotaError(false);
-        setSelectedCityOutlets([]);
-
-        const d = selectedCityData;
-        const countryCode = d.country || "XX";
-        const countryName = countryMap.current[countryCode] || countryCode;
-
-        api.get(`/outlets/discover_city_debug?city=${encodeURIComponent(d.name)}&country=${encodeURIComponent(countryName)}&lat=${parseFloat(d.lat)}&lng=${parseFloat(d.lon)}&force_refresh=true`)
-            .then(res => {
-                const data = res.data;
-                if (Array.isArray(data)) {
-                    setSelectedCityOutlets(data);
-                    setSelectedOutletIds(data.map((o: any) => o.id));
-                }
-            })
-            .catch(err => {
-                if (err.response?.status === 429) setQuotaError(true);
-            })
-            .finally(() => setIsDiscovering(false));
-    };
-
-    const toggleOutletSelection = (id: number) => {
-        setSelectedOutletIds(prev =>
-            prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
-        );
-    };
-
-
-
-    const handleDeleteOutlet = (e: any, outletId: number) => {
-        e.stopPropagation();
-        if (!confirm('Are you sure you want to delete this outlet?')) return;
-        api.delete(`/outlets/${outletId}`)
-            .then(() => {
-                setSelectedCityOutlets(prev => prev.filter(o => o.id !== outletId));
-            })
-            .catch(err => alert(`Failed to delete: ${err.message}`));
-    };
-
-    const handleUpdateOutlet = (outletId: number) => {
-        if (!editUrl) return;
-        api.put(`/outlets/${outletId}`, { url: editUrl })
-            .then(res => {
-                setSelectedCityOutlets(prev => prev.map(o => o.id === outletId ? { ...o, url: res.data.url } : o));
-                setEditingOutletId(null);
-            })
-            .catch(err => alert(`Failed to update: ${err.message}`));
-    };
-
-    const handleImportUrl = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!selectedCityData || !importUrl) return;
-        setIsImporting(true);
-        setErrorMessage(null);
-
-        const countryCode = selectedCityData.country || "XX";
-        const countryName = countryMap.current[countryCode] || countryCode;
-
-        api.post('/outlets/import_from_url', {
-            url: importUrl,
-            city: selectedCityData.name,
-            country: countryName,
-            lat: parseFloat(selectedCityData.lat),
-            lng: parseFloat(selectedCityData.lon),
-            instructions: importInstructions || undefined
-        })
-            .then(res => {
-                const data = res.data;
-                if (Array.isArray(data)) {
-                    // Check if new items were added
-                    const prevCount = selectedCityOutlets.length;
-                    const newCount = data.length;
-
-                    setSelectedCityOutlets(data);
-                    setImportUrl('');
-                    setImportInstructions('');
-                    setShowAddForm(false);
-                    if (data.length > 0 && !discoveredCities.includes(selectedCityData.name)) {
-                        setDiscoveredCities(prev => [...prev, selectedCityData.name]);
+                    if (isNaN(lat) || isNaN(lng)) {
+                        console.error("Invalid Cluster Coordinates:", d);
+                        return;
                     }
 
-                    // Feedback
-                    if (newCount > prevCount) {
-                        // Logic to highlight? For now just rely on Manual highlight
-                    } else {
-                        alert('Import completed, but no new unique outlets were added (duplicates skipped).');
+                    // const center = turf.point([lng, lat]); // Turf not strictly needed for just zooming?
+                    // Adaptive Zoom: Closer! (User Req: "more zoom in")
+                    const count = d.subPoints.length + 1;
+                    // Min altitude 0.025 for extremely close view
+                    const adaptiveAlt = Math.max(0.025, 0.25 - (count * 0.008));
+
+                    if (globeEl.current) {
+                        globeEl.current.pointOfView({ lat: lat, lng: lng, altitude: adaptiveAlt }, 800);
                     }
+                    setExpandedCluster(d);
                 }
-            })
-            .catch(err => {
-                setErrorMessage(err.response?.data?.detail || err.message);
-            })
-            .finally(() => setIsImporting(false));
-    };
+            }
+        }, [expandedCluster, handleCityClick]);
 
-    // Helper to update a single article's date in state
-    const updateLocalArticleDate = (targetUrl: string, dateStr: string) => {
-        setDigestData((prev: any) => {
-            if (!prev) return prev;
 
-            // Calculate cutoff based on active configuration
-            const timeframe = selectedTimeframe || "24h";
-            const now = new Date();
-            const cutoff = new Date();
-            if (timeframe === "3days") cutoff.setDate(now.getDate() - 3);
-            else if (timeframe === "1week") cutoff.setDate(now.getDate() - 7);
-            else if (timeframe === "1month") cutoff.setDate(now.getDate() - 30);
-            else cutoff.setDate(now.getDate() - 1); // 24h default
+        const handleRediscoverCity = () => {
+            if (!selectedCityData) return;
+            setIsDiscovering(true);
+            setQuotaError(false);
+            setSelectedCityOutlets([]);
 
-            const newDate = new Date(dateStr);
-            const isFresh = newDate >= cutoff;
+            const d = selectedCityData;
+            const countryCode = d.country || "XX";
+            const countryName = countryMap.current[countryCode] || countryCode;
 
-            const updatedArticles = prev.articles.map((art: any) => {
-                if (art.url === targetUrl) {
-                    return {
-                        ...art,
-                        date_str: dateStr,
-                        // Update scores based on freshness logic (mimic backend)
-                        relevance_score: isFresh ? Math.max(art.relevance_score, 50) : 0,
-                        scores: {
-                            ...art.scores,
-                            date: isFresh ? 30 : 0,
-                            is_fresh: isFresh,
-                            is_old: !isFresh
-                        }
-                    };
-                }
-                return art;
-            });
-            return { ...prev, articles: updatedArticles };
-        });
-    };
-
-    const handleDateExtracted = (dateStr: string) => {
-        if (debuggerConfig.url) {
-            updateLocalArticleDate(debuggerConfig.url, dateStr);
-        }
-    };
-
-    const handleRulesUpdated = async (domain: string, result?: any, config?: any) => {
-        console.log("handleRulesUpdated CALLED", { domain, result, config });
-
-        if (!digestData?.articles) {
-            console.warn("handleRulesUpdated: digestData/articles missing!");
-            return;
-        }
-
-        const updateList = async (list: any[]) => {
-            if (!list) return [];
-            const updatedList = [...list];
-            let changesMade = false;
-
-            // Determine active target URL from either debugger state
-            const targetUrl = debuggerConfig?.url || debugTarget?.url;
-
-            console.log(`handleRulesUpdated: Scanning ${updatedList.length} articles target=${targetUrl}`);
-
-            for (let i = 0; i < updatedList.length; i++) {
-                const art = updatedList[i];
-                let shouldUpdate = false;
-                let isDebugTarget = false;
-
-                // Match by URL (Guarantee target update)
-                if (targetUrl && art.url === targetUrl) {
-                    shouldUpdate = true;
-                    isDebugTarget = true;
-                    console.log("handleRulesUpdated: MATCHED TARGET URL", art.url);
-                }
-                // Match by Domain (Broad update)
-                else {
-                    try {
-                        const artDomain = new URL(art.url).hostname.replace('www.', '');
-                        if (artDomain === domain) shouldUpdate = true;
-                    } catch (e) { /* ignore invalid urls */ }
-                }
-
-                if (!shouldUpdate) continue;
-
-                console.log(`handleRulesUpdated: Updating ${art.url} (Target=${isDebugTarget})`);
-
-                try {
-                    let responseData;
-
-                    if (isDebugTarget && result) {
-                        responseData = result;
-                    } else {
-                        // For others, re-test using the new config
-                        const testPayload: any = { url: art.url };
-                        if (config) testPayload.rule_config = config;
-
-                        // We do this sequentially here for simplicity, or could parallelize like before
-                        // But for "Live Update" of one debugged article, sequential is fine.
-                        // If updating 100 articles, this might be slow. 
-                        // But usually the user just wants to see the ONE they fixed.
-                        const resp = await api.post('/scraper/test', testPayload);
-                        responseData = resp.data;
+            api.get(`/outlets/discover_city_debug?city=${encodeURIComponent(d.name)}&country=${encodeURIComponent(countryName)}&lat=${parseFloat(d.lat)}&lng=${parseFloat(d.lon)}&force_refresh=true`)
+                .then(res => {
+                    const data = res.data;
+                    if (Array.isArray(data)) {
+                        setSelectedCityOutlets(data);
+                        setSelectedOutletIds(data.map((o: any) => o.id));
                     }
+                })
+                .catch(err => {
+                    if (err.response?.status === 429) setQuotaError(true);
+                })
+                .finally(() => setIsDiscovering(false));
+        };
 
-                    if (responseData && (responseData.extracted_date || responseData.extracted_title)) {
-                        console.log("DEBUG TITLE UPDATE:", {
-                            url: art.url,
-                            extractedTitle: responseData.extracted_title,
-                            oldTitle: art.title,
-                            extractedDate: responseData.extracted_date
-                        });
+        const toggleOutletSelection = (id: number) => {
+            setSelectedOutletIds(prev =>
+                prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+            );
+        };
 
-                        const newDate = responseData.extracted_date;
-                        const newTitle = responseData.extracted_title || art.title;
 
-                        // Check if actually changed
-                        const isTitleChanged = newTitle && newTitle !== art.title;
-                        const isDateChanged = newDate && newDate !== art.date_str;
 
-                        // Recalc Freshness Locally
-                        const timeframe = selectedTimeframe || "24h";
-                        const cutoff = new Date();
-                        const now = new Date();
-                        if (timeframe === "3days") cutoff.setDate(now.getDate() - 3);
-                        else if (timeframe === "1week") cutoff.setDate(now.getDate() - 7);
-                        else if (timeframe === "1month") cutoff.setDate(now.getDate() - 30);
-                        else cutoff.setDate(now.getDate() - 1);
+        const handleDeleteOutlet = (e: any, outletId: number) => {
+            e.stopPropagation();
+            if (!confirm('Are you sure you want to delete this outlet?')) return;
+            api.delete(`/outlets/${outletId}`)
+                .then(() => {
+                    setSelectedCityOutlets(prev => prev.filter(o => o.id !== outletId));
+                })
+                .catch(err => alert(`Failed to delete: ${err.message}`));
+        };
 
-                        let isFresh = false;
-                        if (newDate) {
-                            // Simple parse or use helper if available? Date(newDate) usually works for ISO YYYY-MM-DD
-                            const d = new Date(newDate);
-                            isFresh = d >= cutoff;
+        const handleUpdateOutlet = (outletId: number) => {
+            if (!editUrl) return;
+            api.put(`/outlets/${outletId}`, { url: editUrl })
+                .then(res => {
+                    setSelectedCityOutlets(prev => prev.map(o => o.id === outletId ? { ...o, url: res.data.url } : o));
+                    setEditingOutletId(null);
+                })
+                .catch(err => alert(`Failed to update: ${err.message}`));
+        };
+
+        const handleImportUrl = (e: React.FormEvent) => {
+            e.preventDefault();
+            if (!selectedCityData || !importUrl) return;
+            setIsImporting(true);
+            setErrorMessage(null);
+
+            const countryCode = selectedCityData.country || "XX";
+            const countryName = countryMap.current[countryCode] || countryCode;
+
+            api.post('/outlets/import_from_url', {
+                url: importUrl,
+                city: selectedCityData.name,
+                country: countryName,
+                lat: parseFloat(selectedCityData.lat),
+                lng: parseFloat(selectedCityData.lon),
+                instructions: importInstructions || undefined
+            })
+                .then(res => {
+                    const data = res.data;
+                    if (Array.isArray(data)) {
+                        // Check if new items were added
+                        const prevCount = selectedCityOutlets.length;
+                        const newCount = data.length;
+
+                        setSelectedCityOutlets(data);
+                        setImportUrl('');
+                        setImportInstructions('');
+                        setShowAddForm(false);
+                        if (data.length > 0 && !discoveredCities.includes(selectedCityData.name)) {
+                            setDiscoveredCities(prev => [...prev, selectedCityData.name]);
                         }
 
-                        // Update with fresh scores
-                        updatedList[i] = {
+                        // Feedback
+                        if (newCount > prevCount) {
+                            // Logic to highlight? For now just rely on Manual highlight
+                        } else {
+                            alert('Import completed, but no new unique outlets were added (duplicates skipped).');
+                        }
+                    }
+                })
+                .catch(err => {
+                    setErrorMessage(err.response?.data?.detail || err.message);
+                })
+                .finally(() => setIsImporting(false));
+        };
+
+        // Helper to update a single article's date in state
+        const updateLocalArticleDate = (targetUrl: string, dateStr: string) => {
+            setDigestData((prev: any) => {
+                if (!prev) return prev;
+
+                // Calculate cutoff based on active configuration
+                const timeframe = selectedTimeframe || "24h";
+                const now = new Date();
+                const cutoff = new Date();
+                if (timeframe === "3days") cutoff.setDate(now.getDate() - 3);
+                else if (timeframe === "1week") cutoff.setDate(now.getDate() - 7);
+                else if (timeframe === "1month") cutoff.setDate(now.getDate() - 30);
+                else cutoff.setDate(now.getDate() - 1); // 24h default
+
+                const newDate = new Date(dateStr);
+                const isFresh = newDate >= cutoff;
+
+                const updatedArticles = prev.articles.map((art: any) => {
+                    if (art.url === targetUrl) {
+                        return {
                             ...art,
-                            title: newTitle,
-                            date_str: newDate,
+                            date_str: dateStr,
+                            // Update scores based on freshness logic (mimic backend)
                             relevance_score: isFresh ? Math.max(art.relevance_score, 50) : 0,
                             scores: {
                                 ...art.scores,
@@ -1983,1562 +1875,1678 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                                 is_old: !isFresh
                             }
                         };
-
-
-                        if (isTitleChanged) {
-                            // Reset AI verdicts if title changed
-                            updatedList[i].ai_verdict = null;
-                            updatedList[i].translated_title = null;
-
-                            // Background Assessment
-                            // We create a self-contained updater that runs after the main update
-                            const artUrl = art.url;
-                            const freshTitle = newTitle;
-
-                            // We don't await this to keep the UI snappy
-                            // But we must chain it to update state LATER
-                            assessQueue.push(async () => {
-                                try {
-                                    const assessment = await handleAssessArticle({ url: artUrl, title: freshTitle });
-                                    if (assessment) {
-                                        setDigestData((prev: any) => {
-                                            if (!prev?.articles) return prev;
-                                            const newArts = prev.articles.map((a: any) => {
-                                                if (a.url === artUrl) {
-                                                    return {
-                                                        ...a,
-                                                        ai_verdict: assessment,
-                                                        // If we have a translation from assessment? (API usually returns it in labels or reasoning?)
-                                                        // Actually assess_article returns { is_politics, confidence, reasoning, labels }
-                                                        // It DOES NOT return translated_title. That's a different endpoint usually?
-                                                        // Wait, checking ArticleRow... it uses ai_verdict for "Is Politics".
-                                                        // Translation is usually separate. 
-                                                        // For now, updating ai_verdict is what "AI-title check" likely refers to (politics check).
-                                                    };
-                                                }
-                                                return a;
-                                            });
-                                            return { ...prev, articles: newArts };
-                                        });
-                                    }
-                                } catch (e) { console.error("Background Assessment Failed", e); }
-                            });
-                        }
-
-                        // Update Local Date Helper if needed
-                        if (newDate) updateLocalArticleDate(art.url, newDate);
-
-                        changesMade = true;
                     }
-                } catch (e) {
-                    console.warn(`Update failed for ${art.url}`, e);
-                }
-            }
-            return changesMade ? updatedList : list;
+                    return art;
+                });
+                return { ...prev, articles: updatedArticles };
+            });
         };
 
-        const assessQueue: (() => Promise<void>)[] = [];
-        const updatedArticles = await updateList(digestData.articles);
-        const updatedExcluded = await updateList(digestData.excluded_articles || []);
+        const handleDateExtracted = (dateStr: string) => {
+            if (debuggerConfig.url) {
+                updateLocalArticleDate(debuggerConfig.url, dateStr);
+            }
+        };
 
-        // 1. Immediate Update (Titles)
-        if (updatedArticles !== digestData.articles || updatedExcluded !== digestData.excluded_articles) {
-            setDigestData({
-                ...digestData,
-                articles: updatedArticles,
-                excluded_articles: updatedExcluded
-            });
-            console.log("handleRulesUpdated: State Updated (Titles)!");
-        } else {
-            console.log("handleRulesUpdated: No changes detected.");
-        }
+        const handleRulesUpdated = async (domain: string, result?: any, config?: any) => {
+            console.log("handleRulesUpdated CALLED", { domain, result, config });
 
-        // 2. Follow-up Update (AI Assessment)
-        if (assessQueue.length > 0) {
-            console.log(`handleRulesUpdated: Processing ${assessQueue.length} background assessments...`);
-            // Run them
-            assessQueue.forEach(fn => fn());
-        }
-    };
+            if (!digestData?.articles) {
+                console.warn("handleRulesUpdated: digestData/articles missing!");
+                return;
+            }
 
-    const handleAssessArticle = async (article: any) => {
-        if (!article.url || !article.title) return null;
+            const updateList = async (list: any[]) => {
+                if (!list) return [];
+                const updatedList = [...list];
+                let changesMade = false;
 
-        try {
-            const res = await api.post('/outlets/assess_article', {
-                url: article.url,
-                title: article.title,
-                content: null // force fetch
-            });
-            const data = res.data;
-            const verdict = {
-                is_politics: data.is_politics,
-                confidence: data.confidence,
-                reasoning: data.reasoning,
-                labels: data.labels
+                // Determine active target URL from either debugger state
+                const targetUrl = debuggerConfig?.url || debugTarget?.url;
+
+                console.log(`handleRulesUpdated: Scanning ${updatedList.length} articles target=${targetUrl}`);
+
+                for (let i = 0; i < updatedList.length; i++) {
+                    const art = updatedList[i];
+                    let shouldUpdate = false;
+                    let isDebugTarget = false;
+
+                    // Match by URL (Guarantee target update)
+                    if (targetUrl && art.url === targetUrl) {
+                        shouldUpdate = true;
+                        isDebugTarget = true;
+                        console.log("handleRulesUpdated: MATCHED TARGET URL", art.url);
+                    }
+                    // Match by Domain (Broad update)
+                    else {
+                        try {
+                            const artDomain = new URL(art.url).hostname.replace('www.', '');
+                            if (artDomain === domain) shouldUpdate = true;
+                        } catch (e) { /* ignore invalid urls */ }
+                    }
+
+                    if (!shouldUpdate) continue;
+
+                    console.log(`handleRulesUpdated: Updating ${art.url} (Target=${isDebugTarget})`);
+
+                    try {
+                        let responseData;
+
+                        if (isDebugTarget && result) {
+                            responseData = result;
+                        } else {
+                            // For others, re-test using the new config
+                            const testPayload: any = { url: art.url };
+                            if (config) testPayload.rule_config = config;
+
+                            // We do this sequentially here for simplicity, or could parallelize like before
+                            // But for "Live Update" of one debugged article, sequential is fine.
+                            // If updating 100 articles, this might be slow. 
+                            // But usually the user just wants to see the ONE they fixed.
+                            const resp = await api.post('/scraper/test', testPayload);
+                            responseData = resp.data;
+                        }
+
+                        if (responseData && (responseData.extracted_date || responseData.extracted_title)) {
+                            console.log("DEBUG TITLE UPDATE:", {
+                                url: art.url,
+                                extractedTitle: responseData.extracted_title,
+                                oldTitle: art.title,
+                                extractedDate: responseData.extracted_date
+                            });
+
+                            const newDate = responseData.extracted_date;
+                            const newTitle = responseData.extracted_title || art.title;
+
+                            // Check if actually changed
+                            const isTitleChanged = newTitle && newTitle !== art.title;
+                            const isDateChanged = newDate && newDate !== art.date_str;
+
+                            // Recalc Freshness Locally
+                            const timeframe = selectedTimeframe || "24h";
+                            const cutoff = new Date();
+                            const now = new Date();
+                            if (timeframe === "3days") cutoff.setDate(now.getDate() - 3);
+                            else if (timeframe === "1week") cutoff.setDate(now.getDate() - 7);
+                            else if (timeframe === "1month") cutoff.setDate(now.getDate() - 30);
+                            else cutoff.setDate(now.getDate() - 1);
+
+                            let isFresh = false;
+                            if (newDate) {
+                                // Simple parse or use helper if available? Date(newDate) usually works for ISO YYYY-MM-DD
+                                const d = new Date(newDate);
+                                isFresh = d >= cutoff;
+                            }
+
+                            // Update with fresh scores
+                            updatedList[i] = {
+                                ...art,
+                                title: newTitle,
+                                date_str: newDate,
+                                relevance_score: isFresh ? Math.max(art.relevance_score, 50) : 0,
+                                scores: {
+                                    ...art.scores,
+                                    date: isFresh ? 30 : 0,
+                                    is_fresh: isFresh,
+                                    is_old: !isFresh
+                                }
+                            };
+
+
+                            if (isTitleChanged) {
+                                // Reset AI verdicts if title changed
+                                updatedList[i].ai_verdict = null;
+                                updatedList[i].translated_title = null;
+
+                                // Background Assessment
+                                // We create a self-contained updater that runs after the main update
+                                const artUrl = art.url;
+                                const freshTitle = newTitle;
+
+                                // We don't await this to keep the UI snappy
+                                // But we must chain it to update state LATER
+                                assessQueue.push(async () => {
+                                    try {
+                                        const assessment = await handleAssessArticle({ url: artUrl, title: freshTitle });
+                                        if (assessment) {
+                                            setDigestData((prev: any) => {
+                                                if (!prev?.articles) return prev;
+                                                const newArts = prev.articles.map((a: any) => {
+                                                    if (a.url === artUrl) {
+                                                        return {
+                                                            ...a,
+                                                            ai_verdict: assessment,
+                                                            // If we have a translation from assessment? (API usually returns it in labels or reasoning?)
+                                                            // Actually assess_article returns { is_politics, confidence, reasoning, labels }
+                                                            // It DOES NOT return translated_title. That's a different endpoint usually?
+                                                            // Wait, checking ArticleRow... it uses ai_verdict for "Is Politics".
+                                                            // Translation is usually separate. 
+                                                            // For now, updating ai_verdict is what "AI-title check" likely refers to (politics check).
+                                                        };
+                                                    }
+                                                    return a;
+                                                });
+                                                return { ...prev, articles: newArts };
+                                            });
+                                        }
+                                    } catch (e) { console.error("Background Assessment Failed", e); }
+                                });
+                            }
+
+                            // Update Local Date Helper if needed
+                            if (newDate) updateLocalArticleDate(art.url, newDate);
+
+                            changesMade = true;
+                        }
+                    } catch (e) {
+                        console.warn(`Update failed for ${art.url}`, e);
+                    }
+                }
+                return changesMade ? updatedList : list;
             };
 
-            // CRITICAL FIX: Update Main State (digestData) logic so Auto-Select sees this result!
-            setDigestData((prev: any) => {
-                if (!prev?.articles) return prev;
-                const newArgs = prev.articles.map((a: any) => {
-                    if (a.url === article.url) {
-                        return { ...a, ai_verdict: verdict };
-                    }
-                    return a;
+            const assessQueue: (() => Promise<void>)[] = [];
+            const updatedArticles = await updateList(digestData.articles);
+            const updatedExcluded = await updateList(digestData.excluded_articles || []);
+
+            // 1. Immediate Update (Titles)
+            if (updatedArticles !== digestData.articles || updatedExcluded !== digestData.excluded_articles) {
+                setDigestData({
+                    ...digestData,
+                    articles: updatedArticles,
+                    excluded_articles: updatedExcluded
                 });
-                // Also check excluded?
-                const newExcl = (prev.excluded_articles || []).map((a: any) => {
-                    if (a.url === article.url) return { ...a, ai_verdict: verdict };
-                    return a;
-                });
-                return { ...prev, articles: newArgs, excluded_articles: newExcl };
-            });
-
-            return verdict;
-        } catch (err: any) {
-            console.error(err);
-            alert(`Assessment process failed: ${err.response?.data?.detail || err.message}`);
-            return null;
-        }
-    };
-
-    const handleReportSpam = async (article: any) => {
-        if (!article.url) return;
-        const url = article.url;
-
-        // Toggle Logic
-        if (spamUrls.has(url)) {
-            // UNFLAG (Undo)
-            try {
-                await api.delete(`/feedback/spam?url=${encodeURIComponent(url)}`);
-                const newSpam = new Set(spamUrls);
-                newSpam.delete(url);
-                setSpamUrls(newSpam);
-            } catch (err) {
-                console.error("Failed to unflag spam", err);
+                console.log("handleRulesUpdated: State Updated (Titles)!");
+            } else {
+                console.log("handleRulesUpdated: No changes detected.");
             }
-        } else {
-            // FLAG (Report)
+
+            // 2. Follow-up Update (AI Assessment)
+            if (assessQueue.length > 0) {
+                console.log(`handleRulesUpdated: Processing ${assessQueue.length} background assessments...`);
+                // Run them
+                assessQueue.forEach(fn => fn());
+            }
+        };
+
+        const handleAssessArticle = async (article: any) => {
+            if (!article.url || !article.title) return null;
+
             try {
-                await api.post('/feedback/spam', {
-                    url: url,
+                const res = await api.post('/outlets/assess_article', {
+                    url: article.url,
                     title: article.title,
-                    reason: 'technical_junk'
+                    content: null // force fetch
                 });
-                const newSpam = new Set(spamUrls);
-                newSpam.add(url);
-                setSpamUrls(newSpam);
+                const data = res.data;
+                const verdict = {
+                    is_politics: data.is_politics,
+                    confidence: data.confidence,
+                    reasoning: data.reasoning,
+                    labels: data.labels
+                };
 
-                // Auto-Deselect
-                if (selectedArticleUrls.has(url)) {
-                    const newSelected = new Set(selectedArticleUrls);
-                    newSelected.delete(url);
-                    setSelectedArticleUrls(newSelected);
-                }
+                // CRITICAL FIX: Update Main State (digestData) logic so Auto-Select sees this result!
+                setDigestData((prev: any) => {
+                    if (!prev?.articles) return prev;
+                    const newArgs = prev.articles.map((a: any) => {
+                        if (a.url === article.url) {
+                            return { ...a, ai_verdict: verdict };
+                        }
+                        return a;
+                    });
+                    // Also check excluded?
+                    const newExcl = (prev.excluded_articles || []).map((a: any) => {
+                        if (a.url === article.url) return { ...a, ai_verdict: verdict };
+                        return a;
+                    });
+                    return { ...prev, articles: newArgs, excluded_articles: newExcl };
+                });
+
+                return verdict;
             } catch (err: any) {
-                console.error("Spam report failed", err);
-                throw err;
+                console.error(err);
+                alert(`Assessment process failed: ${err.response?.data?.detail || err.message}`);
+                return null;
             }
-        }
-    };
+        };
 
+        const handleReportSpam = async (article: any) => {
+            if (!article.url) return;
+            const url = article.url;
 
-    // ... (Add manual outlet implementation similar to above using api.post)
-
-
-    // --- Optimization: Hoist handlers to prevent Hook Violations (Error #300) ---
-    // These must be defined at the top level, NOT inside useMemo.
-
-    const handlePolygonCapColor = useCallback(() => 'rgba(0, 0, 0, 0)', []);
-    const handlePolygonSideColor = useCallback(() => 'rgba(0, 0, 0, 0)', []);
-    const handlePolygonStrokeColor = useCallback(() => mapStyle.includes('day') ? '#000000' : '#888', [mapStyle]);
-
-    const handlePolygonClick = useCallback((d: any) => {
-        setExpandedCluster(null); // Click background to close cluster
-        setSelectedCountry(d);
-        if (globeEl.current) {
-            const centroid = turf.centroid(d);
-            const [lng, lat] = centroid.geometry.coordinates;
-            globeEl.current.pointOfView({ lat, lng, altitude: 0.5 }, 1000);
-        }
-        if (onCountrySelect) onCountrySelect(d.properties.NAME, d.properties.ISO_A2);
-    }, [onCountrySelect]);
-
-    // Filter Labels
-    const labelsData = useMemo(() => {
-        return processedData.points.filter(p =>
-            p.isSpider || p.isCluster || (parseInt(p.pop || '0') > 1000000) || p.isCapital
-        );
-    }, [processedData.points]);
-
-    const getLabelText = useCallback((d: any) => {
-        if (!d.name) return '?';
-        const char = d.name.charAt(0).normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-        return char.toUpperCase();
-    }, []);
-
-    const handleCursorPointer = useCallback((d: any) => {
-        document.body.style.cursor = d ? 'pointer' : 'default';
-    }, []);
-
-    const globeComponent = (
-        <Globe
-            ref={globeEl}
-            onGlobeReady={() => {
-                // Reliable initialization for Romania
-                if (globeEl.current) {
-                    globeEl.current.pointOfView({ lat: 45.9432, lng: 24.9668, altitude: 2.0 });
+            // Toggle Logic
+            if (spamUrls.has(url)) {
+                // UNFLAG (Undo)
+                try {
+                    await api.delete(`/feedback/spam?url=${encodeURIComponent(url)}`);
+                    const newSpam = new Set(spamUrls);
+                    newSpam.delete(url);
+                    setSpamUrls(newSpam);
+                } catch (err) {
+                    console.error("Failed to unflag spam", err);
                 }
-            }}
-            globeImageUrl={mapStyle}
-            bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
-            backgroundImageUrl="//unpkg.com/three-globe/example/img/night-sky.png"
+            } else {
+                // FLAG (Report)
+                try {
+                    await api.post('/feedback/spam', {
+                        url: url,
+                        title: article.title,
+                        reason: 'technical_junk'
+                    });
+                    const newSpam = new Set(spamUrls);
+                    newSpam.add(url);
+                    setSpamUrls(newSpam);
 
-            // Polygons (Borders)
-            polygonsData={countries.features}
-            polygonAltitude={0.005}
-            polygonCapColor={handlePolygonCapColor}
-            polygonSideColor={handlePolygonSideColor}
-            polygonStrokeColor={handlePolygonStrokeColor}
-            // @ts-ignore
-            polygonStrokeWidth={mapStyle.includes('day') ? 2 : 0.6}
-            onPolygonClick={handlePolygonClick}
-
-            // Labels (Initials on Marker) - OPTIMIZATION: Only show for Clusters or Large Cities
-            labelsData={labelsData}
-            labelLat={getLat}
-            labelLng={getLng}
-            labelText={getLabelText}
-            labelLabel={getTooltip}
-            onLabelClick={handleMapClick}
-            onLabelHover={handleCursorPointer}
-
-            // Use default system font for max compatibility
-            labelTypeFace={undefined}
-            labelFont={undefined}
-
-            // Points (Cities & Clusters)
-            pointsData={processedData.points}
-            pointLat={getLat}
-            pointLng={getLng}
-            pointColor={getPointColor} // Memoized
-            pointRadius={getRadius}
-            pointAltitude={0.005}
-            // VISUAL BALANCE: 12 is decent looking, 32 is overkill.
-            pointResolution={12}
-            onPointHover={handleCursorPointer}
-            onPointClick={handleMapClick} // Memoized
-            pointLabel={getTooltip} // Memoized
-
-            // Radius is "radius", Diameter is 2x. Text height needs to fill diameter.
-            labelSize={getLabelSize}
-            labelColor={getLabelColor}
-            labelDotRadius={0}
-            labelAltitude={0.0051}
-            // MEMORY OPTIMIZATION: Text sprites are flat, no need for 3D resolution
-            labelResolution={1}
-            labelIncludeDot={false}
-
-            // Rings
-            ringsData={ringsData}
-            ringLat={getLat}
-            ringLng={getLng}
-            ringMaxRadius={getRingMaxR}
-            ringColor={getRingColor}
-            ringPropagationSpeed={2}
-            ringRepeatPeriod={1000}
-            // VISUAL BALANCE: 32 is smooth enough
-            ringResolution={32}
-
-            // Paths
-            pathsData={processedData.links}
-            pathPoints={getPathPoints}
-            pathPointLat={getPathPointLat}
-            pathPointLng={getPathPointLng}
-            pathColor={getPathColor}
-            // MEMORY OPTIMIZATION: Use 2 radial segments (flat tube)
-            pathResolution={2}
-        />
-    );
-
-    return (
-        <div className="relative w-full h-full bg-slate-950">
-            {/* Visual Controls Toggle & Overlay */}
-            <div className="absolute bottom-4 left-4 z-20 flex flex-col items-start gap-2">
-                {!showControls && (
-                    <button
-                        onClick={() => setShowControls(true)}
-                        className="p-2 rounded-lg border border-slate-700 text-white transition-colors shadow-lg bg-slate-900/80 backdrop-blur hover:bg-slate-800"
-                        title="Open Visualization Controls"
-                    >
-                        <Sliders size={20} />
-                    </button>
-                )}
-
-                {expandedCluster && (
-                    <button
-                        onClick={() => {
-                            if (digestData && !confirm("Close report? Unsaved progress will be lost.")) return;
-                            setExpandedCluster(null);
-                            setDigestData(null);
-                        }}
-                        className="bg-red-500/80 hover:bg-red-500 text-white p-2 rounded-lg backdrop-blur shadow-lg border border-red-400 animate-in zoom-in duration-200"
-                        title="Close Cluster View"
-                    >
-                        <X size={20} />
-                    </button>
-                )}
-
-                {showControls && (
-                    <div className="bg-slate-900/80 backdrop-blur p-4 rounded-lg border border-slate-700 text-xs text-white space-y-3 w-64 animate-in fade-in slide-in-from-bottom-2 duration-200">
-                        <div className="flex items-center justify-between border-b border-slate-700 pb-1 mb-2">
-                            <h4 className="font-bold">Viz Controls</h4>
-                            <button
-                                onClick={() => setShowControls(false)}
-                                className="text-slate-400 hover:text-white transition-colors"
-                            >
-                                <X size={16} />
-                            </button>
-                        </div>
-                        <div>
-                            <label className="flex justify-between mb-1">
-                                <span>Cluster Radius: {clusterThreshold.toFixed(1)}°</span>
-                            </label>
-                            <input
-                                type="range" min="0.5" max="1.0" step="0.1"
-                                value={clusterThreshold}
-                                onChange={e => setClusterThreshold(parseFloat(e.target.value))}
-                                className="w-full accent-blue-500"
-                            />
-                        </div>
-                        <div>
-                            <label className="flex justify-between mb-1">
-                                <span>Marker Scale: {markerScale.toFixed(1)}x</span>
-                            </label>
-                            <input
-                                type="range" min="0.4" max="0.8" step="0.05"
-                                value={markerScale}
-                                onChange={e => setMarkerScale(parseFloat(e.target.value))}
-                                className="w-full accent-blue-500"
-                            />
-                        </div>
+                    // Auto-Deselect
+                    if (selectedArticleUrls.has(url)) {
+                        const newSelected = new Set(selectedArticleUrls);
+                        newSelected.delete(url);
+                        setSelectedArticleUrls(newSelected);
+                    }
+                } catch (err: any) {
+                    console.error("Spam report failed", err);
+                    throw err;
+                }
+            }
+        };
 
 
-                        {/* Map Style Toggle */}
-                        <div>
-                            <label className="mb-2 block font-semibold text-slate-400">Map Mode</label>
-                            <div className="grid grid-cols-2 gap-2">
-                                {MAP_STYLES.map(style => (
-                                    <button
-                                        key={style.name}
-                                        onClick={() => setMapStyle(style.url)}
-                                        className={`px-2 py-1 rounded text-xs transition-colors border ${mapStyle === style.url
-                                            ? 'bg-blue-600 border-blue-500 text-white font-bold'
-                                            : 'bg-slate-800 border-slate-600 text-slate-400 hover:bg-slate-700'
-                                            }`}
-                                    >
-                                        {style.name}
-                                    </button>
-                                ))}
+        // ... (Add manual outlet implementation similar to above using api.post)
+
+
+        // --- Optimization: Hoist handlers to prevent Hook Violations (Error #300) ---
+        // These must be defined at the top level, NOT inside useMemo.
+
+        const handlePolygonCapColor = useCallback(() => 'rgba(0, 0, 0, 0)', []);
+        const handlePolygonSideColor = useCallback(() => 'rgba(0, 0, 0, 0)', []);
+        const handlePolygonStrokeColor = useCallback(() => mapStyle.includes('day') ? '#000000' : '#888', [mapStyle]);
+
+        const handlePolygonClick = useCallback((d: any) => {
+            setExpandedCluster(null); // Click background to close cluster
+            setSelectedCountry(d);
+            if (globeEl.current) {
+                const centroid = turf.centroid(d);
+                const [lng, lat] = centroid.geometry.coordinates;
+                globeEl.current.pointOfView({ lat, lng, altitude: 0.5 }, 1000);
+            }
+            if (onCountrySelect) onCountrySelect(d.properties.NAME, d.properties.ISO_A2);
+        }, [onCountrySelect]);
+
+        // Filter Labels
+        const labelsData = useMemo(() => {
+            return processedData.points.filter(p =>
+                p.isSpider || p.isCluster || (parseInt(p.pop || '0') > 1000000) || p.isCapital
+            );
+        }, [processedData.points]);
+
+        const getLabelText = useCallback((d: any) => {
+            if (!d.name) return '?';
+            const char = d.name.charAt(0).normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            return char.toUpperCase();
+        }, []);
+
+        const handleCursorPointer = useCallback((d: any) => {
+            document.body.style.cursor = d ? 'pointer' : 'default';
+        }, []);
+
+        const globeComponent = (
+            <Globe
+                ref={globeEl}
+                onGlobeReady={() => {
+                    // Reliable initialization for Romania
+                    if (globeEl.current) {
+                        globeEl.current.pointOfView({ lat: 45.9432, lng: 24.9668, altitude: 2.0 });
+                    }
+                }}
+                globeImageUrl={mapStyle}
+                bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
+                backgroundImageUrl="//unpkg.com/three-globe/example/img/night-sky.png"
+
+                // Polygons (Borders)
+                polygonsData={countries.features}
+                polygonAltitude={0.005}
+                polygonCapColor={handlePolygonCapColor}
+                polygonSideColor={handlePolygonSideColor}
+                polygonStrokeColor={handlePolygonStrokeColor}
+                // @ts-ignore
+                polygonStrokeWidth={mapStyle.includes('day') ? 2 : 0.6}
+                onPolygonClick={handlePolygonClick}
+
+                // Labels (Initials on Marker) - OPTIMIZATION: Only show for Clusters or Large Cities
+                labelsData={labelsData}
+                labelLat={getLat}
+                labelLng={getLng}
+                labelText={getLabelText}
+                labelLabel={getTooltip}
+                onLabelClick={handleMapClick}
+                onLabelHover={handleCursorPointer}
+
+                // Use default system font for max compatibility
+                labelTypeFace={undefined}
+                labelFont={undefined}
+
+                // Points (Cities & Clusters)
+                pointsData={processedData.points}
+                pointLat={getLat}
+                pointLng={getLng}
+                pointColor={getPointColor} // Memoized
+                pointRadius={getRadius}
+                pointAltitude={0.005}
+                // VISUAL BALANCE: 12 is decent looking, 32 is overkill.
+                pointResolution={12}
+                onPointHover={handleCursorPointer}
+                onPointClick={handleMapClick} // Memoized
+                pointLabel={getTooltip} // Memoized
+
+                // Radius is "radius", Diameter is 2x. Text height needs to fill diameter.
+                labelSize={getLabelSize}
+                labelColor={getLabelColor}
+                labelDotRadius={0}
+                labelAltitude={0.0051}
+                // MEMORY OPTIMIZATION: Text sprites are flat, no need for 3D resolution
+                labelResolution={1}
+                labelIncludeDot={false}
+
+                // Rings
+                ringsData={ringsData}
+                ringLat={getLat}
+                ringLng={getLng}
+                ringMaxRadius={getRingMaxR}
+                ringColor={getRingColor}
+                ringPropagationSpeed={2}
+                ringRepeatPeriod={1000}
+                // VISUAL BALANCE: 32 is smooth enough
+                ringResolution={32}
+
+                // Paths
+                pathsData={processedData.links}
+                pathPoints={getPathPoints}
+                pathPointLat={getPathPointLat}
+                pathPointLng={getPathPointLng}
+                pathColor={getPathColor}
+                // MEMORY OPTIMIZATION: Use 2 radial segments (flat tube)
+                pathResolution={2}
+            />
+        );
+
+        return (
+            <div className="relative w-full h-full bg-slate-950">
+                {/* Visual Controls Toggle & Overlay */}
+                <div className="absolute bottom-4 left-4 z-20 flex flex-col items-start gap-2">
+                    {!showControls && (
+                        <button
+                            onClick={() => setShowControls(true)}
+                            className="p-2 rounded-lg border border-slate-700 text-white transition-colors shadow-lg bg-slate-900/80 backdrop-blur hover:bg-slate-800"
+                            title="Open Visualization Controls"
+                        >
+                            <Sliders size={20} />
+                        </button>
+                    )}
+
+                    {expandedCluster && (
+                        <button
+                            onClick={() => {
+                                if (digestData && !confirm("Close report? Unsaved progress will be lost.")) return;
+                                setExpandedCluster(null);
+                                setDigestData(null);
+                            }}
+                            className="bg-red-500/80 hover:bg-red-500 text-white p-2 rounded-lg backdrop-blur shadow-lg border border-red-400 animate-in zoom-in duration-200"
+                            title="Close Cluster View"
+                        >
+                            <X size={20} />
+                        </button>
+                    )}
+
+                    {showControls && (
+                        <div className="bg-slate-900/80 backdrop-blur p-4 rounded-lg border border-slate-700 text-xs text-white space-y-3 w-64 animate-in fade-in slide-in-from-bottom-2 duration-200">
+                            <div className="flex items-center justify-between border-b border-slate-700 pb-1 mb-2">
+                                <h4 className="font-bold">Viz Controls</h4>
+                                <button
+                                    onClick={() => setShowControls(false)}
+                                    className="text-slate-400 hover:text-white transition-colors"
+                                >
+                                    <X size={16} />
+                                </button>
+                            </div>
+                            <div>
+                                <label className="flex justify-between mb-1">
+                                    <span>Cluster Radius: {clusterThreshold.toFixed(1)}°</span>
+                                </label>
+                                <input
+                                    type="range" min="0.5" max="1.0" step="0.1"
+                                    value={clusterThreshold}
+                                    onChange={e => setClusterThreshold(parseFloat(e.target.value))}
+                                    className="w-full accent-blue-500"
+                                />
+                            </div>
+                            <div>
+                                <label className="flex justify-between mb-1">
+                                    <span>Marker Scale: {markerScale.toFixed(1)}x</span>
+                                </label>
+                                <input
+                                    type="range" min="0.4" max="0.8" step="0.05"
+                                    value={markerScale}
+                                    onChange={e => setMarkerScale(parseFloat(e.target.value))}
+                                    className="w-full accent-blue-500"
+                                />
+                            </div>
+
+
+                            {/* Map Style Toggle */}
+                            <div>
+                                <label className="mb-2 block font-semibold text-slate-400">Map Mode</label>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {MAP_STYLES.map(style => (
+                                        <button
+                                            key={style.name}
+                                            onClick={() => setMapStyle(style.url)}
+                                            className={`px-2 py-1 rounded text-xs transition-colors border ${mapStyle === style.url
+                                                ? 'bg-blue-600 border-blue-500 text-white font-bold'
+                                                : 'bg-slate-800 border-slate-600 text-slate-400 hover:bg-slate-700'
+                                                }`}
+                                        >
+                                            {style.name}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
                         </div>
-                    </div>
-                )}
-            </div>
+                    )}
+                </div>
 
-            {/* Debugger Modal */}
-            <ScraperDebugger
-                isOpen={debuggerConfig.isOpen}
-                initialUrl={debuggerConfig.url}
-                domain={debuggerConfig.domain}
-                onClose={() => setDebuggerConfig(prev => ({ ...prev, isOpen: false }))}
-                onDateExtracted={handleDateExtracted}
-                onSave={handleRulesUpdated}
-            />
+                {/* Debugger Modal */}
+                <ScraperDebugger
+                    isOpen={debuggerConfig.isOpen}
+                    initialUrl={debuggerConfig.url}
+                    domain={debuggerConfig.domain}
+                    onClose={() => setDebuggerConfig(prev => ({ ...prev, isOpen: false }))}
+                    onDateExtracted={handleDateExtracted}
+                    onSave={handleRulesUpdated}
+                />
 
-            {/* Digest Modal / Full Screen View */}
-            {
-                digestData && (
-                    <div className="absolute inset-0 z-50 bg-slate-950/95 backdrop-blur-sm flex items-center justify-center p-8 animate-in fade-in duration-200">
-                        <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-4xl h-[90vh] flex flex-col overflow-hidden">
-                            <div className="p-6 border-b border-slate-700 flex justify-between items-center bg-slate-800/50 relative">
-                                <div className="flex flex-col gap-1 items-start">
-                                    {/* Publication Status Bar (Replaces Debug Strip) */}
-                                    {digestData?.id && (
-                                        <div className="h-5 flex items-center">
-                                            {digestData.is_public && digestData.public_slug ? (
-                                                <div className="font-mono text-[10px] text-slate-500 flex items-center gap-2 animate-in slide-in-from-top-2 fade-in">
-                                                    <span className="opacity-50 tracking-wider">PUBLISHED AT:</span>
+                {/* Digest Modal / Full Screen View */}
+                {
+                    digestData && (
+                        <div className="absolute inset-0 z-50 bg-slate-950/95 backdrop-blur-sm flex items-center justify-center p-8 animate-in fade-in duration-200">
+                            <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-4xl h-[90vh] flex flex-col overflow-hidden">
+                                <div className="p-6 border-b border-slate-700 flex justify-between items-center bg-slate-800/50 relative">
+                                    <div className="flex flex-col gap-1 items-start">
+                                        {/* Publication Status Bar (Replaces Debug Strip) */}
+                                        {digestData?.id && (
+                                            <div className="h-5 flex items-center">
+                                                {digestData.is_public && digestData.public_slug ? (
+                                                    <div className="font-mono text-[10px] text-slate-500 flex items-center gap-2 animate-in slide-in-from-top-2 fade-in">
+                                                        <span className="opacity-50 tracking-wider">PUBLISHED AT:</span>
+                                                        <button
+                                                            className="flex items-center gap-1.5 bg-blue-950/30 hover:bg-blue-900/40 border border-blue-900/20 px-1.5 py-0.5 rounded transition-all group cursor-pointer"
+                                                            onClick={() => {
+                                                                navigator.clipboard.writeText(`${window.location.origin}/s/${digestData.public_slug}`);
+                                                                setCopiedSlug(digestData.public_slug);
+                                                                setTimeout(() => setCopiedSlug(null), 2000);
+                                                            }}
+                                                            title="Copy Link to Clipboard"
+                                                        >
+                                                            <span className="text-blue-500 font-bold">
+                                                                {window.location.host}/s/{digestData.public_slug}
+                                                            </span>
+                                                            {copiedSlug === digestData.public_slug ? (
+                                                                <Check size={10} className="text-emerald-500" />
+                                                            ) : (
+                                                                <Copy size={10} className="text-blue-400/70 group-hover:text-blue-400" />
+                                                            )}
+                                                        </button>
+                                                    </div>
+                                                ) : (
                                                     <button
-                                                        className="flex items-center gap-1.5 bg-blue-950/30 hover:bg-blue-900/40 border border-blue-900/20 px-1.5 py-0.5 rounded transition-all group cursor-pointer"
-                                                        onClick={() => {
-                                                            navigator.clipboard.writeText(`${window.location.origin}/s/${digestData.public_slug}`);
-                                                            setCopiedSlug(digestData.public_slug);
-                                                            setTimeout(() => setCopiedSlug(null), 2000);
-                                                        }}
-                                                        title="Copy Link to Clipboard"
+                                                        onClick={handleShareDigest}
+                                                        disabled={isSharing}
+                                                        className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 hover:text-blue-400 transition-colors animate-in fade-in"
+                                                        title="Generate a public link"
                                                     >
-                                                        <span className="text-blue-500 font-bold">
-                                                            {window.location.host}/s/{digestData.public_slug}
-                                                        </span>
-                                                        {copiedSlug === digestData.public_slug ? (
-                                                            <Check size={10} className="text-emerald-500" />
-                                                        ) : (
-                                                            <Copy size={10} className="text-blue-400/70 group-hover:text-blue-400" />
-                                                        )}
+                                                        {isSharing ? <Loader2 size={10} className="animate-spin" /> : <Share2 size={10} />}
+                                                        Create Public Link
+                                                    </button>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
+                                            {digestData?.city || selectedCityData?.name} Digest
+                                        </h2>
+                                        <div className="flex gap-4 mt-2">
+                                            {['articles', 'digest', 'analytics'].map((tab) => (
+                                                <button
+                                                    key={tab}
+                                                    onClick={() => setActiveModalTab(tab as any)}
+                                                    className={`text-xs font-bold uppercase tracking-wider pb-1 transition-colors ${activeModalTab === tab ? 'text-blue-400 border-b-2 border-blue-400' : 'text-slate-500 hover:text-slate-300'}`}
+                                                >
+                                                    {tab}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => setIsTranslateActive(!isTranslateActive)}
+                                            className={`flex items-center gap-2 px-3 py-1.5 rounded-full font-bold text-xs transition-colors ${isTranslateActive ? 'bg-amber-500/20 text-amber-400 border border-amber-500/50' : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'}`}
+                                            title="Toggle Translation"
+                                        >
+                                            <Languages size={14} />
+                                            {isTranslateActive ? 'Original' : 'Translate'}
+                                        </button>
+
+                                        {/* Share Button Removed (Moved to header status) */}
+
+                                        <button
+                                            onClick={handleDownloadDigest}
+                                            className="text-white hover:text-blue-200 bg-slate-700 hover:bg-slate-600 px-4 py-1.5 rounded-full font-bold text-xs transition-colors border border-slate-600"
+                                            title="Download as standalone HTML file"
+                                        >
+                                            📥 Download
+                                        </button>
+                                        <button
+                                            onClick={handleSaveDigest}
+                                            disabled={isSaving}
+                                            className="text-white hover:text-blue-200 bg-blue-600 hover:bg-blue-500 px-4 py-1.5 rounded-full font-bold text-xs transition-colors disabled:opacity-50"
+                                        >
+                                            {isSaving ? 'Saving...' : '💾 Save Report'}
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                if (confirm("Close report? Unsaved progress will be lost.")) {
+                                                    setDigestData(null);
+                                                }
+                                            }}
+                                            className="text-slate-400 hover:text-white hover:bg-slate-800 p-2 rounded-full transition-colors"
+                                        >
+                                            <X size={24} />
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+                                    {activeModalTab === 'articles' ? (
+                                        <div className={`flex flex-col gap-8 ${isTranslateActive ? 'translate-active' : ''}`}>
+                                            <div className="border-b border-white/10 pb-4 mb-2">
+                                                <h2 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-indigo-400">
+                                                    News Digest: {selectedCategory}
+                                                </h2>
+                                                <p className="text-gray-400 text-sm mt-1 flex items-center gap-4">
+                                                    <span>Timeframe: <span className="text-white font-medium">
+                                                        {(() => {
+                                                            const now = new Date();
+                                                            const start = new Date();
+                                                            if (selectedTimeframe === '24h') start.setDate(now.getDate() - 1);
+                                                            if (selectedTimeframe === '3days') start.setDate(now.getDate() - 3);
+                                                            if (selectedTimeframe === '1week') start.setDate(now.getDate() - 7);
+
+                                                            const fmt = (d: Date) => `${d.getDate()}.${d.getMonth() + 1}.${d.getFullYear()}`;
+                                                            return `${fmt(start)} - ${fmt(now)}`;
+                                                        })()}
+                                                    </span></span>
+                                                    <span className="w-1 h-1 bg-slate-600 rounded-full"></span>
+                                                    <span>Ordered by: <span className="text-blue-400 font-medium">{getOwnerName(digestData)}</span></span>
+                                                </p>
+
+                                                <div className="mt-4 flex items-center justify-between bg-slate-800/50 p-3 rounded-lg border border-white/5">
+                                                    <div className="flex items-center gap-4">
+                                                        <span className="text-slate-400 text-sm">{selectedArticleUrls.size} articles selected</span>
+                                                        <button
+                                                            onClick={handleSmartSelect}
+                                                            className="px-3 py-1 bg-emerald-900/40 hover:bg-emerald-800/60 text-emerald-400 border border-emerald-800/50 font-bold rounded text-[10px] uppercase tracking-wider transition-all"
+                                                            title="Auto-select Fresh & Verified articles"
+                                                        >
+                                                            Auto-Select
+                                                        </button>
+                                                    </div>
+                                                    <div className="flex gap-2">
+                                                        <button
+                                                            onClick={handleGenerateBackendSummary}
+                                                            disabled={isSummarizing || isGeneratingDigest || selectedArticleUrls.size === 0}
+                                                            className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded text-xs transition-all disabled:opacity-50 flex items-center gap-2 min-w-[180px] justify-center"
+                                                        >
+                                                            {isSummarizing ? (
+                                                                <>
+                                                                    <Loader2 className="animate-spin shrink-0" size={14} />
+                                                                    <span className="truncate max-w-[200px]">{analyzingTickerText || "Analyzing..."}</span>
+                                                                </>
+                                                            ) : isGeneratingDigest ? (
+                                                                <div className="relative w-full h-full flex items-center justify-center">
+                                                                    <div
+                                                                        className="absolute left-0 top-0 bottom-0 bg-blue-500/30 transition-all duration-500"
+                                                                        style={{ width: `${(progress.total > 0 ? (progress.current / progress.total) * 100 : 0)}%` }}
+                                                                    />
+                                                                    <Loader2 className="animate-spin shrink-0 z-10 mr-2" size={14} />
+                                                                    <span className="truncate z-10 relative">Gathering {Math.round((progress.current / progress.total) * 100) || 0}%...</span>
+                                                                </div>
+                                                            ) : "Summarize Selection"}
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* React Renderer (Virtualization Friendly) */}
+                                            <DigestReportRenderer
+                                                articles={digestData.articles || []}
+                                                excludedArticles={digestData.excluded_articles || []}
+                                                category={selectedCategory}
+                                                isTranslated={isTranslateActive}
+                                                selectedUrls={selectedArticleUrls}
+                                                onToggle={handleToggleSelection}
+                                                onAssess={handleAssessArticle}
+                                                onDebug={handleDebugArticle}
+                                                onReportSpam={handleReportSpam}
+                                                spamUrls={spamUrls}
+                                                isLoading={isGeneratingDigest}
+                                            />
+                                        </div>
+                                    ) : activeModalTab === 'digest' ? (
+                                        <div className="flex flex-col gap-6">
+                                            {digestSummary ? (
+                                                <div className="bg-slate-900/50 p-12 rounded-xl border border-white/5 animate-in fade-in duration-500 text-slate-300">
+                                                    <ReactMarkdown
+                                                        urlTransform={(url) => url}
+                                                        components={{
+                                                            h1: ({ node, ...props }) => <h1 className="text-4xl font-extrabold text-white mb-8 border-b border-white/10 pb-4 mt-8" {...props} />,
+                                                            h2: ({ node, ...props }) => <h2 className="text-3xl font-bold text-blue-200 mt-12 mb-6 border-l-4 border-blue-500 pl-4" {...props} />,
+                                                            h3: ({ node, ...props }) => <h3 className="text-xl font-bold text-indigo-300 mt-8 mb-3 uppercase tracking-wide" {...props} />,
+                                                            p: ({ node, ...props }) => <p className="text-lg text-slate-300 leading-loose mb-6 text-justify" {...props} />,
+                                                            ul: ({ node, ...props }) => <ul className="list-disc list-outside ml-6 mb-6 space-y-2 text-slate-300" {...props} />,
+                                                            li: ({ node, ...props }) => <li className="pl-2" {...props} />,
+                                                            a: ({ node, ...props }) => {
+                                                                const href = props.href || '';
+                                                                if (href.startsWith('citation:')) {
+                                                                    const index = parseInt(href.split(':')[1]);
+                                                                    const article = selectedArticlesList[index - 1]; // 1-based index
+
+                                                                    // DEBUG CITATION
+                                                                    if (!article) console.warn(`Citation Mismatch: [${index}] not found in list of ${selectedArticlesList.length}`);
+
+                                                                    const title = article ? (article.title || 'Source') : `Source ${index}`;
+                                                                    let url = article ? article.url : '';
+
+                                                                    // Validate URL to prevent localhost redirects
+                                                                    const isValidUrl = url && url.startsWith('http');
+
+                                                                    return (
+                                                                        <span className="relative inline-block group mx-1 align-baseline">
+                                                                            <button
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    if (isValidUrl) window.open(url, '_blank');
+                                                                                }}
+                                                                                className={`font-bold text-xs align-super px-1 rounded transition-colors ${isValidUrl
+                                                                                    ? 'text-blue-400 hover:bg-blue-900/30 cursor-pointer'
+                                                                                    : 'text-slate-500 cursor-help'
+                                                                                    }`}
+                                                                            >
+                                                                                [{index}]
+                                                                            </button>
+                                                                            {/* Tooltip */}
+                                                                            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-72 p-3 bg-slate-900 border border-slate-700 rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 text-xs text-left">
+                                                                                <span className="block font-bold text-white mb-1 line-clamp-3 leading-tight">{title}</span>
+                                                                                <span className={`block truncate font-mono mt-1 ${isValidUrl ? 'text-blue-400' : 'text-amber-500'}`}>
+                                                                                    {isValidUrl ? new URL(url).hostname : 'Source URL not available'}
+                                                                                </span>
+                                                                            </span>
+                                                                        </span>
+                                                                    );
+                                                                }
+
+                                                                const fallbackHref = props.href || '';
+                                                                const isFallbackValid = fallbackHref.startsWith('http') || fallbackHref.startsWith('mailto');
+
+                                                                return (
+                                                                    <a
+                                                                        className={`${isFallbackValid ? 'text-blue-400 hover:text-blue-300 hover:underline' : 'text-slate-500 cursor-help decoration-dotted underline'} underline-offset-4`}
+                                                                        target={isFallbackValid ? "_blank" : undefined}
+                                                                        rel="noopener noreferrer"
+                                                                        {...props}
+                                                                        href={isFallbackValid ? fallbackHref : undefined}
+                                                                        title={isFallbackValid ? undefined : `Invalid/Relative Link: ${fallbackHref}`}
+                                                                        onClick={(e) => { if (!isFallbackValid) e.preventDefault(); }}
+                                                                    />
+                                                                );
+                                                            },
+                                                            strong: ({ node, ...props }) => <strong className="text-amber-400 font-bold" {...props} />,
+                                                            blockquote: ({ node, ...props }) => <blockquote className="border-l-4 border-slate-600 pl-4 italic text-slate-400 my-6 bg-slate-800/30 py-2 rounded-r" {...props} />
+                                                        }}
+                                                    >
+                                                        {/* Regex to convert [n] to [n](citation:n) */}
+                                                        {digestSummary.replace(/\[(\d+)\]/g, '[$1](citation:$1)')}
+                                                    </ReactMarkdown>
+                                                </div>
+                                            ) : (
+                                                <div className="text-center py-20 text-slate-600 italic border-2 border-dashed border-slate-800 rounded-xl">
+                                                    Select articles from the "Articles" tab and click Summarize.
+                                                </div>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <div className="min-h-full flex flex-col">
+                                            <div className="flex justify-between items-center mb-6">
+                                                <div className="flex flex-col">
+                                                    <h3 className="text-xl font-bold text-slate-300 flex items-center gap-2">
+                                                        Semantic Cloud
+                                                    </h3>
+                                                    <span className="text-slate-500 text-sm font-normal">
+                                                        {(() => {
+                                                            const now = new Date();
+                                                            const start = new Date();
+                                                            if (selectedTimeframe === '24h') start.setDate(now.getDate() - 1);
+                                                            if (selectedTimeframe === '3days') start.setDate(now.getDate() - 3);
+                                                            if (selectedTimeframe === '1week') start.setDate(now.getDate() - 7);
+
+                                                            const fmt = (d: Date) => `${d.getDate()}.${d.getMonth() + 1}`;
+                                                            return `${fmt(start)} - ${fmt(now)}`;
+                                                        })()}
+                                                    </span>
+                                                </div>
+
+                                                <div className="flex items-center gap-3">
+                                                    {/* Controls */}
+                                                    {analyticsKeywords.length > 0 && (
+                                                        <>
+                                                            <div className="flex bg-slate-800 rounded-lg p-0.5 border border-slate-700">
+                                                                <button
+                                                                    onClick={() => setIsAnalyticsTranslated(!isAnalyticsTranslated)}
+                                                                    className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${isAnalyticsTranslated ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
+                                                                    title="Translate to English"
+                                                                >
+                                                                    A/文
+                                                                </button>
+                                                            </div>
+
+                                                            <div className="flex bg-slate-800 rounded-lg p-0.5 border border-slate-700">
+                                                                <button
+                                                                    onClick={() => setAnalyticsViewMode('cloud')}
+                                                                    className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${analyticsViewMode === 'cloud' ? 'bg-slate-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
+                                                                >
+                                                                    ☁️
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => setAnalyticsViewMode('columns')}
+                                                                    className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${analyticsViewMode === 'columns' ? 'bg-slate-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
+                                                                >
+                                                                    |||
+                                                                </button>
+                                                            </div>
+
+                                                            <button
+                                                                onClick={handleGenerateAnalytics}
+                                                                disabled={isAnalyzing}
+                                                                className="px-3 py-1 text-xs font-bold text-slate-400 hover:text-white flex items-center gap-1 transition-colors border border-slate-700 rounded-lg bg-slate-800/50"
+                                                            >
+                                                                <Sparkles className="w-3 h-3" /> Regenerate
+                                                            </button>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {isAnalyzing ? (
+                                                <div className="flex flex-col items-center justify-center h-64 text-slate-400 animate-pulse">
+                                                    <Loader2 className="w-8 h-8 mb-3 text-purple-500 animate-spin" />
+                                                    <p>Extracting Insights...</p>
+                                                </div>
+                                            ) : analyticsKeywords.length === 0 ? (
+                                                <div className="flex flex-col items-center justify-center h-64 border-2 border-dashed border-slate-700/50 rounded-xl bg-slate-900/30">
+                                                    <p className="text-slate-400 mb-6 max-w-sm text-center">
+                                                        Analyze selected articles to detect key entities, sentiment, and patterns.
+                                                    </p>
+                                                    <button
+                                                        onClick={handleGenerateAnalytics}
+                                                        className="bg-purple-600 hover:bg-purple-500 text-white px-6 py-2.5 rounded-full font-bold shadow-lg shadow-purple-900/20 transition-all hover:scale-105 flex items-center gap-2"
+                                                    >
+                                                        <Sparkles className="w-4 h-4" /> Generate Smart Cloud
                                                     </button>
                                                 </div>
                                             ) : (
-                                                <button
-                                                    onClick={handleShareDigest}
-                                                    disabled={isSharing}
-                                                    className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 hover:text-blue-400 transition-colors animate-in fade-in"
-                                                    title="Generate a public link"
-                                                >
-                                                    {isSharing ? <Loader2 size={10} className="animate-spin" /> : <Share2 size={10} />}
-                                                    Create Public Link
-                                                </button>
-                                            )}
-                                        </div>
-                                    )}
+                                                analyticsViewMode === 'cloud' ? (
+                                                    <div className="flex flex-wrap gap-3 content-start justify-center py-4">
+                                                        {analyticsKeywords.map((kw: any, i: number) => {
+                                                            const displayWord = (isAnalyticsTranslated && kw.translation) ? kw.translation : kw.word;
+                                                            // Size logic: 1 to 2.5rem based on score (0-100)
+                                                            const scale = 0.8 + ((kw.importance || 50) / 100) * 1.5;
 
-                                    <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
-                                        {digestData?.city || selectedCityData?.name} Digest
-                                    </h2>
-                                    <div className="flex gap-4 mt-2">
-                                        {['articles', 'digest', 'analytics'].map((tab) => (
-                                            <button
-                                                key={tab}
-                                                onClick={() => setActiveModalTab(tab as any)}
-                                                className={`text-xs font-bold uppercase tracking-wider pb-1 transition-colors ${activeModalTab === tab ? 'text-blue-400 border-b-2 border-blue-400' : 'text-slate-500 hover:text-slate-300'}`}
-                                            >
-                                                {tab}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-
-
-                                <div className="flex gap-2">
-                                    <button
-                                        onClick={() => setIsTranslateActive(!isTranslateActive)}
-                                        className={`flex items-center gap-2 px-3 py-1.5 rounded-full font-bold text-xs transition-colors ${isTranslateActive ? 'bg-amber-500/20 text-amber-400 border border-amber-500/50' : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'}`}
-                                        title="Toggle Translation"
-                                    >
-                                        <Languages size={14} />
-                                        {isTranslateActive ? 'Original' : 'Translate'}
-                                    </button>
-
-                                    {/* Share Button Removed (Moved to header status) */}
-
-                                    <button
-                                        onClick={handleDownloadDigest}
-                                        className="text-white hover:text-blue-200 bg-slate-700 hover:bg-slate-600 px-4 py-1.5 rounded-full font-bold text-xs transition-colors border border-slate-600"
-                                        title="Download as standalone HTML file"
-                                    >
-                                        📥 Download
-                                    </button>
-                                    <button
-                                        onClick={handleSaveDigest}
-                                        disabled={isSaving}
-                                        className="text-white hover:text-blue-200 bg-blue-600 hover:bg-blue-500 px-4 py-1.5 rounded-full font-bold text-xs transition-colors disabled:opacity-50"
-                                    >
-                                        {isSaving ? 'Saving...' : '💾 Save Report'}
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            if (confirm("Close report? Unsaved progress will be lost.")) {
-                                                setDigestData(null);
-                                            }
-                                        }}
-                                        className="text-slate-400 hover:text-white hover:bg-slate-800 p-2 rounded-full transition-colors"
-                                    >
-                                        <X size={24} />
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-                                {activeModalTab === 'articles' ? (
-                                    <div className={`flex flex-col gap-8 ${isTranslateActive ? 'translate-active' : ''}`}>
-                                        <div className="border-b border-white/10 pb-4 mb-2">
-                                            <h2 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-indigo-400">
-                                                News Digest: {selectedCategory}
-                                            </h2>
-                                            <p className="text-gray-400 text-sm mt-1 flex items-center gap-4">
-                                                <span>Timeframe: <span className="text-white font-medium">
-                                                    {(() => {
-                                                        const now = new Date();
-                                                        const start = new Date();
-                                                        if (selectedTimeframe === '24h') start.setDate(now.getDate() - 1);
-                                                        if (selectedTimeframe === '3days') start.setDate(now.getDate() - 3);
-                                                        if (selectedTimeframe === '1week') start.setDate(now.getDate() - 7);
-
-                                                        const fmt = (d: Date) => `${d.getDate()}.${d.getMonth() + 1}.${d.getFullYear()}`;
-                                                        return `${fmt(start)} - ${fmt(now)}`;
-                                                    })()}
-                                                </span></span>
-                                                <span className="w-1 h-1 bg-slate-600 rounded-full"></span>
-                                                <span>Ordered by: <span className="text-blue-400 font-medium">{getOwnerName(digestData)}</span></span>
-                                            </p>
-
-                                            <div className="mt-4 flex items-center justify-between bg-slate-800/50 p-3 rounded-lg border border-white/5">
-                                                <div className="flex items-center gap-4">
-                                                    <span className="text-slate-400 text-sm">{selectedArticleUrls.size} articles selected</span>
-                                                    <button
-                                                        onClick={handleSmartSelect}
-                                                        className="px-3 py-1 bg-emerald-900/40 hover:bg-emerald-800/60 text-emerald-400 border border-emerald-800/50 font-bold rounded text-[10px] uppercase tracking-wider transition-all"
-                                                        title="Auto-select Fresh & Verified articles"
-                                                    >
-                                                        Auto-Select
-                                                    </button>
-                                                </div>
-                                                <div className="flex gap-2">
-                                                    <button
-                                                        onClick={handleGenerateBackendSummary}
-                                                        disabled={isSummarizing || isGeneratingDigest || selectedArticleUrls.size === 0}
-                                                        className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded text-xs transition-all disabled:opacity-50 flex items-center gap-2 min-w-[180px] justify-center"
-                                                    >
-                                                        {isSummarizing ? (
-                                                            <>
-                                                                <Loader2 className="animate-spin shrink-0" size={14} />
-                                                                <span className="truncate max-w-[200px]">{analyzingTickerText || "Analyzing..."}</span>
-                                                            </>
-                                                        ) : isGeneratingDigest ? (
-                                                            <div className="relative w-full h-full flex items-center justify-center">
-                                                                <div
-                                                                    className="absolute left-0 top-0 bottom-0 bg-blue-500/30 transition-all duration-500"
-                                                                    style={{ width: `${(progress.total > 0 ? (progress.current / progress.total) * 100 : 0)}%` }}
-                                                                />
-                                                                <Loader2 className="animate-spin shrink-0 z-10 mr-2" size={14} />
-                                                                <span className="truncate z-10 relative">Gathering {Math.round((progress.current / progress.total) * 100) || 0}%...</span>
-                                                            </div>
-                                                        ) : "Summarize Selection"}
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* React Renderer (Virtualization Friendly) */}
-                                        <DigestReportRenderer
-                                            articles={digestData.articles || []}
-                                            excludedArticles={digestData.excluded_articles || []}
-                                            category={selectedCategory}
-                                            isTranslated={isTranslateActive}
-                                            selectedUrls={selectedArticleUrls}
-                                            onToggle={handleToggleSelection}
-                                            onAssess={handleAssessArticle}
-                                            onDebug={handleDebugArticle}
-                                            onReportSpam={handleReportSpam}
-                                            spamUrls={spamUrls}
-                                            isLoading={isGeneratingDigest}
-                                        />
-                                    </div>
-                                ) : activeModalTab === 'digest' ? (
-                                    <div className="flex flex-col gap-6">
-                                        {digestSummary ? (
-                                            <div className="bg-slate-900/50 p-12 rounded-xl border border-white/5 animate-in fade-in duration-500 text-slate-300">
-                                                <ReactMarkdown
-                                                    urlTransform={(url) => url}
-                                                    components={{
-                                                        h1: ({ node, ...props }) => <h1 className="text-4xl font-extrabold text-white mb-8 border-b border-white/10 pb-4 mt-8" {...props} />,
-                                                        h2: ({ node, ...props }) => <h2 className="text-3xl font-bold text-blue-200 mt-12 mb-6 border-l-4 border-blue-500 pl-4" {...props} />,
-                                                        h3: ({ node, ...props }) => <h3 className="text-xl font-bold text-indigo-300 mt-8 mb-3 uppercase tracking-wide" {...props} />,
-                                                        p: ({ node, ...props }) => <p className="text-lg text-slate-300 leading-loose mb-6 text-justify" {...props} />,
-                                                        ul: ({ node, ...props }) => <ul className="list-disc list-outside ml-6 mb-6 space-y-2 text-slate-300" {...props} />,
-                                                        li: ({ node, ...props }) => <li className="pl-2" {...props} />,
-                                                        a: ({ node, ...props }) => {
-                                                            const href = props.href || '';
-                                                            if (href.startsWith('citation:')) {
-                                                                const index = parseInt(href.split(':')[1]);
-                                                                const article = selectedArticlesList[index - 1]; // 1-based index
-
-                                                                // DEBUG CITATION
-                                                                if (!article) console.warn(`Citation Mismatch: [${index}] not found in list of ${selectedArticlesList.length}`);
-
-                                                                const title = article ? (article.title || 'Source') : `Source ${index}`;
-                                                                let url = article ? article.url : '';
-
-                                                                // Validate URL to prevent localhost redirects
-                                                                const isValidUrl = url && url.startsWith('http');
-
-                                                                return (
-                                                                    <span className="relative inline-block group mx-1 align-baseline">
-                                                                        <button
-                                                                            onClick={(e) => {
-                                                                                e.stopPropagation();
-                                                                                if (isValidUrl) window.open(url, '_blank');
-                                                                            }}
-                                                                            className={`font-bold text-xs align-super px-1 rounded transition-colors ${isValidUrl
-                                                                                ? 'text-blue-400 hover:bg-blue-900/30 cursor-pointer'
-                                                                                : 'text-slate-500 cursor-help'
-                                                                                }`}
-                                                                        >
-                                                                            [{index}]
-                                                                        </button>
-                                                                        {/* Tooltip */}
-                                                                        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-72 p-3 bg-slate-900 border border-slate-700 rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 text-xs text-left">
-                                                                            <span className="block font-bold text-white mb-1 line-clamp-3 leading-tight">{title}</span>
-                                                                            <span className={`block truncate font-mono mt-1 ${isValidUrl ? 'text-blue-400' : 'text-amber-500'}`}>
-                                                                                {isValidUrl ? new URL(url).hostname : 'Source URL not available'}
-                                                                            </span>
-                                                                        </span>
-                                                                    </span>
-                                                                );
-                                                            }
-
-                                                            const fallbackHref = props.href || '';
-                                                            const isFallbackValid = fallbackHref.startsWith('http') || fallbackHref.startsWith('mailto');
+                                                            let bg = "bg-slate-800 border-slate-600 text-slate-300";
+                                                            if (kw.sentiment === 'Positive') bg = "bg-green-950/40 border-green-600/50 text-green-300 shadow-[0_0_10px_rgba(34,197,94,0.1)]";
+                                                            if (kw.sentiment === 'Negative') bg = "bg-red-950/40 border-red-600/50 text-red-300 shadow-[0_0_10px_rgba(239,68,68,0.1)]";
+                                                            if (kw.importance > 85) bg += " ring-1 ring-white/20 font-bold";
 
                                                             return (
-                                                                <a
-                                                                    className={`${isFallbackValid ? 'text-blue-400 hover:text-blue-300 hover:underline' : 'text-slate-500 cursor-help decoration-dotted underline'} underline-offset-4`}
-                                                                    target={isFallbackValid ? "_blank" : undefined}
-                                                                    rel="noopener noreferrer"
-                                                                    {...props}
-                                                                    href={isFallbackValid ? fallbackHref : undefined}
-                                                                    title={isFallbackValid ? undefined : `Invalid/Relative Link: ${fallbackHref}`}
-                                                                    onClick={(e) => { if (!isFallbackValid) e.preventDefault(); }}
-                                                                />
-                                                            );
-                                                        },
-                                                        strong: ({ node, ...props }) => <strong className="text-amber-400 font-bold" {...props} />,
-                                                        blockquote: ({ node, ...props }) => <blockquote className="border-l-4 border-slate-600 pl-4 italic text-slate-400 my-6 bg-slate-800/30 py-2 rounded-r" {...props} />
-                                                    }}
-                                                >
-                                                    {/* Regex to convert [n] to [n](citation:n) */}
-                                                    {digestSummary.replace(/\[(\d+)\]/g, '[$1](citation:$1)')}
-                                                </ReactMarkdown>
-                                            </div>
-                                        ) : (
-                                            <div className="text-center py-20 text-slate-600 italic border-2 border-dashed border-slate-800 rounded-xl">
-                                                Select articles from the "Articles" tab and click Summarize.
-                                            </div>
-                                        )}
-                                    </div>
-                                ) : (
-                                    <div className="min-h-full flex flex-col">
-                                        <div className="flex justify-between items-center mb-6">
-                                            <div className="flex flex-col">
-                                                <h3 className="text-xl font-bold text-slate-300 flex items-center gap-2">
-                                                    Semantic Cloud
-                                                </h3>
-                                                <span className="text-slate-500 text-sm font-normal">
-                                                    {(() => {
-                                                        const now = new Date();
-                                                        const start = new Date();
-                                                        if (selectedTimeframe === '24h') start.setDate(now.getDate() - 1);
-                                                        if (selectedTimeframe === '3days') start.setDate(now.getDate() - 3);
-                                                        if (selectedTimeframe === '1week') start.setDate(now.getDate() - 7);
-
-                                                        const fmt = (d: Date) => `${d.getDate()}.${d.getMonth() + 1}`;
-                                                        return `${fmt(start)} - ${fmt(now)}`;
-                                                    })()}
-                                                </span>
-                                            </div>
-
-                                            <div className="flex items-center gap-3">
-                                                {/* Controls */}
-                                                {analyticsKeywords.length > 0 && (
-                                                    <>
-                                                        <div className="flex bg-slate-800 rounded-lg p-0.5 border border-slate-700">
-                                                            <button
-                                                                onClick={() => setIsAnalyticsTranslated(!isAnalyticsTranslated)}
-                                                                className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${isAnalyticsTranslated ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
-                                                                title="Translate to English"
-                                                            >
-                                                                A/文
-                                                            </button>
-                                                        </div>
-
-                                                        <div className="flex bg-slate-800 rounded-lg p-0.5 border border-slate-700">
-                                                            <button
-                                                                onClick={() => setAnalyticsViewMode('cloud')}
-                                                                className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${analyticsViewMode === 'cloud' ? 'bg-slate-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
-                                                            >
-                                                                ☁️
-                                                            </button>
-                                                            <button
-                                                                onClick={() => setAnalyticsViewMode('columns')}
-                                                                className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${analyticsViewMode === 'columns' ? 'bg-slate-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
-                                                            >
-                                                                |||
-                                                            </button>
-                                                        </div>
-
-                                                        <button
-                                                            onClick={handleGenerateAnalytics}
-                                                            disabled={isAnalyzing}
-                                                            className="px-3 py-1 text-xs font-bold text-slate-400 hover:text-white flex items-center gap-1 transition-colors border border-slate-700 rounded-lg bg-slate-800/50"
-                                                        >
-                                                            <Sparkles className="w-3 h-3" /> Regenerate
-                                                        </button>
-                                                    </>
-                                                )}
-                                            </div>
-                                        </div>
-
-                                        {isAnalyzing ? (
-                                            <div className="flex flex-col items-center justify-center h-64 text-slate-400 animate-pulse">
-                                                <Loader2 className="w-8 h-8 mb-3 text-purple-500 animate-spin" />
-                                                <p>Extracting Insights...</p>
-                                            </div>
-                                        ) : analyticsKeywords.length === 0 ? (
-                                            <div className="flex flex-col items-center justify-center h-64 border-2 border-dashed border-slate-700/50 rounded-xl bg-slate-900/30">
-                                                <p className="text-slate-400 mb-6 max-w-sm text-center">
-                                                    Analyze selected articles to detect key entities, sentiment, and patterns.
-                                                </p>
-                                                <button
-                                                    onClick={handleGenerateAnalytics}
-                                                    className="bg-purple-600 hover:bg-purple-500 text-white px-6 py-2.5 rounded-full font-bold shadow-lg shadow-purple-900/20 transition-all hover:scale-105 flex items-center gap-2"
-                                                >
-                                                    <Sparkles className="w-4 h-4" /> Generate Smart Cloud
-                                                </button>
-                                            </div>
-                                        ) : (
-                                            analyticsViewMode === 'cloud' ? (
-                                                <div className="flex flex-wrap gap-3 content-start justify-center py-4">
-                                                    {analyticsKeywords.map((kw: any, i: number) => {
-                                                        const displayWord = (isAnalyticsTranslated && kw.translation) ? kw.translation : kw.word;
-                                                        // Size logic: 1 to 2.5rem based on score (0-100)
-                                                        const scale = 0.8 + ((kw.importance || 50) / 100) * 1.5;
-
-                                                        let bg = "bg-slate-800 border-slate-600 text-slate-300";
-                                                        if (kw.sentiment === 'Positive') bg = "bg-green-950/40 border-green-600/50 text-green-300 shadow-[0_0_10px_rgba(34,197,94,0.1)]";
-                                                        if (kw.sentiment === 'Negative') bg = "bg-red-950/40 border-red-600/50 text-red-300 shadow-[0_0_10px_rgba(239,68,68,0.1)]";
-                                                        if (kw.importance > 85) bg += " ring-1 ring-white/20 font-bold";
-
-                                                        return (
-                                                            <div
-                                                                key={i}
-                                                                className={`relative group cursor-help px-4 py-2 rounded-xl border ${bg} transition-all duration-300 hover:scale-110 hover:shadow-xl hover:z-20`}
-                                                                style={{ fontSize: `${Math.max(0.75, scale)}rem` }}
-                                                                onMouseEnter={(e) => {
-                                                                    if (isTooltipLocked) return;
-                                                                    if (hoverTimeout.current) clearTimeout(hoverTimeout.current);
-                                                                    const rect = e.currentTarget.getBoundingClientRect();
-                                                                    const placement = rect.top < 300 ? 'bottom' : 'top';
-                                                                    setActiveTooltip({ word: kw.word, data: kw, rect, placement });
-                                                                }}
-                                                                onMouseLeave={() => {
-                                                                    if (isTooltipLocked) return;
-                                                                    hoverTimeout.current = setTimeout(() => setActiveTooltip(null), 150);
-                                                                }}
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    if (activeTooltip?.word === kw.word && isTooltipLocked) {
-                                                                        setIsTooltipLocked(false);
-                                                                        setActiveTooltip(null);
-                                                                    } else {
+                                                                <div
+                                                                    key={i}
+                                                                    className={`relative group cursor-help px-4 py-2 rounded-xl border ${bg} transition-all duration-300 hover:scale-110 hover:shadow-xl hover:z-20`}
+                                                                    style={{ fontSize: `${Math.max(0.75, scale)}rem` }}
+                                                                    onMouseEnter={(e) => {
+                                                                        if (isTooltipLocked) return;
+                                                                        if (hoverTimeout.current) clearTimeout(hoverTimeout.current);
                                                                         const rect = e.currentTarget.getBoundingClientRect();
                                                                         const placement = rect.top < 300 ? 'bottom' : 'top';
                                                                         setActiveTooltip({ word: kw.word, data: kw, rect, placement });
-                                                                        setIsTooltipLocked(true);
-                                                                    }
-                                                                }}
-                                                            >
-                                                                {displayWord}
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </div>
-                                            ) : (
-                                                <div className="grid grid-cols-3 gap-0 h-full border border-slate-700 rounded-xl overflow-hidden bg-slate-900/50 min-h-[500px]">
-                                                    {['Positive', 'Neutral', 'Negative'].map((sent) => {
-                                                        const sentimentKeywords = analyticsKeywords.filter((k: any) => k.sentiment === sent).sort((a: any, b: any) => b.importance - a.importance);
-                                                        const headerColor = sent === 'Positive' ? 'text-green-400 border-green-900/30' : sent === 'Negative' ? 'text-red-400 border-red-900/30' : 'text-slate-400 border-slate-700/30';
-
-                                                        return (
-                                                            <div key={sent} className="flex flex-col border-r border-slate-700/50 last:border-r-0">
-                                                                <div className={`p-4 border-b ${headerColor} bg-slate-900/80 backdrop-blur sticky top-0 z-10 font-bold uppercase tracking-wider text-center text-sm`}>
-                                                                    {sent}
+                                                                    }}
+                                                                    onMouseLeave={() => {
+                                                                        if (isTooltipLocked) return;
+                                                                        hoverTimeout.current = setTimeout(() => setActiveTooltip(null), 150);
+                                                                    }}
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        if (activeTooltip?.word === kw.word && isTooltipLocked) {
+                                                                            setIsTooltipLocked(false);
+                                                                            setActiveTooltip(null);
+                                                                        } else {
+                                                                            const rect = e.currentTarget.getBoundingClientRect();
+                                                                            const placement = rect.top < 300 ? 'bottom' : 'top';
+                                                                            setActiveTooltip({ word: kw.word, data: kw, rect, placement });
+                                                                            setIsTooltipLocked(true);
+                                                                        }
+                                                                    }}
+                                                                >
+                                                                    {displayWord}
                                                                 </div>
-                                                                <div className="p-4 space-y-3 overflow-y-auto custom-scrollbar flex-1">
-                                                                    {sentimentKeywords.map((kw: any, i: number) => (
-                                                                        <div
-                                                                            key={i}
-                                                                            className={`bg-slate-800/40 p-3 rounded border border-white/5 hover:bg-slate-800 transition-colors group relative cursor-help ${activeTooltip?.word === kw.word && isTooltipLocked ? 'bg-slate-700 border-white/30' : ''}`}
-                                                                            onMouseEnter={(e) => {
-                                                                                if (isTooltipLocked) return;
-                                                                                if (hoverTimeout.current) clearTimeout(hoverTimeout.current);
-                                                                                const rect = e.currentTarget.getBoundingClientRect();
-                                                                                const placement = rect.top < 300 ? 'bottom' : 'top';
-                                                                                setActiveTooltip({ word: kw.word, data: kw, rect, placement });
-                                                                            }}
-                                                                            onMouseLeave={() => {
-                                                                                if (isTooltipLocked) return;
-                                                                                hoverTimeout.current = setTimeout(() => setActiveTooltip(null), 150);
-                                                                            }}
-                                                                            onClick={(e) => {
-                                                                                e.stopPropagation();
-                                                                                if (activeTooltip?.word === kw.word && isTooltipLocked) {
-                                                                                    setIsTooltipLocked(false);
-                                                                                    setActiveTooltip(null);
-                                                                                } else {
+                                                            );
+                                                        })}
+                                                    </div>
+                                                ) : (
+                                                    <div className="grid grid-cols-3 gap-0 h-full border border-slate-700 rounded-xl overflow-hidden bg-slate-900/50 min-h-[500px]">
+                                                        {['Positive', 'Neutral', 'Negative'].map((sent) => {
+                                                            const sentimentKeywords = analyticsKeywords.filter((k: any) => k.sentiment === sent).sort((a: any, b: any) => b.importance - a.importance);
+                                                            const headerColor = sent === 'Positive' ? 'text-green-400 border-green-900/30' : sent === 'Negative' ? 'text-red-400 border-red-900/30' : 'text-slate-400 border-slate-700/30';
+
+                                                            return (
+                                                                <div key={sent} className="flex flex-col border-r border-slate-700/50 last:border-r-0">
+                                                                    <div className={`p-4 border-b ${headerColor} bg-slate-900/80 backdrop-blur sticky top-0 z-10 font-bold uppercase tracking-wider text-center text-sm`}>
+                                                                        {sent}
+                                                                    </div>
+                                                                    <div className="p-4 space-y-3 overflow-y-auto custom-scrollbar flex-1">
+                                                                        {sentimentKeywords.map((kw: any, i: number) => (
+                                                                            <div
+                                                                                key={i}
+                                                                                className={`bg-slate-800/40 p-3 rounded border border-white/5 hover:bg-slate-800 transition-colors group relative cursor-help ${activeTooltip?.word === kw.word && isTooltipLocked ? 'bg-slate-700 border-white/30' : ''}`}
+                                                                                onMouseEnter={(e) => {
+                                                                                    if (isTooltipLocked) return;
+                                                                                    if (hoverTimeout.current) clearTimeout(hoverTimeout.current);
                                                                                     const rect = e.currentTarget.getBoundingClientRect();
                                                                                     const placement = rect.top < 300 ? 'bottom' : 'top';
                                                                                     setActiveTooltip({ word: kw.word, data: kw, rect, placement });
-                                                                                    setIsTooltipLocked(true);
-                                                                                }
-                                                                            }}
-                                                                        >
-                                                                            <div className="flex justify-between items-start mb-1">
-                                                                                <div className="font-bold text-slate-200">
-                                                                                    {isAnalyticsTranslated && kw.translation ? kw.translation : kw.word}
+                                                                                }}
+                                                                                onMouseLeave={() => {
+                                                                                    if (isTooltipLocked) return;
+                                                                                    hoverTimeout.current = setTimeout(() => setActiveTooltip(null), 150);
+                                                                                }}
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    if (activeTooltip?.word === kw.word && isTooltipLocked) {
+                                                                                        setIsTooltipLocked(false);
+                                                                                        setActiveTooltip(null);
+                                                                                    } else {
+                                                                                        const rect = e.currentTarget.getBoundingClientRect();
+                                                                                        const placement = rect.top < 300 ? 'bottom' : 'top';
+                                                                                        setActiveTooltip({ word: kw.word, data: kw, rect, placement });
+                                                                                        setIsTooltipLocked(true);
+                                                                                    }
+                                                                                }}
+                                                                            >
+                                                                                <div className="flex justify-between items-start mb-1">
+                                                                                    <div className="font-bold text-slate-200">
+                                                                                        {isAnalyticsTranslated && kw.translation ? kw.translation : kw.word}
+                                                                                    </div>
+                                                                                    <span className="text-emerald-500/80 text-[10px] font-mono absolute bottom-1 right-2 pointer-events-none opacity-50 z-20">
+                                                                                        v0.120.35 Memory Fix
+                                                                                    </span>
+                                                                                    <span className="text-xs text-slate-500 font-mono">{kw.importance}</span>
                                                                                 </div>
-                                                                                <span className="text-emerald-500/80 text-[10px] font-mono absolute bottom-1 right-2 pointer-events-none opacity-50 z-20">
-                                                                                    v0.120.35 Memory Fix
-                                                                                </span>
-                                                                                <span className="text-xs text-slate-500 font-mono">{kw.importance}</span>
+                                                                                {isAnalyticsTranslated && kw.translation && kw.translation !== kw.word && (
+                                                                                    <div className="text-xs text-slate-500 italic mb-2">{kw.word}</div>
+                                                                                )}
+                                                                                <div className="flex flex-wrap gap-1 mt-2">
+                                                                                    {kw.sources?.slice(0, 3).map((src: any, idx: number) => (
+                                                                                        <a key={idx} href={src.url} target="_blank" title={src.title} className="w-1.5 h-1.5 rounded-full bg-slate-600 hover:bg-blue-400 transition-colors block"></a>
+                                                                                    ))}
+                                                                                </div>
                                                                             </div>
-                                                                            {isAnalyticsTranslated && kw.translation && kw.translation !== kw.word && (
-                                                                                <div className="text-xs text-slate-500 italic mb-2">{kw.word}</div>
-                                                                            )}
-                                                                            <div className="flex flex-wrap gap-1 mt-2">
-                                                                                {kw.sources?.slice(0, 3).map((src: any, idx: number) => (
-                                                                                    <a key={idx} href={src.url} target="_blank" title={src.title} className="w-1.5 h-1.5 rounded-full bg-slate-600 hover:bg-blue-400 transition-colors block"></a>
-                                                                                ))}
-                                                                            </div>
-                                                                        </div>
-                                                                    ))}
+                                                                        ))}
+                                                                    </div>
                                                                 </div>
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </div>
-                                            )
-                                        )}
-                                    </div>
-                                )
-                                }
-                            </div>
-                        </div>
-                    </div>
-                )
-            }
-
-            {globeComponent}
-            {
-                showOutletPanel && (
-                    <div className="absolute top-20 left-4 w-96 bg-slate-900/95 backdrop-blur border border-slate-700 rounded-lg shadow-2xl overflow-hidden flex flex-col max-h-[calc(100vh-140px)]">
-                        <div className="p-4 border-b border-slate-700 bg-slate-900">
-                            {/* Search Bar */}
-
-
-                            <div className="flex justify-between items-start mb-3">
-                                <div className="flex flex-col gap-1 items-start w-full pr-8">
-                                    <h3 className="font-bold text-white text-2xl tracking-tight flex items-baseline gap-3">
-                                        {selectedCityName}
-                                        {cityInfo && (cityInfo.city_native_name || cityInfo.city_phonetic_name) && (
-                                            <span className="text-sm font-normal text-slate-400 font-serif italic">
-                                                {cityInfo.city_native_name} {cityInfo.city_phonetic_name && `(${cityInfo.city_phonetic_name})`}
-                                            </span>
-                                        )}
-                                    </h3>
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                        {cityInfo?.country_flag_url ? (
-                                            <img
-                                                src={cityInfo.country_flag_url}
-                                                alt="Country Flag"
-                                                className="h-5 w-auto object-contain rounded-sm shadow-sm"
-                                            />
-                                        ) : (
-                                            cityInfo?.flag_url && (
-                                                <img
-                                                    src={cityInfo.flag_url}
-                                                    alt="Flag"
-                                                    className="h-5 w-auto object-contain rounded-sm"
-                                                />
-                                            )
-                                        )}
-                                        <span className="text-sm font-bold text-slate-400">
-                                            {cityInfo?.country_english || selectedCityData?.country || "Country"}
-                                        </span>
-                                        {(cityInfo?.country_native || cityInfo?.country_phonetic) && (
-                                            <span className="text-xs text-slate-500 font-serif italic border-l border-slate-700 pl-2">
-                                                {cityInfo.country_native} {cityInfo.country_phonetic && `(${cityInfo.country_phonetic})`}
-                                            </span>
-                                        )}
-                                    </div>
-                                </div>
-
-
-                                <button onClick={() => setShowOutletPanel(false)} className="text-gray-400 hover:text-white">✕</button>
-                            </div>
-                            {cityInfo && (
-                                <div className="text-xs text-slate-400 space-y-2 animate-in slide-in-from-left-2 fade-in duration-300">
-                                    <div className="flex flex-wrap gap-2 text-[10px] items-center">
-                                        <span className="px-1.5 py-0.5 bg-slate-800 rounded text-slate-300 font-mono">
-                                            👥 {cityInfo.population}
-                                        </span>
-                                        {cityInfo.ruling_party && (
-                                            <span className="px-1.5 py-0.5 bg-slate-800 rounded text-slate-300">
-                                                🏛 {cityInfo.ruling_party}
-                                            </span>
-                                        )}
-                                    </div>
-                                    <p className="text-slate-500 italic leading-relaxed border-l-2 border-slate-700 pl-2">
-                                        {cityInfo.description}
-                                    </p>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Controls */}
-                        <div className="p-4 space-y-4">
-                            <div className="flex gap-2 flex-wrap">
-                                {CATEGORIES.map(cat => (
-                                    <button
-                                        key={cat}
-                                        onClick={() => setSelectedCategory(cat)}
-                                        className={`px-2 py-1 text-xs rounded border ${selectedCategory === cat ? 'bg-blue-600 border-blue-500 text-white' : 'border-slate-700 text-gray-400'}`}
-                                    >
-                                        {cat}
-                                    </button>
-                                ))}
-                            </div>
-
-                            {/* Timeframe Selector */}
-                            <div className="flex gap-2 bg-slate-900/40 p-1 rounded-lg border border-slate-700/50 my-2">
-                                {[
-                                    { label: '24h', value: '24h' },
-                                    { label: '3 Days', value: '3days' },
-                                    { label: '7 Days', value: '1week' }
-                                ].map((tf) => (
-                                    <button
-                                        key={tf.value}
-                                        onClick={() => setSelectedTimeframe(tf.value)}
-                                        className={`flex-1 py-1 text-[10px] uppercase font-bold rounded text-center transition-all ${selectedTimeframe === tf.value
-                                            ? 'bg-blue-600/20 text-blue-400 border border-blue-500/50 shadow-[0_0_10px_rgba(59,130,246,0.2)]'
-                                            : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800'
-                                            }`}
-                                    >
-                                        {tf.label}
-                                    </button>
-                                ))}
-                            </div>
-
-                            <div className="flex gap-2 relative w-full">
-                                <button
-                                    onClick={handleGenerateDigest}
-                                    disabled={!isGeneratingDigest && selectedOutletIds.length === 0}
-                                    className={`w-full font-medium py-3 rounded-lg shadow-lg transition-all text-base flex justify-center items-center gap-2 h-14 min-w-[300px]
-                                        ${isGeneratingDigest
-                                            ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-900/40 border border-blue-500/30'
-                                            : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-900/40 border border-blue-500/30'
-                                        }
-                                    `}
-                                >
-                                    {isGeneratingDigest ? (
-                                        <>
-                                            <div className="flex flex-col items-center">
-                                                <span className="flex items-center gap-2">
-                                                    <Loader2 className="w-5 h-5 animate-spin" />
-                                                    Gathering Articles...
-                                                </span>
-                                                {progressLog && (
-                                                    <div className="mt-1 min-w-[250px] text-center">
-                                                        <UIMarquee
-                                                            text={progressLog}
-                                                            maxLength={40}
-                                                            className="text-xs text-blue-200 font-mono opacity-80"
-                                                        />
+                                                            );
+                                                        })}
                                                     </div>
-                                                )}
-                                            </div>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <FileText className="w-5 h-5" />
-                                            Gather Articles
-                                        </>
-                                    )}
-                                </button>
+                                                )
+                                            )}
+                                        </div>
+                                    )
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    )
+                }
 
-                                {isGeneratingDigest && (
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleStopDigest();
-                                        }}
-                                        title="Stop Generation"
-                                        className="absolute -top-2 -right-2 p-1.5 bg-red-500 hover:bg-red-600 text-white rounded shadow-lg transition-transform hover:scale-110 z-20 border-2 border-slate-900 flex items-center justify-center"
-                                    >
-                                        <div className="h-3 w-3 bg-white rounded-[1px]" />
-                                    </button>
+                {globeComponent}
+                {
+                    showOutletPanel && (
+                        <div className="absolute top-20 left-4 w-96 bg-slate-900/95 backdrop-blur border border-slate-700 rounded-lg shadow-2xl overflow-hidden flex flex-col max-h-[calc(100vh-140px)]">
+                            <div className="p-4 border-b border-slate-700 bg-slate-900">
+                                {/* Search Bar */}
+
+
+                                <div className="flex justify-between items-start mb-3">
+                                    <div className="flex flex-col gap-1 items-start w-full pr-8">
+                                        <h3 className="font-bold text-white text-2xl tracking-tight flex items-baseline gap-3">
+                                            {selectedCityName}
+                                            {cityInfo && (cityInfo.city_native_name || cityInfo.city_phonetic_name) && (
+                                                <span className="text-sm font-normal text-slate-400 font-serif italic">
+                                                    {cityInfo.city_native_name} {cityInfo.city_phonetic_name && `(${cityInfo.city_phonetic_name})`}
+                                                </span>
+                                            )}
+                                        </h3>
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                            {cityInfo?.country_flag_url ? (
+                                                <img
+                                                    src={cityInfo.country_flag_url}
+                                                    alt="Country Flag"
+                                                    className="h-5 w-auto object-contain rounded-sm shadow-sm"
+                                                />
+                                            ) : (
+                                                cityInfo?.flag_url && (
+                                                    <img
+                                                        src={cityInfo.flag_url}
+                                                        alt="Flag"
+                                                        className="h-5 w-auto object-contain rounded-sm"
+                                                    />
+                                                )
+                                            )}
+                                            <span className="text-sm font-bold text-slate-400">
+                                                {cityInfo?.country_english || selectedCityData?.country || "Country"}
+                                            </span>
+                                            {(cityInfo?.country_native || cityInfo?.country_phonetic) && (
+                                                <span className="text-xs text-slate-500 font-serif italic border-l border-slate-700 pl-2">
+                                                    {cityInfo.country_native} {cityInfo.country_phonetic && `(${cityInfo.country_phonetic})`}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+
+
+                                    <button onClick={() => setShowOutletPanel(false)} className="text-gray-400 hover:text-white">✕</button>
+                                </div>
+                                {cityInfo && (
+                                    <div className="text-xs text-slate-400 space-y-2 animate-in slide-in-from-left-2 fade-in duration-300">
+                                        <div className="flex flex-wrap gap-2 text-[10px] items-center">
+                                            <span className="px-1.5 py-0.5 bg-slate-800 rounded text-slate-300 font-mono">
+                                                👥 {cityInfo.population}
+                                            </span>
+                                            {cityInfo.ruling_party && (
+                                                <span className="px-1.5 py-0.5 bg-slate-800 rounded text-slate-300">
+                                                    🏛 {cityInfo.ruling_party}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <p className="text-slate-500 italic leading-relaxed border-l-2 border-slate-700 pl-2">
+                                            {cityInfo.description}
+                                        </p>
+                                    </div>
                                 )}
                             </div>
 
-                            {/* Sidebar Tabs */}
-
-                            <div className="flex border-b border-slate-700 mt-4">
-                                <button
-                                    onClick={() => setActiveSideTab('sources')}
-                                    className={`flex-1 pb-2 text-sm font-bold transition-colors ${activeSideTab === 'sources' ? 'text-blue-400 border-b-2 border-blue-400' : 'text-slate-500 hover:text-slate-300'}`}
-                                >
-                                    Sources
-                                </button>
-                                <button
-                                    onClick={() => setActiveSideTab('digests')}
-                                    className={`flex-1 pb-2 text-sm font-bold transition-colors ${activeSideTab === 'digests' ? 'text-blue-400 border-b-2 border-blue-400' : 'text-slate-500 hover:text-slate-300'}`}
-                                >
-                                    Saved Digests
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Results / List */}
-                        <div className="flex-1 overflow-y-auto p-4 text-white text-sm custom-scrollbar">
-                            {activeSideTab === 'sources' ? (
-                                <>
-                                    {isDiscovering && <div className="text-center text-blue-400 mb-4 animate-pulse">Discovering landscape...</div>}
-
-                                    {(!digestData || isGeneratingDigest) && !isDiscovering && (
-                                        <div className="space-y-2">
-                                            {/* Filters & Header */}
-                                            <div className="flex items-center justify-between gap-4 mb-4">
-                                                <div className="flex items-center gap-2 text-xs">
-                                                    <span className="text-gray-400 font-bold uppercase">Show:</span>
-                                                    <label className="flex items-center gap-1 cursor-pointer text-slate-300 hover:text-white">
-                                                        <input type="checkbox" defaultChecked className="rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-0"
-                                                            onChange={(e) => {
-                                                                // TODO: filtering logic state not yet implemented fully, relying on visual scanning for MVP
-                                                            }}
-                                                        />
-                                                        Local
-                                                    </label>
-                                                    <label className="flex items-center gap-1 cursor-pointer text-slate-300 hover:text-white">
-                                                        <input type="checkbox" defaultChecked className="rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-0" />
-                                                        National
-                                                    </label>
-                                                </div>
-                                                {/* Moved Refresh Button */}
-                                                <button
-                                                    onClick={handleRediscoverCity}
-                                                    title="Rediscover Media Landscape"
-                                                    className="p-1 hover:bg-slate-800 rounded text-slate-500 hover:text-blue-400 transition-colors text-xs flex items-center gap-1 border border-slate-700 px-2"
-                                                >
-                                                    🔄 Refresh
-                                                </button>
-                                            </div>
-
-                                            {selectedCityOutlets.length === 0 && (
-                                                <div className="text-center py-4 text-gray-500 text-sm">
-                                                    <p>No major outlets automatically found.</p>
-                                                    <p>Try the Magic Import below!</p>
-                                                </div>
-                                            )}
-
-                                            {/* Groups: Manual Top, then AI Sorted by Popularity */}
-                                            {(() => {
-                                                const manual = selectedCityOutlets.filter(o => o.origin === 'manual');
-                                                const auto = selectedCityOutlets.filter(o => o.origin !== 'manual').sort((a, b) => (b.popularity || 0) - (a.popularity || 0));
-
-                                                const renderOutlet = (outlet: any) => (
-                                                    <div key={outlet.id} className={`group p-3 rounded transition-all border mb-2 ${selectedOutletIds.includes(outlet.id) ? 'bg-slate-800/80 border-blue-500/30' : 'bg-slate-900/50 border-slate-800 opacity-80 hover:opacity-100'}`}>
-                                                        <div className="flex justify-between items-start">
-                                                            <div className="flex items-center gap-2">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    checked={selectedOutletIds.includes(outlet.id)}
-                                                                    onChange={() => toggleOutletSelection(outlet.id)}
-                                                                    className="rounded bg-slate-700 border-slate-600 text-blue-500 focus:ring-0 cursor-pointer"
-                                                                />
-                                                                <div className="flex flex-col">
-                                                                    <div className="flex items-center gap-2">
-                                                                        <h4 className={`font-bold transition-colors ${selectedOutletIds.includes(outlet.id) ? 'text-blue-100' : 'text-slate-300'}`}>{outlet.name}</h4>
-                                                                        {/* Focus Badge */}
-                                                                        {outlet.focus === 'National' && <span className="px-1 py-0.5 rounded bg-indigo-900/50 text-indigo-300 text-[9px] uppercase font-bold border border-indigo-700/50">National</span>}
-                                                                        {outlet.focus === 'Local and National' && <span className="px-1 py-0.5 rounded bg-purple-900/50 text-purple-300 text-[9px] uppercase font-bold border border-purple-700/50">Mixed</span>}
-                                                                    </div>
-                                                                    <div className="flex items-center gap-2 mt-0.5">
-                                                                        <span className="text-[10px] uppercase font-mono text-slate-500">{outlet.type || 'Media'}</span>
-                                                                        {/* Popularity Stars */}
-                                                                        {(outlet.popularity > 0) && (
-                                                                            <span className="text-[10px] text-amber-500/80 font-mono" title={`Popularity Score: ${outlet.popularity}/10`}>
-                                                                                {"★".repeat(Math.min(outlet.popularity, 5))}
-                                                                                <span className='opacity-30'>{"★".repeat(Math.max(0, 5 - outlet.popularity))}</span>
-                                                                            </span>
-                                                                        )}
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                            {outlet.origin === 'manual' && <span className="text-[9px] text-emerald-500 font-bold uppercase tracking-wider bg-emerald-900/20 px-1 rounded">Manually Added</span>}
-                                                        </div>
-                                                        {outlet.url && selectedOutletIds.includes(outlet.id) && (
-                                                            <a
-                                                                href={outlet.url}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                className="mt-2 ml-6 block text-xs text-blue-400 hover:text-blue-300 hover:underline truncate"
-                                                            >
-                                                                {outlet.url}
-                                                            </a>
-                                                        )}
-                                                    </div>
-                                                );
-
-                                                return (
-                                                    <>
-                                                        {manual.map(renderOutlet)}
-                                                        {manual.length > 0 && auto.length > 0 && (
-                                                            <div className="my-2 border-t border-slate-800 flex items-center justify-center">
-                                                                <span className="bg-slate-900 px-2 text-[10px] text-slate-600 uppercase font-bold -mt-2.5">AI Discovered</span>
-                                                            </div>
-                                                        )}
-                                                        {auto.map(renderOutlet)}
-                                                    </>
-                                                )
-                                            })()}
-                                            {editingOutletId !== null && ( // This block was moved outside the renderOutlet function
-                                                <div className="flex gap-1 animate-in fade-in zoom-in duration-200 w-full">
-                                                    <input
-                                                        className="bg-slate-900 border border-blue-500 rounded text-xs px-1 py-0.5 flex-1 text-white outline-none"
-                                                        value={editUrl}
-                                                        onChange={e => setEditUrl(e.target.value)}
-                                                        onKeyDown={e => {
-                                                            if (e.key === 'Enter') handleUpdateOutlet(editingOutletId);
-                                                            if (e.key === 'Escape') setEditingOutletId(null);
-                                                        }}
-                                                        autoFocus
-                                                    />
-                                                    <button onClick={() => handleUpdateOutlet(editingOutletId)} className="text-green-400 hover:text-green-300 px-1">✓</button>
-                                                    <button onClick={() => setEditingOutletId(null)} className="text-slate-500 hover:text-slate-300 px-1">✕</button>
-                                                </div>
-                                            )}
-
-                                        </div >
-                                    )}
-
-                                    {
-                                        !showAddForm && !digestData && (
-                                            <div className="p-4 border-t border-slate-700 mt-4">
-                                                <button onClick={() => setShowAddForm(true)} className="w-full py-2 bg-slate-800 text-blue-400 rounded text-sm font-bold border border-slate-600 border-dashed hover:border-blue-500 transition-colors">+ Add Source</button>
-                                            </div>
-                                        )
-                                    }
-
-                                    {
-                                        showAddForm && (
-                                            <div className="p-4 border-t border-slate-700 space-y-2 mt-4">
-                                                <input
-                                                    className="w-full bg-slate-800 border-slate-600 rounded p-2 text-white text-xs"
-                                                    placeholder="https://example.com"
-                                                    value={importUrl}
-                                                    onChange={e => setImportUrl(e.target.value)}
-                                                />
-                                                <div className="flex gap-2">
-                                                    <button onClick={handleImportUrl} className="flex-1 bg-purple-600 text-white rounded py-1 text-xs font-bold hover:bg-purple-500">Import</button>
-                                                    <button onClick={() => setShowAddForm(false)} className="px-3 bg-slate-700 text-gray-300 rounded py-1 text-xs hover:bg-slate-600">Cancel</button>
-                                                </div>
-                                            </div>
-                                        )
-                                    }
-                                </>
-                            ) : (
-                                <div className="space-y-2">
-                                    {savedDigests.length === 0 ? (
-                                        <div className="text-center text-slate-500 py-6 px-2 flex flex-col gap-3">
-                                            <div>No saved digests found for this city.</div>
-
-                                            {/* Debug Info */}
-                                            <div className="bg-slate-900 border border-slate-700/50 rounded p-2 text-[10px] font-mono text-left space-y-1 w-full overflow-hidden">
-                                                <div className="text-slate-400">UID: <span className="text-white">{currentUser?.id}</span></div>
-                                                <div className="text-slate-400">Name: <span className="text-white">{currentUser?.username}</span></div>
-                                                <div className="text-slate-400">Status: <span className={digestFetchStatus.includes('error') ? "text-red-400" : "text-green-400"}>{digestFetchStatus}</span></div>
-                                            </div>
-
-                                            <button onClick={fetchSavedDigests} className="text-xs text-blue-400 hover:text-blue-300 underline">
-                                                Refresh List
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        (savedDigests || [])
-                                            // Left Sidebar: Show ONLY digests for current city
-                                            .filter((d: any) => !selectedCityName || d.city === selectedCityName)
-                                            .map((digest: any) => {
-                                                const createdAt = digest.created_at || new Date().toISOString();
-                                                const end = new Date(createdAt);
-                                                if (isNaN(end.getTime())) {
-                                                    // Fallback for invalid dates
-                                                    const safeDate = new Date();
-                                                    end.setTime(safeDate.getTime());
-                                                }
-                                                const start = new Date(end);
-
-                                                if (digest.timeframe === "24h") start.setDate(end.getDate() - 1);
-                                                else if (digest.timeframe === "3days") start.setDate(end.getDate() - 3);
-                                                else if (digest.timeframe === "1week") start.setDate(end.getDate() - 7);
-                                                else if (digest.timeframe === "1month") start.setDate(end.getDate() - 30);
-
-                                                const f = (d: Date) => d.getDate().toString().padStart(2, '0') + "." + (d.getMonth() + 1).toString().padStart(2, '0');
-                                                const y = (d: Date) => d.getFullYear();
-                                                const dateRange = `${f(start)} - ${f(end)}.${y(end)}`;
-
-                                                const title = digest.title || "";
-                                                const cat = digest.category || "";
-                                                const showCategory = cat && !title.toLowerCase().includes(cat.toLowerCase());
-
-                                                // Marquee Logic: Check length (approx chars)
-                                                const isLongTitle = title.length > 28;
-
-                                                return (
-                                                    <div
-                                                        key={digest.id}
-                                                        onClick={() => handleLoadDigest(digest)}
-                                                        className="bg-slate-800/50 hover:bg-slate-800 border border-slate-700 hover:border-blue-500 p-3 rounded cursor-pointer transition-all group"
-                                                    >
-                                                        <div className="flex justify-between items-start mb-1 overflow-hidden">
-                                                            <div className="flex-1 overflow-hidden relative h-5">
-                                                                <h4 className={`font-bold text-slate-200 text-sm whitespace-nowrap absolute left-0 top-0 ${isLongTitle ? 'group-hover:animate-marquee' : ''}`}>
-                                                                    {title}
-                                                                </h4>
-                                                            </div>
-                                                            {/* Delete only if Owner - Relaxed Check & Always Visible */}
-                                                            {/* Delete only if Owner */}
-                                                            {currentUser && String(digest.owner_id) === String(currentUser.id) && (
-                                                                <button
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        handleDeleteDigest(digest.id);
-                                                                    }}
-                                                                    className="text-slate-600 hover:text-red-400 hover:bg-red-900/20 rounded p-1 transition-colors ml-1 z-10 bg-slate-800/50"
-                                                                    title="Delete Digest"
-                                                                >
-                                                                    <Trash2 size={12} />
-                                                                </button>
-                                                            )}
-                                                        </div>
-                                                        <div className="text-[10px] text-slate-500 mb-1">
-                                                            by <span className="text-slate-400 font-medium">{getOwnerName(digest)}</span>
-                                                        </div>
-                                                        <div className="flex flex-col gap-0.5 text-[10px] text-slate-500 font-medium mt-1">
-                                                            <div className="flex items-center gap-2 uppercase font-bold">
-                                                                {digest.city && <span className="text-blue-400">{digest.city}</span>}
-                                                                {showCategory && <span>• {cat}</span>}
-                                                                {digest.is_public && (
-                                                                    <span className="flex items-center gap-0.5 text-emerald-400 bg-emerald-900/30 px-1 rounded border border-emerald-800/50 text-[9px] transform scale-90" title="Public Link Active">
-                                                                        <GlobeIcon size={8} /> Public
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                            <div className="text-slate-400">
-                                                                {dateRange}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            }))}
+                            {/* Controls */}
+                            <div className="p-4 space-y-4">
+                                <div className="flex gap-2 flex-wrap">
+                                    {CATEGORIES.map(cat => (
+                                        <button
+                                            key={cat}
+                                            onClick={() => setSelectedCategory(cat)}
+                                            className={`px-2 py-1 text-xs rounded border ${selectedCategory === cat ? 'bg-blue-600 border-blue-500 text-white' : 'border-slate-700 text-gray-400'}`}
+                                        >
+                                            {cat}
+                                        </button>
+                                    ))}
                                 </div>
-                            )}
-                        </div>
-                    </div>
-                )
-            }
 
+                                {/* Timeframe Selector */}
+                                <div className="flex gap-2 bg-slate-900/40 p-1 rounded-lg border border-slate-700/50 my-2">
+                                    {[
+                                        { label: '24h', value: '24h' },
+                                        { label: '3 Days', value: '3days' },
+                                        { label: '7 Days', value: '1week' }
+                                    ].map((tf) => (
+                                        <button
+                                            key={tf.value}
+                                            onClick={() => setSelectedTimeframe(tf.value)}
+                                            className={`flex-1 py-1 text-[10px] uppercase font-bold rounded text-center transition-all ${selectedTimeframe === tf.value
+                                                ? 'bg-blue-600/20 text-blue-400 border border-blue-500/50 shadow-[0_0_10px_rgba(59,130,246,0.2)]'
+                                                : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800'
+                                                }`}
+                                        >
+                                            {tf.label}
+                                        </button>
+                                    ))}
+                                </div>
 
-            {
-                debugTarget && (
-                    <ScraperDebugger
-                        isOpen={scraperDebuggerOpen}
-                        onClose={() => setScraperDebuggerOpen(false)}
-                        initialUrl={debugTarget.url}
-                        domain={debugTarget.domain}
-
-                        onSave={handleRulesUpdated}
-                        onSaving={handleRuleSaving}
-                    />
-                )
-            }
-            {/* Right Sidebar - Global Digests */}
-            <div className={`fixed right-0 top-20 z-40 transition-all duration-300 ease-in-out ${isGlobalSidebarOpen ? 'w-80' : 'w-0'} h-[calc(100vh-100px)]`}>
-                {/* Toggle Handle - Custom Tall Arrow */}
-                <button
-                    onClick={() => setIsGlobalSidebarOpen(!isGlobalSidebarOpen)}
-                    className={`absolute -left-5 top-1/2 -translate-y-1/2 bg-slate-900 border border-slate-600 border-r-0 rounded-l-lg 
-                        h-24 w-5 flex items-center justify-center hover:bg-slate-800 hover:text-blue-400 text-slate-500 shadow-[0_0_15px_rgba(0,0,0,0.5)] transition-all group overflow-hidden`}
-                    title="Toggle Global Digests"
-                >
-                    <div className={`transition-transform duration-500 ${isGlobalSidebarOpen ? 'rotate-180' : ''}`}>
-                        <svg width="10" height="40" viewBox="0 0 10 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M8 2L2 20L8 38" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                    </div>
-                </button>
-
-                {/* Content Panel */}
-                <div className="w-full h-full bg-slate-900/95 backdrop-blur border-l border-slate-700 shadow-2xl overflow-hidden flex flex-col">
-                    <div className="p-4 border-b border-slate-700 bg-slate-900 sticky top-0 z-10">
-                        <h3 className="font-bold text-white text-lg flex items-center gap-2 mb-2">
-                            <List size={18} className="text-blue-400" />
-                            Global Stream
-                        </h3>
-
-                        <div className="flex bg-slate-800 rounded p-1">
-                            <button
-                                onClick={() => setGlobalStreamTab('stream')}
-                                className={`flex-1 text-xs font-bold py-1.5 rounded transition-all ${globalStreamTab === 'stream' ? 'bg-slate-700 text-blue-400 shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
-                            >
-                                Stream
-                            </button>
-                            <button
-                                onClick={() => setGlobalStreamTab('my')}
-                                className={`flex-1 text-xs font-bold py-1.5 rounded transition-all ${globalStreamTab === 'my' ? 'bg-slate-700 text-blue-400 shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
-                            >
-                                My Digests
-                            </button>
-                        </div>
-                    </div>
-
-                    <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-                        {(savedDigests || [])
-                            .filter((d: any) => {
-                                if (globalStreamTab === 'my') {
-                                    return currentUser && d.owner_id === currentUser.id;
-                                }
-                                return true; // Show all
-                            })
-                            .length === 0 ? (
-                            <div className="text-center text-slate-500 py-8 text-sm">
-                                {globalStreamTab === 'my' ? "You haven't saved any digests." : "No digests found."}
-                            </div>
-                        ) : (
-                            (savedDigests || []).map((digest: any) => {
-                                const end = new Date(digest.created_at);
-                                const start = new Date(end);
-                                if (digest.timeframe === "24h") start.setDate(end.getDate() - 1);
-                                else if (digest.timeframe === "3days") start.setDate(end.getDate() - 3);
-                                else if (digest.timeframe === "1week") start.setDate(end.getDate() - 7);
-                                else if (digest.timeframe === "1month") start.setDate(end.getDate() - 30);
-
-                                const f = (d: Date) => d.getDate().toString().padStart(2, '0') + "." + (d.getMonth() + 1).toString().padStart(2, '0');
-                                const y = (d: Date) => d.getFullYear();
-                                const dateRange = `${f(start)} - ${f(end)}.${y(end)}`;
-                                const title = digest.title || "";
-                                const cat = digest.category || "";
-                                const showCategory = cat && !title.toLowerCase().includes(cat.toLowerCase());
-
-                                // Marquee Logic
-                                const isLongTitle = title.length > 28;
-
-                                return (
-                                    <div
-                                        key={digest.id}
-                                        onClick={() => handleLoadDigest(digest)}
-                                        className="bg-slate-800/50 hover:bg-slate-800 border border-slate-700 hover:border-blue-500 p-3 rounded cursor-pointer transition-all group mb-2"
+                                <div className="flex gap-2 relative w-full">
+                                    <button
+                                        onClick={handleGenerateDigest}
+                                        disabled={!isGeneratingDigest && selectedOutletIds.length === 0}
+                                        className={`w-full font-medium py-3 rounded-lg shadow-lg transition-all text-base flex justify-center items-center gap-2 h-14 min-w-[300px]
+                                        ${isGeneratingDigest
+                                                ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-900/40 border border-blue-500/30'
+                                                : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-900/40 border border-blue-500/30'
+                                            }
+                                    `}
                                     >
-                                        <div className="relative">
-                                            <div className="flex justify-between items-start pr-8 overflow-hidden">
-                                                {isLongTitle ? (
-                                                    <div className="w-full overflow-hidden">
-                                                        <div className="flex whitespace-nowrap group-hover:animate-marquee-seamless w-max">
-                                                            <h4 className="font-bold text-slate-200 text-sm mr-8">{title}</h4>
-                                                            <h4 className="font-bold text-slate-200 text-sm mr-8">{title}</h4>
+                                        {isGeneratingDigest ? (
+                                            <>
+                                                <div className="flex flex-col items-center">
+                                                    <span className="flex items-center gap-2">
+                                                        <Loader2 className="w-5 h-5 animate-spin" />
+                                                        Gathering Articles...
+                                                    </span>
+                                                    {progressLog && (
+                                                        <div className="mt-1 min-w-[250px] text-center">
+                                                            <UIMarquee
+                                                                text={progressLog}
+                                                                maxLength={40}
+                                                                className="text-xs text-blue-200 font-mono opacity-80"
+                                                            />
                                                         </div>
-                                                    </div>
-                                                ) : (
-                                                    <h4 className="font-bold text-slate-200 text-sm whitespace-nowrap overflow-hidden text-ellipsis">
-                                                        {title}
-                                                    </h4>
-                                                )}
-                                            </div>
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    if (confirm("Delete this digest?")) handleDeleteDigest(digest.id!);
-                                                }}
-                                                className="absolute top-0 right-0 text-slate-600 hover:text-red-400 hover:bg-red-900/20 rounded p-1 transition-colors z-10"
-                                                title="Delete Digest"
-                                            >
-                                                <Trash2 size={12} />
-                                            </button>
-                                            <div className="flex flex-col gap-0.5 text-[10px] text-slate-500 font-medium mt-1">
-                                                <div className="flex items-center gap-2 uppercase font-bold flex-wrap">
-                                                    {digest.city && <span className="text-blue-400 bg-blue-900/20 px-1 rounded">{digest.city}</span>}
-                                                    {showCategory && <span className="text-slate-400">• {cat}</span>}
-                                                    {digest.is_public && (
-                                                        <span className="flex items-center gap-0.5 text-emerald-400 bg-emerald-900/30 px-1 rounded border border-emerald-800/50 text-[9px] transform scale-90" title="Public Link Active">
-                                                            <GlobeIcon size={8} /> Public
-                                                        </span>
                                                     )}
                                                 </div>
-                                                <div className="text-slate-600 font-mono mt-0.5">
-                                                    {dateRange}
+                                            </>
+                                        ) : (
+                                            <>
+                                                <FileText className="w-5 h-5" />
+                                                Gather Articles
+                                            </>
+                                        )}
+                                    </button>
+
+                                    {isGeneratingDigest && (
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleStopDigest();
+                                            }}
+                                            title="Stop Generation"
+                                            className="absolute -top-2 -right-2 p-1.5 bg-red-500 hover:bg-red-600 text-white rounded shadow-lg transition-transform hover:scale-110 z-20 border-2 border-slate-900 flex items-center justify-center"
+                                        >
+                                            <div className="h-3 w-3 bg-white rounded-[1px]" />
+                                        </button>
+                                    )}
+                                </div>
+
+                                {/* Sidebar Tabs */}
+
+                                <div className="flex border-b border-slate-700 mt-4">
+                                    <button
+                                        onClick={() => setActiveSideTab('sources')}
+                                        className={`flex-1 pb-2 text-sm font-bold transition-colors ${activeSideTab === 'sources' ? 'text-blue-400 border-b-2 border-blue-400' : 'text-slate-500 hover:text-slate-300'}`}
+                                    >
+                                        Sources
+                                    </button>
+                                    <button
+                                        onClick={() => setActiveSideTab('digests')}
+                                        className={`flex-1 pb-2 text-sm font-bold transition-colors ${activeSideTab === 'digests' ? 'text-blue-400 border-b-2 border-blue-400' : 'text-slate-500 hover:text-slate-300'}`}
+                                    >
+                                        Saved Digests
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Results / List */}
+                            <div className="flex-1 overflow-y-auto p-4 text-white text-sm custom-scrollbar">
+                                {activeSideTab === 'sources' ? (
+                                    <>
+                                        {isDiscovering && <div className="text-center text-blue-400 mb-4 animate-pulse">Discovering landscape...</div>}
+
+                                        {(!digestData || isGeneratingDigest) && !isDiscovering && (
+                                            <div className="space-y-2">
+                                                {/* Filters & Header */}
+                                                <div className="flex items-center justify-between gap-4 mb-4">
+                                                    <div className="flex items-center gap-2 text-xs">
+                                                        <span className="text-gray-400 font-bold uppercase">Show:</span>
+                                                        <label className="flex items-center gap-1 cursor-pointer text-slate-300 hover:text-white">
+                                                            <input type="checkbox" defaultChecked className="rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-0"
+                                                                onChange={(e) => {
+                                                                    // TODO: filtering logic state not yet implemented fully, relying on visual scanning for MVP
+                                                                }}
+                                                            />
+                                                            Local
+                                                        </label>
+                                                        <label className="flex items-center gap-1 cursor-pointer text-slate-300 hover:text-white">
+                                                            <input type="checkbox" defaultChecked className="rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-0" />
+                                                            National
+                                                        </label>
+                                                    </div>
+                                                    {/* Moved Refresh Button */}
+                                                    <button
+                                                        onClick={handleRediscoverCity}
+                                                        title="Rediscover Media Landscape"
+                                                        className="p-1 hover:bg-slate-800 rounded text-slate-500 hover:text-blue-400 transition-colors text-xs flex items-center gap-1 border border-slate-700 px-2"
+                                                    >
+                                                        🔄 Refresh
+                                                    </button>
+                                                </div>
+
+                                                {selectedCityOutlets.length === 0 && (
+                                                    <div className="text-center py-4 text-gray-500 text-sm">
+                                                        <p>No major outlets automatically found.</p>
+                                                        <p>Try the Magic Import below!</p>
+                                                    </div>
+                                                )}
+
+                                                {/* Groups: Manual Top, then AI Sorted by Popularity */}
+                                                {(() => {
+                                                    const manual = selectedCityOutlets.filter(o => o.origin === 'manual');
+                                                    const auto = selectedCityOutlets.filter(o => o.origin !== 'manual').sort((a, b) => (b.popularity || 0) - (a.popularity || 0));
+
+                                                    const renderOutlet = (outlet: any) => (
+                                                        <div key={outlet.id} className={`group p-3 rounded transition-all border mb-2 ${selectedOutletIds.includes(outlet.id) ? 'bg-slate-800/80 border-blue-500/30' : 'bg-slate-900/50 border-slate-800 opacity-80 hover:opacity-100'}`}>
+                                                            <div className="flex justify-between items-start">
+                                                                <div className="flex items-center gap-2">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={selectedOutletIds.includes(outlet.id)}
+                                                                        onChange={() => toggleOutletSelection(outlet.id)}
+                                                                        className="rounded bg-slate-700 border-slate-600 text-blue-500 focus:ring-0 cursor-pointer"
+                                                                    />
+                                                                    <div className="flex flex-col">
+                                                                        <div className="flex items-center gap-2">
+                                                                            <h4 className={`font-bold transition-colors ${selectedOutletIds.includes(outlet.id) ? 'text-blue-100' : 'text-slate-300'}`}>{outlet.name}</h4>
+                                                                            {/* Focus Badge */}
+                                                                            {outlet.focus === 'National' && <span className="px-1 py-0.5 rounded bg-indigo-900/50 text-indigo-300 text-[9px] uppercase font-bold border border-indigo-700/50">National</span>}
+                                                                            {outlet.focus === 'Local and National' && <span className="px-1 py-0.5 rounded bg-purple-900/50 text-purple-300 text-[9px] uppercase font-bold border border-purple-700/50">Mixed</span>}
+                                                                        </div>
+                                                                        <div className="flex items-center gap-2 mt-0.5">
+                                                                            <span className="text-[10px] uppercase font-mono text-slate-500">{outlet.type || 'Media'}</span>
+                                                                            {/* Popularity Stars */}
+                                                                            {(outlet.popularity > 0) && (
+                                                                                <span className="text-[10px] text-amber-500/80 font-mono" title={`Popularity Score: ${outlet.popularity}/10`}>
+                                                                                    {"★".repeat(Math.min(outlet.popularity, 5))}
+                                                                                    <span className='opacity-30'>{"★".repeat(Math.max(0, 5 - outlet.popularity))}</span>
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                                {outlet.origin === 'manual' && <span className="text-[9px] text-emerald-500 font-bold uppercase tracking-wider bg-emerald-900/20 px-1 rounded">Manually Added</span>}
+                                                            </div>
+                                                            {outlet.url && selectedOutletIds.includes(outlet.id) && (
+                                                                <a
+                                                                    href={outlet.url}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="mt-2 ml-6 block text-xs text-blue-400 hover:text-blue-300 hover:underline truncate"
+                                                                >
+                                                                    {outlet.url}
+                                                                </a>
+                                                            )}
+                                                        </div>
+                                                    );
+
+                                                    return (
+                                                        <>
+                                                            {manual.map(renderOutlet)}
+                                                            {manual.length > 0 && auto.length > 0 && (
+                                                                <div className="my-2 border-t border-slate-800 flex items-center justify-center">
+                                                                    <span className="bg-slate-900 px-2 text-[10px] text-slate-600 uppercase font-bold -mt-2.5">AI Discovered</span>
+                                                                </div>
+                                                            )}
+                                                            {auto.map(renderOutlet)}
+                                                        </>
+                                                    )
+                                                })()}
+                                                {editingOutletId !== null && ( // This block was moved outside the renderOutlet function
+                                                    <div className="flex gap-1 animate-in fade-in zoom-in duration-200 w-full">
+                                                        <input
+                                                            className="bg-slate-900 border border-blue-500 rounded text-xs px-1 py-0.5 flex-1 text-white outline-none"
+                                                            value={editUrl}
+                                                            onChange={e => setEditUrl(e.target.value)}
+                                                            onKeyDown={e => {
+                                                                if (e.key === 'Enter') handleUpdateOutlet(editingOutletId);
+                                                                if (e.key === 'Escape') setEditingOutletId(null);
+                                                            }}
+                                                            autoFocus
+                                                        />
+                                                        <button onClick={() => handleUpdateOutlet(editingOutletId)} className="text-green-400 hover:text-green-300 px-1">✓</button>
+                                                        <button onClick={() => setEditingOutletId(null)} className="text-slate-500 hover:text-slate-300 px-1">✕</button>
+                                                    </div>
+                                                )}
+
+                                            </div >
+                                        )}
+
+                                        {
+                                            !showAddForm && !digestData && (
+                                                <div className="p-4 border-t border-slate-700 mt-4">
+                                                    <button onClick={() => setShowAddForm(true)} className="w-full py-2 bg-slate-800 text-blue-400 rounded text-sm font-bold border border-slate-600 border-dashed hover:border-blue-500 transition-colors">+ Add Source</button>
+                                                </div>
+                                            )
+                                        }
+
+                                        {
+                                            showAddForm && (
+                                                <div className="p-4 border-t border-slate-700 space-y-2 mt-4">
+                                                    <input
+                                                        className="w-full bg-slate-800 border-slate-600 rounded p-2 text-white text-xs"
+                                                        placeholder="https://example.com"
+                                                        value={importUrl}
+                                                        onChange={e => setImportUrl(e.target.value)}
+                                                    />
+                                                    <div className="flex gap-2">
+                                                        <button onClick={handleImportUrl} className="flex-1 bg-purple-600 text-white rounded py-1 text-xs font-bold hover:bg-purple-500">Import</button>
+                                                        <button onClick={() => setShowAddForm(false)} className="px-3 bg-slate-700 text-gray-300 rounded py-1 text-xs hover:bg-slate-600">Cancel</button>
+                                                    </div>
+                                                </div>
+                                            )
+                                        }
+                                    </>
+                                ) : (
+                                    <div className="space-y-2">
+                                        {savedDigests.length === 0 ? (
+                                            <div className="text-center text-slate-500 py-6 px-2 flex flex-col gap-3">
+                                                <div>No saved digests found for this city.</div>
+
+                                                {/* Debug Info */}
+                                                <div className="bg-slate-900 border border-slate-700/50 rounded p-2 text-[10px] font-mono text-left space-y-1 w-full overflow-hidden">
+                                                    <div className="text-slate-400">UID: <span className="text-white">{currentUser?.id}</span></div>
+                                                    <div className="text-slate-400">Name: <span className="text-white">{currentUser?.username}</span></div>
+                                                    <div className="text-slate-400">Status: <span className={digestFetchStatus.includes('error') ? "text-red-400" : "text-green-400"}>{digestFetchStatus}</span></div>
+                                                </div>
+
+                                                <button onClick={fetchSavedDigests} className="text-xs text-blue-400 hover:text-blue-300 underline">
+                                                    Refresh List
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            (savedDigests || [])
+                                                // Left Sidebar: Show ONLY digests for current city
+                                                .filter((d: any) => !selectedCityName || d.city === selectedCityName)
+                                                .map((digest: any) => {
+                                                    const createdAt = digest.created_at || new Date().toISOString();
+                                                    const end = new Date(createdAt);
+                                                    if (isNaN(end.getTime())) {
+                                                        // Fallback for invalid dates
+                                                        const safeDate = new Date();
+                                                        end.setTime(safeDate.getTime());
+                                                    }
+                                                    const start = new Date(end);
+
+                                                    if (digest.timeframe === "24h") start.setDate(end.getDate() - 1);
+                                                    else if (digest.timeframe === "3days") start.setDate(end.getDate() - 3);
+                                                    else if (digest.timeframe === "1week") start.setDate(end.getDate() - 7);
+                                                    else if (digest.timeframe === "1month") start.setDate(end.getDate() - 30);
+
+                                                    const f = (d: Date) => d.getDate().toString().padStart(2, '0') + "." + (d.getMonth() + 1).toString().padStart(2, '0');
+                                                    const y = (d: Date) => d.getFullYear();
+                                                    const dateRange = `${f(start)} - ${f(end)}.${y(end)}`;
+
+                                                    const title = digest.title || "";
+                                                    const cat = digest.category || "";
+                                                    const showCategory = cat && !title.toLowerCase().includes(cat.toLowerCase());
+
+                                                    // Marquee Logic: Check length (approx chars)
+                                                    const isLongTitle = title.length > 28;
+
+                                                    return (
+                                                        <div
+                                                            key={digest.id}
+                                                            onClick={() => handleLoadDigest(digest)}
+                                                            className="bg-slate-800/50 hover:bg-slate-800 border border-slate-700 hover:border-blue-500 p-3 rounded cursor-pointer transition-all group"
+                                                        >
+                                                            <div className="flex justify-between items-start mb-1 overflow-hidden">
+                                                                <div className="flex-1 overflow-hidden relative h-5">
+                                                                    <h4 className={`font-bold text-slate-200 text-sm whitespace-nowrap absolute left-0 top-0 ${isLongTitle ? 'group-hover:animate-marquee' : ''}`}>
+                                                                        {title}
+                                                                    </h4>
+                                                                </div>
+                                                                {/* Delete only if Owner - Relaxed Check & Always Visible */}
+                                                                {/* Delete only if Owner */}
+                                                                {currentUser && String(digest.owner_id) === String(currentUser.id) && (
+                                                                    <button
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            handleDeleteDigest(digest.id);
+                                                                        }}
+                                                                        className="text-slate-600 hover:text-red-400 hover:bg-red-900/20 rounded p-1 transition-colors ml-1 z-10 bg-slate-800/50"
+                                                                        title="Delete Digest"
+                                                                    >
+                                                                        <Trash2 size={12} />
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                            <div className="text-[10px] text-slate-500 mb-1">
+                                                                by <span className="text-slate-400 font-medium">{getOwnerName(digest)}</span>
+                                                            </div>
+                                                            <div className="flex flex-col gap-0.5 text-[10px] text-slate-500 font-medium mt-1">
+                                                                <div className="flex items-center gap-2 uppercase font-bold">
+                                                                    {digest.city && <span className="text-blue-400">{digest.city}</span>}
+                                                                    {showCategory && <span>• {cat}</span>}
+                                                                    {digest.is_public && (
+                                                                        <span className="flex items-center gap-0.5 text-emerald-400 bg-emerald-900/30 px-1 rounded border border-emerald-800/50 text-[9px] transform scale-90" title="Public Link Active">
+                                                                            <GlobeIcon size={8} /> Public
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                                <div className="text-slate-400">
+                                                                    {dateRange}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                }))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )
+                }
+
+
+                {
+                    debugTarget && (
+                        <ScraperDebugger
+                            isOpen={scraperDebuggerOpen}
+                            onClose={() => setScraperDebuggerOpen(false)}
+                            initialUrl={debugTarget.url}
+                            domain={debugTarget.domain}
+
+                            onSave={handleRulesUpdated}
+                            onSaving={handleRuleSaving}
+                        />
+                    )
+                }
+                {/* Right Sidebar - Global Digests */}
+                <div className={`fixed right-0 top-20 z-40 transition-all duration-300 ease-in-out ${isGlobalSidebarOpen ? 'w-80' : 'w-0'} h-[calc(100vh-100px)]`}>
+                    {/* Toggle Handle - Custom Tall Arrow */}
+                    <button
+                        onClick={() => setIsGlobalSidebarOpen(!isGlobalSidebarOpen)}
+                        className={`absolute -left-5 top-1/2 -translate-y-1/2 bg-slate-900 border border-slate-600 border-r-0 rounded-l-lg 
+                        h-24 w-5 flex items-center justify-center hover:bg-slate-800 hover:text-blue-400 text-slate-500 shadow-[0_0_15px_rgba(0,0,0,0.5)] transition-all group overflow-hidden`}
+                        title="Toggle Global Digests"
+                    >
+                        <div className={`transition-transform duration-500 ${isGlobalSidebarOpen ? 'rotate-180' : ''}`}>
+                            <svg width="10" height="40" viewBox="0 0 10 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M8 2L2 20L8 38" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                        </div>
+                    </button>
+
+                    {/* Content Panel */}
+                    <div className="w-full h-full bg-slate-900/95 backdrop-blur border-l border-slate-700 shadow-2xl overflow-hidden flex flex-col">
+                        <div className="p-4 border-b border-slate-700 bg-slate-900 sticky top-0 z-10">
+                            <h3 className="font-bold text-white text-lg flex items-center gap-2 mb-2">
+                                <List size={18} className="text-blue-400" />
+                                Global Stream
+                            </h3>
+
+                            <div className="flex bg-slate-800 rounded p-1">
+                                <button
+                                    onClick={() => setGlobalStreamTab('stream')}
+                                    className={`flex-1 text-xs font-bold py-1.5 rounded transition-all ${globalStreamTab === 'stream' ? 'bg-slate-700 text-blue-400 shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
+                                >
+                                    Stream
+                                </button>
+                                <button
+                                    onClick={() => setGlobalStreamTab('my')}
+                                    className={`flex-1 text-xs font-bold py-1.5 rounded transition-all ${globalStreamTab === 'my' ? 'bg-slate-700 text-blue-400 shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
+                                >
+                                    My Digests
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+                            {(savedDigests || [])
+                                .filter((d: any) => {
+                                    if (globalStreamTab === 'my') {
+                                        return currentUser && d.owner_id === currentUser.id;
+                                    }
+                                    return true; // Show all
+                                })
+                                .length === 0 ? (
+                                <div className="text-center text-slate-500 py-8 text-sm">
+                                    {globalStreamTab === 'my' ? "You haven't saved any digests." : "No digests found."}
+                                </div>
+                            ) : (
+                                (savedDigests || []).map((digest: any) => {
+                                    const end = new Date(digest.created_at);
+                                    const start = new Date(end);
+                                    if (digest.timeframe === "24h") start.setDate(end.getDate() - 1);
+                                    else if (digest.timeframe === "3days") start.setDate(end.getDate() - 3);
+                                    else if (digest.timeframe === "1week") start.setDate(end.getDate() - 7);
+                                    else if (digest.timeframe === "1month") start.setDate(end.getDate() - 30);
+
+                                    const f = (d: Date) => d.getDate().toString().padStart(2, '0') + "." + (d.getMonth() + 1).toString().padStart(2, '0');
+                                    const y = (d: Date) => d.getFullYear();
+                                    const dateRange = `${f(start)} - ${f(end)}.${y(end)}`;
+                                    const title = digest.title || "";
+                                    const cat = digest.category || "";
+                                    const showCategory = cat && !title.toLowerCase().includes(cat.toLowerCase());
+
+                                    // Marquee Logic
+                                    const isLongTitle = title.length > 28;
+
+                                    return (
+                                        <div
+                                            key={digest.id}
+                                            onClick={() => handleLoadDigest(digest)}
+                                            className="bg-slate-800/50 hover:bg-slate-800 border border-slate-700 hover:border-blue-500 p-3 rounded cursor-pointer transition-all group mb-2"
+                                        >
+                                            <div className="relative">
+                                                <div className="flex justify-between items-start pr-8 overflow-hidden">
+                                                    {isLongTitle ? (
+                                                        <div className="w-full overflow-hidden">
+                                                            <div className="flex whitespace-nowrap group-hover:animate-marquee-seamless w-max">
+                                                                <h4 className="font-bold text-slate-200 text-sm mr-8">{title}</h4>
+                                                                <h4 className="font-bold text-slate-200 text-sm mr-8">{title}</h4>
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <h4 className="font-bold text-slate-200 text-sm whitespace-nowrap overflow-hidden text-ellipsis">
+                                                            {title}
+                                                        </h4>
+                                                    )}
+                                                </div>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        if (confirm("Delete this digest?")) handleDeleteDigest(digest.id!);
+                                                    }}
+                                                    className="absolute top-0 right-0 text-slate-600 hover:text-red-400 hover:bg-red-900/20 rounded p-1 transition-colors z-10"
+                                                    title="Delete Digest"
+                                                >
+                                                    <Trash2 size={12} />
+                                                </button>
+                                                <div className="flex flex-col gap-0.5 text-[10px] text-slate-500 font-medium mt-1">
+                                                    <div className="flex items-center gap-2 uppercase font-bold flex-wrap">
+                                                        {digest.city && <span className="text-blue-400 bg-blue-900/20 px-1 rounded">{digest.city}</span>}
+                                                        {showCategory && <span className="text-slate-400">• {cat}</span>}
+                                                        {digest.is_public && (
+                                                            <span className="flex items-center gap-0.5 text-emerald-400 bg-emerald-900/30 px-1 rounded border border-emerald-800/50 text-[9px] transform scale-90" title="Public Link Active">
+                                                                <GlobeIcon size={8} /> Public
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <div className="text-slate-600 font-mono mt-0.5">
+                                                        {dateRange}
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
-                                    </div>
-                                );
-                            })
-                        )}
+                                    );
+                                })
+                            )}
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            {/* Settings Button (Top Right Fixed) */}
-            {
-                !digestData && (
-                    <button
-                        onClick={() => setIsSettingsOpen(true)}
-                        className="fixed top-4 right-4 z-40 p-2 bg-slate-900/80 backdrop-blur border border-slate-700 rounded-full text-slate-400 hover:text-white hover:bg-slate-800 transition-all shadow-xl"
-                        title="User Settings"
-                    >
-                        <Settings size={20} />
-                    </button>
-                )
-            }
+                {/* Settings Button (Top Right Fixed) */}
+                {
+                    !digestData && (
+                        <button
+                            onClick={() => setIsSettingsOpen(true)}
+                            className="fixed top-4 right-4 z-40 p-2 bg-slate-900/80 backdrop-blur border border-slate-700 rounded-full text-slate-400 hover:text-white hover:bg-slate-800 transition-all shadow-xl"
+                            title="User Settings"
+                        >
+                            <Settings size={20} />
+                        </button>
+                    )
+                }
 
-            {/* Settings Modal */}
-            <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+                {/* Settings Modal */}
+                <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
 
-            {/* Global Analytics Tooltip */}
-            {
-                activeTooltip && activeTooltip.rect && (
-                    <div
-                        className="fixed z-[9999] w-80 bg-slate-950 backdrop-blur-xl border border-slate-700 rounded-xl shadow-[0_0_50px_rgba(0,0,0,0.8)] p-4 text-xs text-left cursor-auto animate-in fade-in zoom-in-95 duration-200"
-                        style={{
-                            top: activeTooltip.placement === 'bottom'
-                                ? activeTooltip.rect.bottom + 8
-                                : activeTooltip.rect.top - 8 - (200),
-                            left: activeTooltip.rect.left + (activeTooltip.rect.width / 2) - 160,
-                        }}
-                        onMouseEnter={() => {
-                            if (hoverTimeout.current) clearTimeout(hoverTimeout.current);
-                        }}
-                        onMouseLeave={() => {
-                            if (isTooltipLocked) return;
-                            hoverTimeout.current = setTimeout(() => {
-                                setActiveTooltip(null);
-                                setIsTooltipLocked(false);
-                            }, 150);
-                        }}
-                    >
-                        <div className="flex justify-between items-start border-b border-slate-800 pb-2 mb-3">
-                            <div className="font-bold text-white text-base">
-                                {isAnalyticsTranslated && activeTooltip.data?.translation ? activeTooltip.data.translation : activeTooltip.word}
-                                {isTooltipLocked && <span className="ml-2 text-[10px] text-blue-400 border border-blue-900 bg-blue-950/50 px-1 rounded align-middle">LOCKED</span>}
-                            </div>
-                            <div className="flex flex-col items-end gap-1">
-                                <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${activeTooltip.data?.sentiment === 'Positive' ? 'bg-green-900/50 text-green-400 border border-green-800' : activeTooltip.data?.sentiment === 'Negative' ? 'bg-red-900/50 text-red-400 border border-red-800' : 'bg-slate-800 text-slate-400 border border-slate-700'}`}>
-                                    {activeTooltip.data?.sentiment}
-                                </span>
-                                <span className="text-[10px] text-slate-500 font-mono">Imp: {activeTooltip.data?.importance}</span>
-                            </div>
-                        </div>
-
-                        <div className="space-y-2">
-                            <div className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-1">
-                                Found in {activeTooltip.data?.sources?.length || 0} sources
-                            </div>
-                            <ul className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar pr-1">
-                                {activeTooltip.data?.sources && activeTooltip.data.sources.length > 0 ? (
-                                    activeTooltip.data.sources.map((src: any, idx: number) => (
-                                        <li key={idx} className="flex flex-col gap-0.5 bg-slate-900/50 p-2 rounded hover:bg-slate-900 transition-colors border border-white/5">
-                                            <a href={src.url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 hover:underline font-medium line-clamp-2 leading-tight">
-                                                {src.title}
-                                            </a>
-                                            <span className="text-[10px] text-slate-500">{src.source}</span>
-                                        </li>
-                                    ))
-                                ) : (
-                                    <li className="text-slate-600 italic">No direct sources mapped.</li>
-                                )}
-                            </ul>
-                        </div>
-                    </div>
-                )
-            }
-
-            {/* Support / Donation Button */}
-            <a
-                href="https://buymeacoffee.com/urbanous"
-                target="_blank"
-                rel="noopener noreferrer"
-                title="Support OpenNews"
-                className="absolute top-4 right-16 z-20 p-2 rounded-lg bg-yellow-500/90 text-white shadow-lg shadow-yellow-500/20 hover:bg-yellow-400 hover:scale-110 transition-all flex items-center gap-2 font-bold text-sm"
-            >
-                <Coffee className="w-5 h-5" />
-                <span className="hidden group-hover:block whitespace-nowrap">Support Us</span>
-            </a>
-
-            {/* Spotlight Search Overlay */}
-            {
-                isSpotlightOpen && (
-                    <div className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 transition-opacity" onClick={() => setIsSpotlightOpen(false)}>
-                        <div className="w-full max-w-lg bg-slate-900 border border-slate-700 rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200" onClick={e => e.stopPropagation()}>
-                            <div className="p-4 border-b border-slate-800 flex items-center gap-3">
-                                <Search className="w-5 h-5 text-slate-400" />
-                                <input
-                                    autoFocus
-                                    className="flex-1 bg-transparent border-none outline-none text-white placeholder-slate-500 text-lg"
-                                    placeholder="Search City..."
-                                    value={spotlightQuery}
-                                    onChange={e => {
-                                        setSpotlightQuery(e.target.value);
-                                        setSpotlightSelectedIndex(0);
-                                    }}
-                                    onKeyDown={e => {
-                                        const candidates = cities
-                                            .filter(c => c.name.toLowerCase().includes(spotlightQuery.toLowerCase()))
-                                            .slice(0, 8);
-
-                                        if (e.key === 'ArrowDown') {
-                                            e.preventDefault();
-                                            setSpotlightSelectedIndex(prev => (prev + 1) % candidates.length);
-                                        } else if (e.key === 'ArrowUp') {
-                                            e.preventDefault();
-                                            setSpotlightSelectedIndex(prev => (prev - 1 + candidates.length) % candidates.length);
-                                        } else if (e.key === 'Enter') {
-                                            e.preventDefault();
-                                            const match = candidates[spotlightSelectedIndex];
-                                            if (match) {
-                                                handleSearchSelect(match);
-                                                setIsSpotlightOpen(false);
-                                                setSpotlightQuery('');
-                                                setSpotlightSelectedIndex(0);
-                                            }
-                                        }
-                                    }}
-                                />
-                                <div className="flex gap-2">
-                                    <span className="text-[10px] bg-slate-800 px-1.5 py-0.5 rounded text-slate-400">ESC</span>
+                {/* Global Analytics Tooltip */}
+                {
+                    activeTooltip && activeTooltip.rect && (
+                        <div
+                            className="fixed z-[9999] w-80 bg-slate-950 backdrop-blur-xl border border-slate-700 rounded-xl shadow-[0_0_50px_rgba(0,0,0,0.8)] p-4 text-xs text-left cursor-auto animate-in fade-in zoom-in-95 duration-200"
+                            style={{
+                                top: activeTooltip.placement === 'bottom'
+                                    ? activeTooltip.rect.bottom + 8
+                                    : activeTooltip.rect.top - 8 - (200),
+                                left: activeTooltip.rect.left + (activeTooltip.rect.width / 2) - 160,
+                            }}
+                            onMouseEnter={() => {
+                                if (hoverTimeout.current) clearTimeout(hoverTimeout.current);
+                            }}
+                            onMouseLeave={() => {
+                                if (isTooltipLocked) return;
+                                hoverTimeout.current = setTimeout(() => {
+                                    setActiveTooltip(null);
+                                    setIsTooltipLocked(false);
+                                }, 150);
+                            }}
+                        >
+                            <div className="flex justify-between items-start border-b border-slate-800 pb-2 mb-3">
+                                <div className="font-bold text-white text-base">
+                                    {isAnalyticsTranslated && activeTooltip.data?.translation ? activeTooltip.data.translation : activeTooltip.word}
+                                    {isTooltipLocked && <span className="ml-2 text-[10px] text-blue-400 border border-blue-900 bg-blue-950/50 px-1 rounded align-middle">LOCKED</span>}
+                                </div>
+                                <div className="flex flex-col items-end gap-1">
+                                    <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${activeTooltip.data?.sentiment === 'Positive' ? 'bg-green-900/50 text-green-400 border border-green-800' : activeTooltip.data?.sentiment === 'Negative' ? 'bg-red-900/50 text-red-400 border border-red-800' : 'bg-slate-800 text-slate-400 border border-slate-700'}`}>
+                                        {activeTooltip.data?.sentiment}
+                                    </span>
+                                    <span className="text-[10px] text-slate-500 font-mono">Imp: {activeTooltip.data?.importance}</span>
                                 </div>
                             </div>
-                            {spotlightQuery && (
-                                <div className="max-h-[300px] overflow-y-auto">
-                                    {cities
-                                        .filter(c => c.name.toLowerCase().includes(spotlightQuery.toLowerCase()))
-                                        .slice(0, 8)
-                                        .map((city: any, idx: number) => (
-                                            <button
-                                                key={city.id || city.name}
-                                                className={`w-full text-left px-4 py-3 flex items-center justify-between group transition-colors ${idx === spotlightSelectedIndex ? 'bg-slate-800 border-l-2 border-blue-500' : 'hover:bg-slate-800/50 border-l-2 border-transparent'}`}
-                                                onClick={() => {
-                                                    handleSearchSelect(city);
+
+                            <div className="space-y-2">
+                                <div className="text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-1">
+                                    Found in {activeTooltip.data?.sources?.length || 0} sources
+                                </div>
+                                <ul className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar pr-1">
+                                    {activeTooltip.data?.sources && activeTooltip.data.sources.length > 0 ? (
+                                        activeTooltip.data.sources.map((src: any, idx: number) => (
+                                            <li key={idx} className="flex flex-col gap-0.5 bg-slate-900/50 p-2 rounded hover:bg-slate-900 transition-colors border border-white/5">
+                                                <a href={src.url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 hover:underline font-medium line-clamp-2 leading-tight">
+                                                    {src.title}
+                                                </a>
+                                                <span className="text-[10px] text-slate-500">{src.source}</span>
+                                            </li>
+                                        ))
+                                    ) : (
+                                        <li className="text-slate-600 italic">No direct sources mapped.</li>
+                                    )}
+                                </ul>
+                            </div>
+                        </div>
+                    )
+                }
+
+                {/* Support / Donation Button */}
+                <a
+                    href="https://buymeacoffee.com/urbanous"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="Support OpenNews"
+                    className="absolute top-4 right-16 z-20 p-2 rounded-lg bg-yellow-500/90 text-white shadow-lg shadow-yellow-500/20 hover:bg-yellow-400 hover:scale-110 transition-all flex items-center gap-2 font-bold text-sm"
+                >
+                    <Coffee className="w-5 h-5" />
+                    <span className="hidden group-hover:block whitespace-nowrap">Support Us</span>
+                </a>
+
+                {/* Spotlight Search Overlay */}
+                {
+                    isSpotlightOpen && (
+                        <div className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 transition-opacity" onClick={() => setIsSpotlightOpen(false)}>
+                            <div className="w-full max-w-lg bg-slate-900 border border-slate-700 rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200" onClick={e => e.stopPropagation()}>
+                                <div className="p-4 border-b border-slate-800 flex items-center gap-3">
+                                    <Search className="w-5 h-5 text-slate-400" />
+                                    <input
+                                        autoFocus
+                                        className="flex-1 bg-transparent border-none outline-none text-white placeholder-slate-500 text-lg"
+                                        placeholder="Search City..."
+                                        value={spotlightQuery}
+                                        onChange={e => {
+                                            setSpotlightQuery(e.target.value);
+                                            setSpotlightSelectedIndex(0);
+                                        }}
+                                        onKeyDown={e => {
+                                            const candidates = cities
+                                                .filter(c => c.name.toLowerCase().includes(spotlightQuery.toLowerCase()))
+                                                .slice(0, 8);
+
+                                            if (e.key === 'ArrowDown') {
+                                                e.preventDefault();
+                                                setSpotlightSelectedIndex(prev => (prev + 1) % candidates.length);
+                                            } else if (e.key === 'ArrowUp') {
+                                                e.preventDefault();
+                                                setSpotlightSelectedIndex(prev => (prev - 1 + candidates.length) % candidates.length);
+                                            } else if (e.key === 'Enter') {
+                                                e.preventDefault();
+                                                const match = candidates[spotlightSelectedIndex];
+                                                if (match) {
+                                                    handleSearchSelect(match);
                                                     setIsSpotlightOpen(false);
                                                     setSpotlightQuery('');
-                                                }}
-                                                onMouseEnter={() => setSpotlightSelectedIndex(idx)}
-                                            >
-                                                <span className={`font-medium ${idx === spotlightSelectedIndex ? 'text-white' : 'text-slate-200 group-hover:text-white'}`}>{city.name}</span>
-                                                <span className="text-xs text-slate-500 uppercase">{city.country_code}</span>
-                                            </button>
-                                        ))}
-                                    {cities.filter(c => c.name.toLowerCase().includes(spotlightQuery.toLowerCase())).length === 0 && (
-                                        <div className="p-4 text-center text-slate-500 italic">No cities found</div>
-                                    )}
+                                                    setSpotlightSelectedIndex(0);
+                                                }
+                                            }
+                                        }}
+                                    />
+                                    <div className="flex gap-2">
+                                        <span className="text-[10px] bg-slate-800 px-1.5 py-0.5 rounded text-slate-400">ESC</span>
+                                    </div>
                                 </div>
-                            )}
-                            {!spotlightQuery && (
-                                <div className="p-8 text-center text-slate-600 text-sm">
-                                    Type to fly to a city...
-                                </div>
-                            )}
+                                {spotlightQuery && (
+                                    <div className="max-h-[300px] overflow-y-auto">
+                                        {cities
+                                            .filter(c => c.name.toLowerCase().includes(spotlightQuery.toLowerCase()))
+                                            .slice(0, 8)
+                                            .map((city: any, idx: number) => (
+                                                <button
+                                                    key={city.id || city.name}
+                                                    className={`w-full text-left px-4 py-3 flex items-center justify-between group transition-colors ${idx === spotlightSelectedIndex ? 'bg-slate-800 border-l-2 border-blue-500' : 'hover:bg-slate-800/50 border-l-2 border-transparent'}`}
+                                                    onClick={() => {
+                                                        handleSearchSelect(city);
+                                                        setIsSpotlightOpen(false);
+                                                        setSpotlightQuery('');
+                                                    }}
+                                                    onMouseEnter={() => setSpotlightSelectedIndex(idx)}
+                                                >
+                                                    <span className={`font-medium ${idx === spotlightSelectedIndex ? 'text-white' : 'text-slate-200 group-hover:text-white'}`}>{city.name}</span>
+                                                    <span className="text-xs text-slate-500 uppercase">{city.country_code}</span>
+                                                </button>
+                                            ))}
+                                        {cities.filter(c => c.name.toLowerCase().includes(spotlightQuery.toLowerCase())).length === 0 && (
+                                            <div className="p-4 text-center text-slate-500 italic">No cities found</div>
+                                        )}
+                                    </div>
+                                )}
+                                {!spotlightQuery && (
+                                    <div className="p-8 text-center text-slate-600 text-sm">
+                                        Type to fly to a city...
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                    </div>
-                )
-            }
+                    )
+                }
 
 
     // MEMORY PROBE
@@ -3548,26 +3556,26 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                 // Try to access renderer info if available directly or via scene
                 // Three-Globe exposes 'renderer()' in some versions, or we check internal
                 const renderer = globeEl.current.renderer ? globeEl.current.renderer() : null;
-            if (renderer && renderer.info) {
-                console.log("[NewsGlobe] WebGL Memory:", {
-                    geometries: renderer.info.memory.geometries,
-                    textures: renderer.info.memory.textures
-                });
+                if (renderer && renderer.info) {
+                    console.log("[NewsGlobe] WebGL Memory:", {
+                        geometries: renderer.info.memory.geometries,
+                        textures: renderer.info.memory.textures
+                    });
                 }
             }
         }, 5000);
         return () => clearInterval(interval);
     }, []);
 
-            return (
-            <div className="relative w-full h-full bg-slate-950">
-                {/* ... controls ... */}
+                return (
+                <div className="relative w-full h-full bg-slate-950">
+                    {/* ... controls ... */}
 
-                {/* Version Indicator */}
-                <div className="absolute bottom-2 right-2 z-[100] text-[10px] text-white/30 font-mono hover:text-white/80 cursor-default select-none transition-colors">
-                    v0.121.03 DebugMem
-                </div>
+                    {/* Version Indicator */}
+                    <div className="absolute bottom-2 right-2 z-[100] text-[10px] text-white/30 font-mono hover:text-white/80 cursor-default select-none transition-colors">
+                        v0.121.04 DiagRender
+                    </div>        </div>
             </div >
 
-            );
-}
+        );
+    }
