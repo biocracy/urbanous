@@ -3461,7 +3461,6 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                         </div>
                     )
                 }
-            </div>
 
                 {/* Support / Donation Button */ }
         <a
