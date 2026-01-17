@@ -2225,8 +2225,8 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             pointColor={getPointColor} // Memoized
             pointRadius={getRadius}
             pointAltitude={0.005}
-            // MEMORY OPTIMIZATION: Reduce from 32 down to 7 (Low Poly)
-            pointResolution={7}
+            // MEMORY OPTIMIZATION: Reduce from 32 down to 5 (Low Poly)
+            pointResolution={5}
             onPointHover={handleCursorPointer}
             onPointClick={handleMapClick} // Memoized
             pointLabel={getTooltip} // Memoized
@@ -2248,6 +2248,8 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             ringColor={getRingColor}
             ringPropagationSpeed={2}
             ringRepeatPeriod={1000}
+            // MEMORY OPTIMIZATION: Reduce from 64 to 16
+            ringResolution={16}
 
             // Paths
             pathsData={processedData.links}
@@ -2259,6 +2261,9 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             pathDashLength={0.1}
             pathDashGap={0.05}
             pathDashAnimateTime={2000}
+            // MEMORY OPTIMIZATION: Use 2 radial segments (flat tube)
+            pathResolution={2}
+        />
         />
     );
 
@@ -3543,7 +3548,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
             {/* Version Indicator */}
             <div className="absolute bottom-2 right-2 z-[100] text-[10px] text-white/30 font-mono hover:text-white/80 cursor-default select-none transition-colors">
-                v0.121.01 Stable
+                v0.121.02 LowPoly
             </div>
         </div >
 
