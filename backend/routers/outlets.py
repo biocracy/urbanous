@@ -201,55 +201,42 @@ async def gemini_discover_city_outlets(city: str, country: str, lat: float, lng:
     print(f"DEBUG: Starting Gemini Discovery for {city}, {country}")
     # Update to newer stable model
     model = genai.GenerativeModel('gemini-1.5-flash')
+    # try: removed to allow bubbling up to trace_log
+    response = await model.generate_content_async(prompt, generation_config={"max_output_tokens": 4000})
+    text = response.text.strip()
+    
+    # Robust JSON finding using Regex
+    import re
+    match = re.search(r'\[.*\]', text, re.DOTALL)
+    if match:
+        text = match.group(0)
+    else:
+        # If no JSON found, this IS an error worth seeing in trace
+        raise ValueError(f"No JSON block found in Gemini response. Text: {text[:100]}...")
+    
     try:
-        response = await model.generate_content_async(prompt, generation_config={"max_output_tokens": 4000})
-        text = response.text.strip()
-        print(f"DEBUG: Gemini response received. Length: {len(text)}")
-        
-        # Robust JSON finding using Regex
-        import re
-        match = re.search(r'\[.*\]', text, re.DOTALL)
-        if match:
-            text = match.group(0)
-            print("DEBUG: JSON block found.")
-        else:
-            print(f"DEBUG: No JSON block found in response: {text[:100]}...")
-            return []
-        
-        try:
-            data = json.loads(text)
-            print(f"DEBUG: JSON parsed successfully. {len(data)} items.")
-        except json.JSONDecodeError as e:
-            print(f"DEBUG: JSON Parsed Error: {e}")
-            # Try to fix common trailing comma issues or markdown
-            return []
-        
-        def safe_int(val):
-            try: return int(val)
-            except: return 5
+        data = json.loads(text)
+    except json.JSONDecodeError as e:
+         # Propagate this too
+         raise ValueError(f"JSON Decode Error: {e} | Text: {text[:50]}...")
+    
+    def safe_int(val):
+        try: return int(val)
+        except: return 5
 
-        outlets = [OutletCreate(
-            name=d['name'], 
-            city=city, 
-            country_code=d.get('country_code', 'XX'),
-            url=d.get('url'),
-            type=d.get('type', 'Online'),
-            popularity=safe_int(d.get('popularity', 5)),
-            focus=d.get('focus', 'Local'),
-            lat=lat,
-            lng=lng
-        ) for d in data]
-        print(f"DEBUG: Processed {len(outlets)} outlets.")
-        return outlets
-    except Exception as e:
-        print(f"DEBUG: Gemini Discovery Critical Error for {city}: {e}")
-        import traceback
-        traceback.print_exc()
-        return []
-        # Log raw text for debugging if available
-        try: print(f"Raw Response: {response.text}") 
-        except: pass
-        return []
+    outlets = [OutletCreate(
+        name=d['name'], 
+        city=city, 
+        country_code=d.get('country_code', 'XX'),
+        url=d.get('url'),
+        type=d.get('type', 'Online'),
+        popularity=safe_int(d.get('popularity', 5)),
+        focus=d.get('focus', 'Local'),
+        lat=lat,
+        lng=lng
+    ) for d in data]
+    
+    return outlets
 
 async def gemini_scrape_outlets(html_content: str, city: str, country: str, lat: float, lng: float, api_key: str, instructions: str = None) -> List[OutletCreate]:
     if not api_key: return []
