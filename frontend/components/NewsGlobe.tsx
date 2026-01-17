@@ -3552,34 +3552,10 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                     )
                 }
 
-
-/*
-    // MEMORY PROBE
-    useEffect(() => {
-        const interval = setInterval(() => {
-            if (globeEl.current) {
-                // Try to access renderer info if available directly or via scene
-                // Three-Globe exposes 'renderer()' in some versions, or we check internal
-                const renderer = globeEl.current.renderer ? globeEl.current.renderer() : null;
-                if (renderer && renderer.info) {
-                    console.log("[NewsGlobe] WebGL Memory:", {
-                        geometries: renderer.info.memory.geometries,
-                        textures: renderer.info.memory.textures
-                    });
-                }
-            }
-        }, 5000);
-        return () => clearInterval(interval);
-    }, []);
-                */
-
-                return (
-                <div className="relative w-full h-full bg-slate-950">
-                    {/* ... controls ... */}
-
-                    {/* Version Indicator */}
-                    <div className="absolute bottom-2 right-2 z-[100] text-[10px] text-white/30 font-mono hover:text-white/80 cursor-default select-none transition-colors">
-                        v0.121.05 KeyReset
-                    </div>
-                </div >
-    );}
+                {/* Version Indicator */}
+                <div className="absolute bottom-2 right-2 z-[100] text-[10px] text-white/30 font-mono hover:text-white/80 cursor-default select-none transition-colors">
+                    v0.121.05 KeyReset
+                </div>
+            </div>
+        );
+    };
