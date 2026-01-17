@@ -308,60 +308,80 @@ async def test_crash():
         import google.generativeai as genai
         model = genai.GenerativeModel('gemini-1.5-flash')
         return {"status": "Gemini Alive", "model": str(model)}
-    except Exception as e:
-        return {"status": "Gemini Dead", "error": str(e)}
-
 @router.get("/outlets/discover_city_debug")
-async def discover_city_debug(city: str, country: str, lat: float, lng: float, db: Session = Depends(get_db)):
-    """GET version of discovery to bypass POST/CORS issues."""
-    from fastapi import Request
-    # Mock a request object
-    class MockReq:
-        pass
-    req = MockReq()
-    req.json = lambda: {"city": city, "country": country, "lat": lat, "lng": lng}
-    req.body = lambda: b"{}"
+async def discover_city_debug(raw_req: Request, city: str, country: str, lat: float, lng: float, db: Session = Depends(get_db)):
+    """GET version of discovery with MANUAL AUTH to prevent crashes."""
     
-    # Init manual req object
-    manual_req = MockReq()
-    manual_req.city = city
-    manual_req.country = country
-    manual_req.lat = lat
-    manual_req.lng = lng
-    manual_req.force_refresh = False
+    # 0. Manual Auth Retrieval
+    current_user = None
+    auth_header = raw_req.headers.get("Authorization")
+    auth_error = None
     
-    # Call internal logic (duplicated essentially or refactored)
-    # For speed, I'll copy the core logic here or refactor. 
-    # Let's just create a new minimal flow for debugging.
-    
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1]
+        try:
+            from jose import jwt
+            from security import SECRET_KEY, ALGORITHM
+            from models import User
+            from sqlalchemy import select
+            
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            email: str = payload.get("sub")
+            if email:
+                result = await db.execute(select(User).where(User.email == email))
+                current_user = result.scalars().first()
+        except Exception as ae:
+            auth_error = str(ae)
+
     # 1. Env Check
     try:
         from dotenv import load_dotenv
         load_dotenv(override=True)
     except: pass
     
-    api_key = os.getenv("GEMINI_API_KEY")
+    # Prioritize USER key, then ENV key
+    api_key = None
+    if current_user and current_user.gemini_api_key:
+        api_key = current_user.gemini_api_key
+    else:
+        api_key = os.getenv("GEMINI_API_KEY")
+
     if not api_key:
-         return [NewsOutlet(id=999998, name="⚠️ ERROR: Missing API Key", country_code="XX", type="Error", focus="Env Missing")]
+         return [NewsOutlet(id=999998, name="⚠️ ERROR: Missing API Key", country_code="XX", type="Error", focus=f"Auth: {auth_error or 'No User'}. Env: Missing.")]
 
     try:
         discovered = await gemini_discover_city_outlets(city, country, lat, lng, api_key=api_key)
         
-        # Save logic skipped for debug, just return
-        return [OutletCreate(
-            name=d.name, 
-            city=d.city, 
-            country_code=d.country_code,
-            url=d.url, 
-            type=d.type,
-            popularity=d.popularity,
-            focus=d.focus,
-            lat=d.lat,
-            lng=d.lng
-        ) for d in discovered]
+        saved_outlets = []
+        result = await db.execute(select(NewsOutlet).where(NewsOutlet.city.ilike(city)))
+        current_db_outlets = result.scalars().all()
+        current_names = {o.name.lower() for o in current_db_outlets}
+        
+        for disc in discovered:
+             if disc.name.lower() in current_names: continue
+             db_outlet = NewsOutlet(
+                name=disc.name,
+                country_code=disc.country_code, 
+                city=disc.city,
+                lat=disc.lat,
+                lng=disc.lng,
+                url=disc.url,
+                type=disc.type,
+                popularity=disc.popularity,
+                focus=disc.focus 
+            )
+             db.add(db_outlet)
+             saved_outlets.append(db_outlet)
+        
+        if saved_outlets:
+            await db.commit()
+
+        # Return updated list
+        result = await db.execute(select(NewsOutlet).where(NewsOutlet.city.ilike(city)))
+        return result.scalars().all()
         
     except Exception as e:
-         return [NewsOutlet(id=999999, name="⚠️ ERROR: GET Crash", country_code="XX", type="Error", focus=str(e))]
+         return [NewsOutlet(id=999999, name="⚠️ ERROR: Debug Crash", country_code="XX", type="Error", focus=str(e))]
 
 @router.post("/outlets/discover_city")
 async def discover_city_outlets(raw_req: Request, db: Session = Depends(get_db)):
