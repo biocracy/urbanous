@@ -19,13 +19,23 @@ async function getDigest(slug: string) {
         : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000');
 
     console.log(`[Metadata] Fetching digest: ${slug} from ${baseUrl}`);
+    console.log(`[Metadata] Fetching digest: ${slug} from ${baseUrl}`);
     try {
-        const res = await fetch(`${baseUrl}/digests/public/${slug}`, { cache: 'no-store' });
-        if (!res.ok) return null;
+        const res = await fetch(`${baseUrl}/digests/public/${slug}`, {
+            cache: 'no-store',
+            headers: {
+                'User-Agent': 'Urbanous-Metadata-Fetcher/1.0',
+                'Accept': 'application/json'
+            }
+        });
+        if (!res.ok) {
+            console.error(`Metadata fetch failed: ${res.status} ${res.statusText}`);
+            return { error: `HTTP ${res.status}` };
+        }
         return res.json();
-    } catch (error) {
+    } catch (error: any) {
         console.error("Metadata fetch failed", error);
-        return null;
+        return { error: error.message || 'Unknown Error' };
     }
 }
 
@@ -36,10 +46,10 @@ export async function generateMetadata(
     const slug = params.slug;
     const digest = await getDigest(slug);
 
-    if (!digest) {
+    if (!digest || digest.error) {
         return {
-            title: 'Digest Not Found | Urbanous',
-            description: 'The requested news digest could not be found.'
+            title: `Error: ${digest?.error || 'No Data'} | Urbanous`,
+            description: `Could not fetch digest from server. Check URL.`
         };
     }
 
