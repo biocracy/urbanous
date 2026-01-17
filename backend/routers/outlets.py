@@ -301,6 +301,16 @@ from dependencies import get_current_user, get_current_user_optional
 
 from fastapi import Request
 
+@router.get("/outlets/test_crash")
+async def test_crash():
+    """Test if Gemini Library is killling the server"""
+    try:
+        import google.generativeai as genai
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        return {"status": "Gemini Alive", "model": str(model)}
+    except Exception as e:
+        return {"status": "Gemini Dead", "error": str(e)}
+
 @router.get("/outlets/discover_city_debug", response_model=List[OutletRead])
 async def discover_city_debug(city: str, country: str, lat: float, lng: float, db: Session = Depends(get_db)):
     """GET version of discovery to bypass POST/CORS issues."""
