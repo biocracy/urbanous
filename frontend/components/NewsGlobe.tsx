@@ -1616,12 +1616,19 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                 let imgUrl = GENERIC_CITY_ICON;
                 let type = 'dot';
 
-                if (isCapital || containsCapital) { // Force Red if it IS or CONTAINS a capital
+                // 1. Determine Type & Color Logic
+                if (isCapital || containsCapital) {
+                    // Rule: Capital or Cluster containing Capital = Red
                     imgUrl = "/icons/capital_dot.png";
                     type = 'capital';
                 } else if (effectiveIsCluster) {
+                    // Rule: Expandable Cluster (no capital) = Cyan
                     imgUrl = "/icons/cluster_dot.png";
                     type = 'cluster';
+                } else {
+                    // Rule: Single City or Expanded Point = Blue (default 'dot')
+                    type = 'dot';
+                    imgUrl = GENERIC_CITY_ICON;
                 }
 
                 return {
