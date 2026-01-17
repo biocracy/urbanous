@@ -2442,7 +2442,11 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                                         {isSaving ? 'Saving...' : '💾 Save Report'}
                                     </button>
                                     <button
-                                        onClick={() => setDigestData(null)}
+                                        onClick={() => {
+                                            if (confirm("Close report? Unsaved progress will be lost.")) {
+                                                setDigestData(null);
+                                            }
+                                        }}
                                         className="text-slate-400 hover:text-white hover:bg-slate-800 p-2 rounded-full transition-colors"
                                     >
                                         <X size={24} />
@@ -3534,7 +3538,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
             {/* Version Indicator */}
             <div className="absolute bottom-2 right-2 z-[100] text-[10px] text-white/30 font-mono hover:text-white/80 cursor-default select-none transition-colors">
-                v0.120.67 Fix AutoSelect Persistence
+                v0.120.68 Translation & Safety
             </div>
         </div >
 

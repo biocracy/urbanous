@@ -3310,8 +3310,8 @@ async def generate_digest(req: DigestRequest, current_user: User = Depends(get_c
             for art in filtered_articles:
                 by_source[art.source].append(art)
                 
-            # Take Top 100 from each
-            LIMIT_PER_SOURCE = 100
+            # Take Top 200 from each (Increased from 100 for better coverage)
+            LIMIT_PER_SOURCE = 200
             for source, arts in by_source.items():
                 # Assumes arts are already sorted by Date (which they are)
                 articles_to_translate.extend(arts[:LIMIT_PER_SOURCE])
