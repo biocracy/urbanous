@@ -1442,6 +1442,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
     // 2. Generate Render Objects based on Expanded State (Fast)
     useEffect(() => {
+        // console.log("[NewsGlobe] Generating Processed Data", { expId: expandedCluster?.id });
         const renderPoints: any[] = [];
         const renderRings: any[] = [];
         const renderLinks: any[] = [];
@@ -1455,10 +1456,10 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                     const isMatch = (c.id && c.id == expandedCluster.id) || (c.name && c.name === expandedCluster.name);
 
                     if (isMatch) {
-                        console.log("Expanding matched cluster:", c.name);
+                        // console.log("Expanding matched cluster:", c.name);
                         const items = [c, ...c.subPoints];
-                        const count = items.length;
-                        const goldenAngle = Math.PI * (3 - Math.sqrt(5));
+                        // const count = items.length; // Removed, not used
+                        // const goldenAngle = Math.PI * (3 - Math.sqrt(5)); // Removed, not used
                         const spreadFactor = clusterThreshold * 0.5;
 
                         // 1. Prepare Items with Parsed Coordinates
@@ -1470,11 +1471,9 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                         }));
 
                         // 2. Iterative Relaxation (Force-Directed Packing)
-                        // Instead of a single global scalar, we simulate "pushing" overlapping circles apart.
-
                         const ITERATIONS = 50; // increased for dense clusters (e.g. Tokyo)
                         const padding = 0.035; // increased clearance
-                        console.log("Using Force Packing for Cluster:", c.name);
+                        // console.log("Force Packing:", c.name);
 
                         // Clone for simulation
                         const simItems = preparedItems.map((p: any) => ({
@@ -1528,7 +1527,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                         }
 
                         simItems.forEach((item: any, idx: number) => {
-                            const isCenter = idx === 0;
+                            // const isCenter = idx === 0; // Removed, not used directly in this block
                             const exLat = item.y;
                             const exLng = item.x;
 
@@ -1547,13 +1546,15 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                                 isSpider: true
                             });
 
-                            if (!isCenter) {
+                            // Add spider legs
+                            if (idx !== 0) { // Don't link center to itself
                                 renderLinks.push({
-                                    startLat: parseFloat(c.lat),
-                                    startLng: parseFloat(c.lng || c.lon),
+                                    type: 'spider',
+                                    startLat: c.lat ? parseFloat(c.lat) : 0,
+                                    startLng: c.lon ? parseFloat(c.lon) : 0,
                                     endLat: exLat,
                                     endLng: exLng,
-                                    color: 'rgba(255,255,255,0.3)'
+                                    color: 'rgba(255,255,255,0.2)'
                                 });
                             }
                         });
@@ -3535,7 +3536,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
             {/* Version Indicator */}
             <div className="absolute bottom-2 right-2 z-[100] text-[10px] text-white/30 font-mono hover:text-white/80 cursor-default select-none transition-colors">
-                v0.120.97 Stable
+                v0.120.98 Stable
             </div>
         </div >
 
