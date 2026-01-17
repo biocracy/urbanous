@@ -317,17 +317,32 @@ async def discover_city_outlets(req: CityDiscoveryRequest, current_user: Optiona
     # Auto-Discover
     print(f"Discovering outlets for city: {req.city}, {req.country} (Force: {req.force_refresh})")
     
-    # HOTFIX: Force reload env to ensure key is present
-    from dotenv import load_dotenv
-    load_dotenv(override=True)
+    # 1. Try to load .env safely
+    try:
+        from dotenv import load_dotenv
+        load_dotenv(override=True)
+    except ImportError:
+        print("DEBUG: python-dotenv not installed.")
+    except Exception as e:
+        print(f"DEBUG: load_dotenv failed: {e}")
 
     api_key = current_user.gemini_api_key if current_user and current_user.gemini_api_key else os.getenv("GEMINI_API_KEY")
     
+    # 2. Visual Error Reporting (Bypass CORS/Console)
     if not api_key:
-        print("DEBUG: No API key (User empty and Env empty), skipping AI discovery.")
-        if existing: return existing
-        raise HTTPException(status_code=500, detail="Server Error: GEMINI_API_KEY missing in environment.")
-        return []
+        print("DEBUG: No API key.")
+        return [
+            NewsOutlet(
+                id=999999,
+                name="⚠️ ERROR: Backend Message",
+                country_code="RO",  # Valid code to prevent crash
+                city=req.city,
+                url="https://railway.app",
+                type="Error",
+                popularity=10,
+                focus=f"MISSING GEMINI_API_KEY in Env. user={current_user.email if current_user else 'None'}"
+            )
+        ]
 
     try:
         discovered = await gemini_discover_city_outlets(req.city, req.country, req.lat, req.lng, api_key=api_key)
