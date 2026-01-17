@@ -2258,12 +2258,8 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             pathPointLat={getPathPointLat}
             pathPointLng={getPathPointLng}
             pathColor={getPathColor}
-            pathDashLength={0.1}
-            pathDashGap={0.05}
-            pathDashAnimateTime={2000}
             // MEMORY OPTIMIZATION: Use 2 radial segments (flat tube)
             pathResolution={2}
-        />
         />
     );
 
