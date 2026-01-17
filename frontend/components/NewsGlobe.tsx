@@ -3461,101 +3461,102 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                         </div>
                     )
                 }
+            </div>
 
-                {/* Support / Donation Button */}
-                <a
-                    href="https://buymeacoffee.com/urbanous"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    title="Support OpenNews"
-                    className="absolute top-4 right-16 z-20 p-2 rounded-lg bg-yellow-500/90 text-white shadow-lg shadow-yellow-500/20 hover:bg-yellow-400 hover:scale-110 transition-all flex items-center gap-2 font-bold text-sm"
-                >
-                    <Coffee className="w-5 h-5" />
-                    <span className="hidden group-hover:block whitespace-nowrap">Support Us</span>
-                </a>
+                {/* Support / Donation Button */ }
+        <a
+            href="https://buymeacoffee.com/urbanous"
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Support OpenNews"
+            className="absolute top-4 right-16 z-20 p-2 rounded-lg bg-yellow-500/90 text-white shadow-lg shadow-yellow-500/20 hover:bg-yellow-400 hover:scale-110 transition-all flex items-center gap-2 font-bold text-sm"
+        >
+            <Coffee className="w-5 h-5" />
+            <span className="hidden group-hover:block whitespace-nowrap">Support Us</span>
+        </a>
 
-                {/* Spotlight Search Overlay */}
-                {
-                    isSpotlightOpen && (
-                        <div className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 transition-opacity" onClick={() => setIsSpotlightOpen(false)}>
-                            <div className="w-full max-w-lg bg-slate-900 border border-slate-700 rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200" onClick={e => e.stopPropagation()}>
-                                <div className="p-4 border-b border-slate-800 flex items-center gap-3">
-                                    <Search className="w-5 h-5 text-slate-400" />
-                                    <input
-                                        autoFocus
-                                        className="flex-1 bg-transparent border-none outline-none text-white placeholder-slate-500 text-lg"
-                                        placeholder="Search City..."
-                                        value={spotlightQuery}
-                                        onChange={e => {
-                                            setSpotlightQuery(e.target.value);
+        {/* Spotlight Search Overlay */ }
+        {
+            isSpotlightOpen && (
+                <div className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 transition-opacity" onClick={() => setIsSpotlightOpen(false)}>
+                    <div className="w-full max-w-lg bg-slate-900 border border-slate-700 rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200" onClick={e => e.stopPropagation()}>
+                        <div className="p-4 border-b border-slate-800 flex items-center gap-3">
+                            <Search className="w-5 h-5 text-slate-400" />
+                            <input
+                                autoFocus
+                                className="flex-1 bg-transparent border-none outline-none text-white placeholder-slate-500 text-lg"
+                                placeholder="Search City..."
+                                value={spotlightQuery}
+                                onChange={e => {
+                                    setSpotlightQuery(e.target.value);
+                                    setSpotlightSelectedIndex(0);
+                                }}
+                                onKeyDown={e => {
+                                    const candidates = cities
+                                        .filter(c => c.name.toLowerCase().includes(spotlightQuery.toLowerCase()))
+                                        .slice(0, 8);
+
+                                    if (e.key === 'ArrowDown') {
+                                        e.preventDefault();
+                                        setSpotlightSelectedIndex(prev => (prev + 1) % candidates.length);
+                                    } else if (e.key === 'ArrowUp') {
+                                        e.preventDefault();
+                                        setSpotlightSelectedIndex(prev => (prev - 1 + candidates.length) % candidates.length);
+                                    } else if (e.key === 'Enter') {
+                                        e.preventDefault();
+                                        const match = candidates[spotlightSelectedIndex];
+                                        if (match) {
+                                            handleSearchSelect(match);
+                                            setIsSpotlightOpen(false);
+                                            setSpotlightQuery('');
                                             setSpotlightSelectedIndex(0);
-                                        }}
-                                        onKeyDown={e => {
-                                            const candidates = cities
-                                                .filter(c => c.name.toLowerCase().includes(spotlightQuery.toLowerCase()))
-                                                .slice(0, 8);
-
-                                            if (e.key === 'ArrowDown') {
-                                                e.preventDefault();
-                                                setSpotlightSelectedIndex(prev => (prev + 1) % candidates.length);
-                                            } else if (e.key === 'ArrowUp') {
-                                                e.preventDefault();
-                                                setSpotlightSelectedIndex(prev => (prev - 1 + candidates.length) % candidates.length);
-                                            } else if (e.key === 'Enter') {
-                                                e.preventDefault();
-                                                const match = candidates[spotlightSelectedIndex];
-                                                if (match) {
-                                                    handleSearchSelect(match);
-                                                    setIsSpotlightOpen(false);
-                                                    setSpotlightQuery('');
-                                                    setSpotlightSelectedIndex(0);
-                                                }
-                                            }
-                                        }}
-                                    />
-                                    <div className="flex gap-2">
-                                        <span className="text-[10px] bg-slate-800 px-1.5 py-0.5 rounded text-slate-400">ESC</span>
-                                    </div>
-                                </div>
-                                {spotlightQuery && (
-                                    <div className="max-h-[300px] overflow-y-auto">
-                                        {cities
-                                            .filter(c => c.name.toLowerCase().includes(spotlightQuery.toLowerCase()))
-                                            .slice(0, 8)
-                                            .map((city: any, idx: number) => (
-                                                <button
-                                                    key={city.id || city.name}
-                                                    className={`w-full text-left px-4 py-3 flex items-center justify-between group transition-colors ${idx === spotlightSelectedIndex ? 'bg-slate-800 border-l-2 border-blue-500' : 'hover:bg-slate-800/50 border-l-2 border-transparent'}`}
-                                                    onClick={() => {
-                                                        handleSearchSelect(city);
-                                                        setIsSpotlightOpen(false);
-                                                        setSpotlightQuery('');
-                                                    }}
-                                                    onMouseEnter={() => setSpotlightSelectedIndex(idx)}
-                                                >
-                                                    <span className={`font-medium ${idx === spotlightSelectedIndex ? 'text-white' : 'text-slate-200 group-hover:text-white'}`}>{city.name}</span>
-                                                    <span className="text-xs text-slate-500 uppercase">{city.country_code}</span>
-                                                </button>
-                                            ))}
-                                        {cities.filter(c => c.name.toLowerCase().includes(spotlightQuery.toLowerCase())).length === 0 && (
-                                            <div className="p-4 text-center text-slate-500 italic">No cities found</div>
-                                        )}
-                                    </div>
-                                )}
-                                {!spotlightQuery && (
-                                    <div className="p-8 text-center text-slate-600 text-sm">
-                                        Type to fly to a city...
-                                    </div>
-                                )}
+                                        }
+                                    }
+                                }}
+                            />
+                            <div className="flex gap-2">
+                                <span className="text-[10px] bg-slate-800 px-1.5 py-0.5 rounded text-slate-400">ESC</span>
                             </div>
                         </div>
-                    )
-                }
-
-                {/* Version Indicator */}
-                <div className="absolute bottom-2 right-2 z-[100] text-[10px] text-white/30 font-mono hover:text-white/80 cursor-default select-none transition-colors">
-                    v0.121.05 KeyReset
+                        {spotlightQuery && (
+                            <div className="max-h-[300px] overflow-y-auto">
+                                {cities
+                                    .filter(c => c.name.toLowerCase().includes(spotlightQuery.toLowerCase()))
+                                    .slice(0, 8)
+                                    .map((city: any, idx: number) => (
+                                        <button
+                                            key={city.id || city.name}
+                                            className={`w-full text-left px-4 py-3 flex items-center justify-between group transition-colors ${idx === spotlightSelectedIndex ? 'bg-slate-800 border-l-2 border-blue-500' : 'hover:bg-slate-800/50 border-l-2 border-transparent'}`}
+                                            onClick={() => {
+                                                handleSearchSelect(city);
+                                                setIsSpotlightOpen(false);
+                                                setSpotlightQuery('');
+                                            }}
+                                            onMouseEnter={() => setSpotlightSelectedIndex(idx)}
+                                        >
+                                            <span className={`font-medium ${idx === spotlightSelectedIndex ? 'text-white' : 'text-slate-200 group-hover:text-white'}`}>{city.name}</span>
+                                            <span className="text-xs text-slate-500 uppercase">{city.country_code}</span>
+                                        </button>
+                                    ))}
+                                {cities.filter(c => c.name.toLowerCase().includes(spotlightQuery.toLowerCase())).length === 0 && (
+                                    <div className="p-4 text-center text-slate-500 italic">No cities found</div>
+                                )}
+                            </div>
+                        )}
+                        {!spotlightQuery && (
+                            <div className="p-8 text-center text-slate-600 text-sm">
+                                Type to fly to a city...
+                            </div>
+                        )}
+                    </div>
                 </div>
-            </div>
+            )
+        }
+
+        {/* Version Indicator */ }
+        <div className="absolute bottom-2 right-2 z-[100] text-[10px] text-white/30 font-mono hover:text-white/80 cursor-default select-none transition-colors">
+            v0.121.05 KeyReset
+        </div>
+            </div >
         );
-    }
+}
