@@ -301,7 +301,7 @@ from dependencies import get_current_user, get_current_user_optional
 
 from fastapi import Request
 @router.post("/outlets/discover_city", response_model=List[OutletRead])
-async def discover_city_outlets(raw_req: Request, current_user: Optional[User] = Depends(get_current_user_optional), db: Session = Depends(get_db)):
+async def discover_city_outlets(raw_req: Request, db: Session = Depends(get_db)):
     """
     Finds outlets for a specific city.
     Checks DB first. If not found OR force_refresh is True, uses AI to discover.
@@ -345,7 +345,7 @@ async def discover_city_outlets(raw_req: Request, current_user: Optional[User] =
             load_dotenv(override=True)
         except: pass
     
-        api_key = current_user.gemini_api_key if current_user and current_user.gemini_api_key else os.getenv("GEMINI_API_KEY")
+        api_key = os.getenv("GEMINI_API_KEY")
         
         # 2. Visual Error Reporting (Bypass CORS/Console)
         if not api_key:
