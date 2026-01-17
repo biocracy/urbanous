@@ -196,10 +196,7 @@ async def update_user_settings(settings: UserSettingsUpdate, current_user: User 
         await db.commit()
         return {"status": "Updated Settings"}
     raise HTTPException(status_code=404, detail="User not found")
-            
-        await db.commit()
-        return {"status": "Updated Settings"}
-    raise HTTPException(status_code=404, detail="User not found")
+
 
 # Backward compatibility alias (Optional, but safer for split-second deployment)
 @router.put("/users/me/api-key")
