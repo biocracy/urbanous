@@ -2225,8 +2225,8 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             pointColor={getPointColor} // Memoized
             pointRadius={getRadius}
             pointAltitude={0.005}
-            // MEMORY OPTIMIZATION: Reduce from 32 down to 5 (Low Poly)
-            pointResolution={5}
+            // VISUAL BALANCE: 12 is decent looking, 32 is overkill.
+            pointResolution={12}
             onPointHover={handleCursorPointer}
             onPointClick={handleMapClick} // Memoized
             pointLabel={getTooltip} // Memoized
@@ -2248,12 +2248,11 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             ringColor={getRingColor}
             ringPropagationSpeed={2}
             ringRepeatPeriod={1000}
-            // MEMORY OPTIMIZATION: Reduce from 64 to 16
-            ringResolution={16}
+            // VISUAL BALANCE: 32 is smooth enough
+            ringResolution={32}
 
             // Paths
             pathsData={processedData.links}
-            // @ts-ignore
             pathPoints={getPathPoints}
             pathPointLat={getPathPointLat}
             pathPointLng={getPathPointLng}
@@ -3542,11 +3541,33 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             }
 
 
-            {/* Version Indicator */}
-            <div className="absolute bottom-2 right-2 z-[100] text-[10px] text-white/30 font-mono hover:text-white/80 cursor-default select-none transition-colors">
-                v0.121.02 LowPoly
-            </div>
-        </div >
+    // MEMORY PROBE
+    useEffect(() => {
+        const interval = setInterval(() => {
+            if (globeEl.current) {
+                // Try to access renderer info if available directly or via scene
+                // Three-Globe exposes 'renderer()' in some versions, or we check internal
+                const renderer = globeEl.current.renderer ? globeEl.current.renderer() : null;
+            if (renderer && renderer.info) {
+                console.log("[NewsGlobe] WebGL Memory:", {
+                    geometries: renderer.info.memory.geometries,
+                    textures: renderer.info.memory.textures
+                });
+                }
+            }
+        }, 5000);
+        return () => clearInterval(interval);
+    }, []);
 
-    );
+            return (
+            <div className="relative w-full h-full bg-slate-950">
+                {/* ... controls ... */}
+
+                {/* Version Indicator */}
+                <div className="absolute bottom-2 right-2 z-[100] text-[10px] text-white/30 font-mono hover:text-white/80 cursor-default select-none transition-colors">
+                    v0.121.03 DebugMem
+                </div>
+            </div >
+
+            );
 }
