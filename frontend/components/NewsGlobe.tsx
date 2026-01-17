@@ -1621,6 +1621,9 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                 // Override isCluster for spider/expanded points
                 const effectiveIsCluster = p.isSpider ? false : p.isCluster;
 
+                let imgUrl = GENERIC_CITY_ICON;
+                let type = 'dot';
+
                 if (isCapital) {
                     imgUrl = "/icons/capital_dot.png";
                     type = 'capital';
