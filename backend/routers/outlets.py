@@ -317,11 +317,16 @@ async def discover_city_outlets(req: CityDiscoveryRequest, current_user: Optiona
     # Auto-Discover
     print(f"Discovering outlets for city: {req.city}, {req.country} (Force: {req.force_refresh})")
     
+    # HOTFIX: Force reload env to ensure key is present
+    from dotenv import load_dotenv
+    load_dotenv(override=True)
+
     api_key = current_user.gemini_api_key if current_user and current_user.gemini_api_key else os.getenv("GEMINI_API_KEY")
     
     if not api_key:
         print("DEBUG: No API key (User empty and Env empty), skipping AI discovery.")
         if existing: return existing
+        raise HTTPException(status_code=500, detail="Server Error: GEMINI_API_KEY missing in environment.")
         return []
 
     try:

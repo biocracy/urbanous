@@ -1670,12 +1670,10 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                 }
             })
             .catch(err => {
-                if (err.response?.status === 429) {
-                    setQuotaError(true);
-                    setErrorMessage("Quota Exceeded");
-                } else {
-                    console.error("Discovery failed", err);
-                }
+                const msg = err.response?.data?.detail || err.message || "Discovery Failed";
+                console.error("Discovery failed", err);
+                setErrorMessage(`Error: ${msg}`);
+                if (err.response?.status === 429) setQuotaError(true);
             })
             .finally(() => setIsDiscovering(false));
 
@@ -3538,7 +3536,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
             {/* Version Indicator */}
             <div className="absolute bottom-2 right-2 z-[100] text-[10px] text-white/30 font-mono hover:text-white/80 cursor-default select-none transition-colors">
-                v0.120.74 Fix: Canberra Discovery
+                v0.120.76 Debug: Synced
             </div>
         </div >
 
