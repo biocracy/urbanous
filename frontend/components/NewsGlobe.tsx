@@ -1615,15 +1615,32 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             });
 
             // 2D SPRITE GENERATION
+            // 2D SPRITE GENERATION
             const spriteData = renderPoints.map(p => {
-                const isIcon = CITY_ICONS[p.name];
+                const isCapital = CITY_ICONS[p.name];
+                const isCluster = p.isCluster;
+
+                let imgUrl = GENERIC_CITY_ICON;
+                let type = 'dot';
+
+                if (isCapital) {
+                    // Use the red capital dot (ignoring the specific URL in CITY_ICONS for now to unify style, or update CITY_ICONS later)
+                    // Actually, let's assume CITY_ICONS keys are capitals.
+                    imgUrl = "/icons/capital_dot.png";
+                    type = 'capital';
+                } else if (isCluster) {
+                    imgUrl = "/icons/cluster_dot.png";
+                    type = 'cluster';
+                }
+
                 return {
+                    ...p, // Spread original properties (isCluster, subPoints, id, etc.) so click handlers work
                     lat: p.lat || p.pLat,
                     lng: p.lon || p.lng || p.pLng,
                     name: p.name,
-                    type: isIcon ? 'icon' : 'dot',
-                    imgUrl: isIcon || GENERIC_CITY_ICON,
-                    size: isIcon ? 1.5 : 0.8,
+                    type: type,
+                    imgUrl: imgUrl,
+                    size: isCapital ? 1.5 : (isCluster ? 1.2 : 0.8),
                     data: p
                 };
             });
@@ -2290,7 +2307,10 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             labelIncludeDot={false}
 
             // 2D Sprite Layer
+            // 2D Sprite Layer
             customLayerData={processedData.sprites}
+            // ENABLE INTERACTION:
+            onCustomLayerClick={handleMapClick}
             customThreeObject={(d: any) => {
                 // Optimization: Memoize materials outside or use a simple cache
                 // But for now, we MUST NOT create a new TextureLoader per point.
@@ -2314,14 +2334,16 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
                 const sprite = new THREE.Sprite(cache[key]);
 
-                // Adjusted Scale (Reduced from 4x to 0.5x based on user feedback)
-                const baseScale = d.type === 'icon' ? 1.5 : 0.6;
-                sprite.scale.set(baseScale * 0.8, baseScale * 0.8, 1);
+                // Adjusted Scale based on type
+                // Capital: Largest, Cluster: Medium, Dot: Small
+                const baseScale = d.type === 'capital' ? 1.5 : (d.type === 'cluster' ? 1.2 : 0.8);
+                sprite.scale.set(baseScale * 1.0, baseScale * 1.0, 1);
 
                 return sprite;
             }}
             customThreeObjectUpdate={(obj, d: any) => {
-                Object.assign(obj.position, globeEl.current?.getCoords(d.lat, d.lng, 0.02));
+                // LOWER ALTITUDE: 0.005 (closer to ground) instead of 0.02
+                Object.assign(obj.position, globeEl.current?.getCoords(d.lat, d.lng, 0.005));
             }}
 
             // Rings - DIAGNOSIS: DISABLED to check for Animation Leak
