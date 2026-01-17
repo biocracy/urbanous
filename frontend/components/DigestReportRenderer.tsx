@@ -3,6 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import { Article, DigestReportRendererProps } from './digest/types';
 import { OutletGroup } from './digest/OutletGroup';
+import { SpamConfirmModal } from './digest/SpamConfirmModal';
 
 export default function DigestReportRenderer({ articles, category, isTranslated = false, selectedUrls, onToggle, onAssess, onDebug, onReportSpam, spamUrls, excludedArticles, isLoading }: DigestReportRendererProps) {
     const [displayCount, setDisplayCount] = useState(20);
@@ -66,6 +67,32 @@ export default function DigestReportRenderer({ articles, category, isTranslated 
         setDisplayCount(prev => prev + 10);
     };
 
+    // SPAM CONFIRMATION LOGIC (Session-Based)
+    const [dontAskAgain, setDontAskAgain] = useState(false);
+    const [spamCandidate, setSpamCandidate] = useState<Article | null>(null);
+
+    const handleReportRequest = (article: Article) => {
+        // If undoing (already in spam), usually just do it
+        if (spamUrls?.has(article.url)) {
+            onReportSpam?.(article);
+            return;
+        }
+
+        if (dontAskAgain) {
+            onReportSpam?.(article);
+        } else {
+            setSpamCandidate(article);
+        }
+    };
+
+    const confirmSpam = (dontAsk: boolean) => {
+        if (dontAsk) setDontAskAgain(true);
+        if (spamCandidate) {
+            onReportSpam?.(spamCandidate);
+        }
+        setSpamCandidate(null);
+    };
+
     return (
         <div className="flex flex-col gap-8 pb-20">
             {visibleGroups.map(group => (
@@ -77,7 +104,7 @@ export default function DigestReportRenderer({ articles, category, isTranslated 
                     onToggle={onToggle}
                     onAssess={onAssess}
                     onDebug={onDebug}
-                    onReportSpam={onReportSpam}
+                    onReportSpam={handleReportRequest}
                     excludedArticles={group.excludedArticles}
                     spamArticles={group.spamArticles}
                 />
@@ -115,6 +142,13 @@ export default function DigestReportRenderer({ articles, category, isTranslated 
                     No articles found for this category.
                 </div>
             )}
+            {/* Modal */}
+            <SpamConfirmModal
+                isOpen={!!spamCandidate}
+                onClose={() => setSpamCandidate(null)}
+                onConfirm={confirmSpam}
+                articleTitle={spamCandidate?.title}
+            />
         </div>
     );
 }
