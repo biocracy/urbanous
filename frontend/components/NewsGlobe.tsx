@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import dynamic from 'next/dynamic';
-import * as d3 from 'd3';
+
 
 // Utility: Simple Debounce (avoiding lodash dependency issues)
 function debounce<F extends (...args: any[]) => any>(func: F, waitFor: number) {
