@@ -299,13 +299,35 @@ async def gemini_scrape_outlets(html_content: str, city: str, country: str, lat:
 
 from dependencies import get_current_user, get_current_user_optional
 
+from fastapi import Request
 @router.post("/outlets/discover_city", response_model=List[OutletRead])
-async def discover_city_outlets(req: CityDiscoveryRequest, current_user: Optional[User] = Depends(get_current_user_optional), db: Session = Depends(get_db)):
+async def discover_city_outlets(raw_req: Request, current_user: Optional[User] = Depends(get_current_user_optional), db: Session = Depends(get_db)):
     """
     Finds outlets for a specific city.
     Checks DB first. If not found OR force_refresh is True, uses AI to discover.
     """
     try:
+        # Manual Body Parsing to debug 422 Errors
+        body_bytes = await raw_req.body()
+        try:
+            body = await raw_req.json()
+        except:
+            return [NewsOutlet(id=999990, name="⚠️ ERROR: Invalid JSON", country_code="XX", type="Error", focus=f"Body: {body_bytes.decode()[:100]}")]
+
+        # Manual Validation
+        class ManualReq:
+            pass
+        req = ManualReq()
+        req.city = body.get('city')
+        req.country = body.get('country')
+        req.lat = body.get('lat', 0.0)
+        req.lng = body.get('lng', 0.0)
+        req.force_refresh = body.get('force_refresh', False)
+
+        if not req.city or not req.country:
+             return [NewsOutlet(id=999991, name="⚠️ ERROR: Missing Fields", country_code="XX", type="Error", focus=f"City/Country missing. Got: {body}")]
+        
+        # Proceed with logic...
         existing = []
         print(f"DEBUG: Request for {req.city}, force={req.force_refresh}")
         if not req.force_refresh:
