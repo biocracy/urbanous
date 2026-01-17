@@ -1389,9 +1389,11 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
         }
         return active;
     }, [digestData?.articles, digestData?.articles?.length, allOutlets.length, outletLookup]);
+    // console.log("[NewsGlobe] activeDigestCities Ref Change:", activeDigestCities);
 
     const clusters = useMemo(() => {
         if (!rawClusters.length) return [];
+        // console.log("[NewsGlobe] Regenerating Clusters Memo!"); 
 
         return rawClusters.map(c => {
             const isActive = activeDigestCities.has(c.name);
@@ -3536,7 +3538,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
 
             {/* Version Indicator */}
             <div className="absolute bottom-2 right-2 z-[100] text-[10px] text-white/30 font-mono hover:text-white/80 cursor-default select-none transition-colors">
-                v0.120.98 Stable
+                v0.121.00 Debug
             </div>
         </div >
 
