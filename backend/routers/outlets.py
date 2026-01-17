@@ -200,11 +200,12 @@ async def gemini_discover_city_outlets(city: str, country: str, lat: float, lng:
     
     print(f"DEBUG: Starting Gemini Discovery for {city}, {country}")
     # Multi-Model Fallback Strategy
+    # PROBE RESULT (2025-01-17): Prod has Gemini 2.0/2.5 available!
     models_to_try = [
-        'gemini-1.5-flash', 
-        'gemini-1.5-flash-latest', 
-        'gemini-1.0-pro', 
-        'gemini-pro',
+        'gemini-2.0-flash',        # Stable fast 2.0
+        'gemini-2.0-flash-exp',    # Experimental 2.0
+        'gemini-2.5-flash',        # Bleeding edge
+        'gemini-1.5-flash',        # Fallbacks
         'gemini-1.5-pro'
     ]
     last_error = None
