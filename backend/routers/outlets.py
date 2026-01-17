@@ -199,11 +199,27 @@ async def gemini_discover_city_outlets(city: str, country: str, lat: float, lng:
     """
     
     print(f"DEBUG: Starting Gemini Discovery for {city}, {country}")
-    # Update to newer stable model
-    model = genai.GenerativeModel('gemini-1.5-flash')
-    # try: removed to allow bubbling up to trace_log
-    response = await model.generate_content_async(prompt, generation_config={"max_output_tokens": 4000})
-    text = response.text.strip()
+    # Multi-Model Fallback Strategy
+    models_to_try = ['gemini-1.5-flash', 'gemini-1.5-flash-latest', 'gemini-1.5-pro', 'gemini-pro']
+    last_error = None
+    text = None
+
+    for model_name in models_to_try:
+        try:
+            print(f"DEBUG: Trying model {model_name}...")
+            # recreate model instance for each try
+            model = genai.GenerativeModel(model_name)
+            response = await model.generate_content_async(prompt, generation_config={"max_output_tokens": 4000})
+            text = response.text.strip()
+            if text: break
+        except Exception as e:
+            print(f"DEBUG: Model {model_name} failed: {e}")
+            last_error = e
+            continue
+            
+    if not text:
+        # If all failed, raise the last error to be caught by trace_log
+        raise ValueError(f"All models failed. Last error: {last_error}")
     
     # Robust JSON finding using Regex
     import re
