@@ -316,14 +316,22 @@ async def discover_city_debug(raw_req: Request, city: str, country: str, lat: fl
     
     # 1. Check DB First (unless forced)
     if not force_refresh:
-        result = await db.execute(select(NewsOutlet).where(NewsOutlet.city.ilike(city)))
-        existing = result.scalars().all()
-        if existing:
-            return existing
+        try:
+            result = await db.execute(select(NewsOutlet).where(NewsOutlet.city.ilike(city)))
+            existing = result.scalars().all()
+            if existing:
+                return existing
+            trace_log = ["DB Miss"]
+        except Exception as e:
+            trace_log = [f"DB Error: {str(e)}"]
+    else:
+        trace_log = [f"Force Refresh: {force_refresh}"]
 
     # 2. Manual Auth Retrieval (DEFENSIVE MODE)
     current_user = None
-    auth_debug_info = []
+    current_user = None
+    # Use trace_log for Auth steps too
+
     
     try:
         auth_header = raw_req.headers.get("Authorization")
@@ -342,15 +350,15 @@ async def discover_city_debug(raw_req: Request, city: str, country: str, lat: fl
                 if email:
                     result = await db.execute(select(User).where(User.email == email))
                     current_user = result.scalars().first()
-                    if not current_user: auth_debug_info.append("User DB Miss manually")
-                else: auth_debug_info.append("No email in token")
+                    if not current_user: trace_log.append("User DB Miss manually")
+                else: trace_log.append("No email in token")
             except Exception as jwt_e:
-                auth_debug_info.append(f"JWT Fail: {str(jwt_e)}")
+                trace_log.append(f"JWT Fail: {str(jwt_e)}")
         else:
-            auth_debug_info.append("No Bearer Header")
+            trace_log.append("No Bearer Header")
             
     except Exception as e:
-        auth_debug_info.append(f"General Auth Crash: {str(e)}")
+        trace_log.append(f"General Auth Crash: {str(e)}")
 
     # 3. Env/Key Check
     try:
@@ -371,38 +379,53 @@ async def discover_city_debug(raw_req: Request, city: str, country: str, lat: fl
          return [NewsOutlet(id=999998, name="⚠️ ERROR: Missing API Key", country_code="XX", type="Error", focus=error_msg[:250])]
 
     try:
-        discovered = await gemini_discover_city_outlets(city, country, lat, lng, api_key=api_key)
+        trace_log.append("Gemini: Starting...")
+        new_outlets = await gemini_discover_city_outlets(city, country, lat, lng, api_key)
+        trace_log.append(f"Gemini: Returned {len(new_outlets)} items")
         
-        saved_outlets = []
-        result = await db.execute(select(NewsOutlet).where(NewsOutlet.city.ilike(city)))
-        current_db_outlets = result.scalars().all()
-        current_names = {o.name.lower() for o in current_db_outlets}
-        
-        for disc in discovered:
-             if disc.name.lower() in current_names: continue
+        if not new_outlets:
+            error_val = f"TRACE: {'; '.join(trace_log)}"
+            return [NewsOutlet(id=999999, name="⚠️ DEBUG TRACE (Empty)", city=city, country_code="XX", type="Error", focus=error_val)]
+
+        # 5. Save to DB
+        saved_count = 0
+        for outlet in new_outlets:
              db_outlet = NewsOutlet(
-                name=disc.name,
-                country_code=disc.country_code, 
-                city=disc.city,
-                lat=disc.lat,
-                lng=disc.lng,
-                url=disc.url,
-                type=disc.type,
-                popularity=disc.popularity,
-                focus=disc.focus 
+                name=outlet.name,
+                city=outlet.city,
+                country_code=outlet.country_code,
+                url=outlet.url,
+                type=outlet.type,
+                popularity=outlet.popularity,
+                focus=outlet.focus,
+                origin="ai_auto",
+                lat=outlet.lat,
+                lng=outlet.lng,
+                created_at=datetime.utcnow()
             )
              db.add(db_outlet)
-             saved_outlets.append(db_outlet)
-        
-        if saved_outlets:
+             saved_count += 1
+            
+        if saved_count > 0:
+            trace_log.append(f"DB: Saving {saved_count} items...")
             await db.commit()
-
+            trace_log.append("DB: Commit OK")
+        
         # Return updated list
         result = await db.execute(select(NewsOutlet).where(NewsOutlet.city.ilike(city)))
-        return result.scalars().all()
+        final_list = result.scalars().all()
+        trace_log.append(f"Final: Returning {len(final_list)} items")
         
+        if not final_list:
+             error_val = f"TRACE (Save Fail?): {'; '.join(trace_log)}"
+             return [NewsOutlet(id=999997, name="⚠️ SAVE ERROR", city=city, country_code="XX", type="Error", focus=error_val)]
+             
+        return final_list
+
     except Exception as e:
-         return [NewsOutlet(id=999999, name="⚠️ ERROR: Debug Crash", country_code="XX", type="Error", focus=str(e))]
+        trace_log.append(f"Process Crash: {str(e)}")
+        error_val = f"CRASH TRACE: {'; '.join(trace_log)}"
+        return [NewsOutlet(id=999996, name="⚠️ CRASH", city=city, country_code="XX", type="Error", focus=error_val)]
 
 @router.post("/outlets/discover_city")
 async def discover_city_outlets(raw_req: Request, db: Session = Depends(get_db)):
