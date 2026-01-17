@@ -1426,7 +1426,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             const processedSubPoints = c.subPoints ? c.subPoints.map((sp: any) => ({
                 ...sp,
                 isCapital: CAPITALS[sp.country] === sp.name,
-                radius: getPopScale(sp.pop || 0) * markerScale
+                radius: getPopScale(sp.pop || 0) * currentMarkerScale
             })) : [];
 
             const hasCapitalInside = isCapital || processedSubPoints.some((sp: any) => sp.isCapital);
@@ -1506,14 +1506,14 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                         const ITERATIONS = 50;
                         // SCALE LINKED SPREAD:
                         const basePadding = 0.035;
-                        const padding = basePadding * (markerScale / 0.25); // Scale padding relative to default scale
+                        const padding = basePadding * (currentMarkerScale / 0.25); // Scale padding relative to default scale
 
                         // ... (cloning logic)
                         const simItems = preparedItems.map((p: any) => ({
                             ...p,
                             x: p.pLng,
                             y: p.pLat,
-                            r: p.pRadius * (markerScale / 0.25), // Scale radius too for collision
+                            r: p.pRadius * (currentMarkerScale / 0.25), // Scale radius too for collision
                             vx: 0,
                             vy: 0
                         }));
@@ -1584,7 +1584,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                             }
                         });
 
-                        renderRings.push({ lat: parseFloat(c.lat), lng: parseFloat(c.lng || c.lon), maxR: spreadFactor * 2.0 * (markerScale / 0.25), color: 'rgba(255,255,255,0.05)' });
+                        renderRings.push({ lat: parseFloat(c.lat), lng: parseFloat(c.lng || c.lon), maxR: spreadFactor * 2.0 * (currentMarkerScale / 0.25), color: 'rgba(255,255,255,0.05)' });
                     }
                 } else {
                     renderPoints.push({
@@ -2374,7 +2374,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
                 const hierarchyMult = d.type === 'capital' ? 1.5 : (d.type === 'cluster' ? 1.2 : 0.8);
 
                 // Final Scale = Hierarchy * UserSlider * BaseUnit
-                const finalScale = hierarchyMult * markerScale * 1.5;
+                const finalScale = hierarchyMult * currentMarkerScale * 1.5;
 
                 sprite.scale.set(finalScale, finalScale, 1);
 
