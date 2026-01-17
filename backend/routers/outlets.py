@@ -311,13 +311,20 @@ async def test_crash():
     except Exception as e:
         return {"status": "Gemini Dead", "error": str(e)}
 @router.get("/outlets/discover_city_debug")
-async def discover_city_debug(raw_req: Request, city: str, country: str, lat: float, lng: float, db: Session = Depends(get_db)):
-    """GET version of discovery with MANUAL AUTH to prevent crashes."""
+async def discover_city_debug(raw_req: Request, city: str, country: str, lat: float, lng: float, force_refresh: bool = False, db: Session = Depends(get_db)):
+    """GET version of discovery with MANUAL AUTH and DB Check."""
     
-    # 0. Manual Auth Retrieval
+    # 1. Check DB First (unless forced)
+    if not force_refresh:
+        result = await db.execute(select(NewsOutlet).where(NewsOutlet.city.ilike(city)))
+        existing = result.scalars().all()
+        if existing:
+            return existing
+
+    # 2. Manual Auth Retrieval
     current_user = None
     auth_header = raw_req.headers.get("Authorization")
-    auth_error = None
+    auth_debug_info = []
     
     if auth_header and auth_header.startswith("Bearer "):
         token = auth_header.split(" ")[1]
@@ -332,24 +339,31 @@ async def discover_city_debug(raw_req: Request, city: str, country: str, lat: fl
             if email:
                 result = await db.execute(select(User).where(User.email == email))
                 current_user = result.scalars().first()
+                if not current_user: auth_debug_info.append("User not found in DB")
+            else:
+                 auth_debug_info.append("No email in token")
         except Exception as ae:
-            auth_error = str(ae)
+            auth_debug_info.append(f"Decode Error: {str(ae)}")
+    else:
+        auth_debug_info.append(f"No Bearer Header. Headers: {list(raw_req.headers.keys())}")
 
-    # 1. Env Check
+    # 3. Env/Key Check
     try:
         from dotenv import load_dotenv
         load_dotenv(override=True)
     except: pass
     
-    # Prioritize USER key, then ENV key
     api_key = None
     if current_user and current_user.gemini_api_key:
         api_key = current_user.gemini_api_key
-    else:
+    elif os.getenv("GEMINI_API_KEY"):
         api_key = os.getenv("GEMINI_API_KEY")
+    else:
+        auth_debug_info.append("Env Key Missing")
 
     if not api_key:
-         return [NewsOutlet(id=999998, name="⚠️ ERROR: Missing API Key", country_code="XX", type="Error", focus=f"Auth: {auth_error or 'No User'}. Env: Missing.")]
+         error_msg = f"Auth Failed. Details: {'; '.join(auth_debug_info)}"
+         return [NewsOutlet(id=999998, name="⚠️ ERROR: Missing API Key", country_code="XX", type="Error", focus=error_msg[:250])]
 
     try:
         discovered = await gemini_discover_city_outlets(city, country, lat, lng, api_key=api_key)
