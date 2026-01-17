@@ -321,31 +321,36 @@ async def discover_city_debug(raw_req: Request, city: str, country: str, lat: fl
         if existing:
             return existing
 
-    # 2. Manual Auth Retrieval
+    # 2. Manual Auth Retrieval (DEFENSIVE MODE)
     current_user = None
-    auth_header = raw_req.headers.get("Authorization")
     auth_debug_info = []
     
-    if auth_header and auth_header.startswith("Bearer "):
-        token = auth_header.split(" ")[1]
-        try:
-            from jose import jwt
-            from security import SECRET_KEY, ALGORITHM
-            from models import User
-            from sqlalchemy import select
+    try:
+        auth_header = raw_req.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.split(" ")[1]
             
-            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-            email: str = payload.get("sub")
-            if email:
-                result = await db.execute(select(User).where(User.email == email))
-                current_user = result.scalars().first()
-                if not current_user: auth_debug_info.append("User not found in DB")
-            else:
-                 auth_debug_info.append("No email in token")
-        except Exception as ae:
-            auth_debug_info.append(f"Decode Error: {str(ae)}")
-    else:
-        auth_debug_info.append(f"No Bearer Header. Headers: {list(raw_req.headers.keys())}")
+            # Inner Try for JWT
+            try:
+                from jose import jwt
+                from security import SECRET_KEY, ALGORITHM
+                from models import User
+                from sqlalchemy import select
+                
+                payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+                email: str = payload.get("sub")
+                if email:
+                    result = await db.execute(select(User).where(User.email == email))
+                    current_user = result.scalars().first()
+                    if not current_user: auth_debug_info.append("User DB Miss manually")
+                else: auth_debug_info.append("No email in token")
+            except Exception as jwt_e:
+                auth_debug_info.append(f"JWT Fail: {str(jwt_e)}")
+        else:
+            auth_debug_info.append("No Bearer Header")
+            
+    except Exception as e:
+        auth_debug_info.append(f"General Auth Crash: {str(e)}")
 
     # 3. Env/Key Check
     try:
