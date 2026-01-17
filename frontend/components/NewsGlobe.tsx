@@ -1646,7 +1646,7 @@ export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
             // Fallback: render baseline
             setProcessedData({ points: [], rings: [], links: [], sprites: [] });
         }
-    }, [clusters, expandedCluster, vizMode]);
+    }, [clusters, expandedCluster, vizMode, markerScale]);
 
 
     // ESC Key to close cluster / digest report
