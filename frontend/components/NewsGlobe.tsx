@@ -2535,11 +2535,22 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false }
 
             // CONTROLS: Enable Zoom only when Meta/Ctrl is pressed (if disableScrollZoom is true)
             // If disableScrollZoom is false (default), zoom is always enabled
+            // CONTROLS: Enable Zoom only when Meta/Ctrl is pressed (if disableScrollZoom is true)
+            // If disableScrollZoom is false (default), zoom is always enabled
             enableZoom={!disableScrollZoom || isMetaPressed}
-            // FORCE UPDATE: Key change forces OrbitControls to re-evaluate enableZoom
-            key={`globe-${!disableScrollZoom || isMetaPressed}`}
         />
     );
+
+    // Dynamic Control Update for Meta Key (Prevention of Remount)
+    useEffect(() => {
+        if (globeEl.current) {
+            const controls = globeEl.current.controls();
+            if (controls) {
+                controls.enableZoom = !disableScrollZoom || isMetaPressed;
+                controls.update?.(); // Ensure controls update if method exists
+            }
+        }
+    }, [disableScrollZoom, isMetaPressed]);
 
     return (
         <div className={`relative w-full h-full bg-slate-950 transition-cursor ${isMetaPressed ? 'cursor-move' : ''}`}>
