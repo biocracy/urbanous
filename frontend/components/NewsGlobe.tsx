@@ -3549,7 +3549,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
                 )
             }
             {/* Right Sidebar - Global Digests */}
-            <div className={`fixed right-0 top-20 z-40 transition-all duration-300 ease-in-out ${isGlobalSidebarOpen ? 'w-80' : 'w-0'} h-[calc(100vh-100px)]`}>
+            <div className={`absolute right-0 top-20 z-40 transition-all duration-300 ease-in-out ${isGlobalSidebarOpen ? 'w-80' : 'w-0'} h-[calc(100vh-100px)]`}>
                 {/* Toggle Handle - Custom Tall Arrow */}
                 <button
                     onClick={() => setIsGlobalSidebarOpen(!isGlobalSidebarOpen)}
