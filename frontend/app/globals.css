@@ -31,7 +31,7 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
-  overflow-x: hidden;
+  /* overflow-x: hidden;  <-- Removing to prevent Scroll/Sticky conflicts */
   min-height: 100vh;
 }
 

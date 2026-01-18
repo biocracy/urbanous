@@ -25,7 +25,10 @@ if frontend_env and frontend_env != "*":
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
-    allow_origin_regex=r"https://.*\.up\.railway\.app", # Dynamic Railway Previews
+    allow_origins=origins,
+    # Allow Railway PRs (*.up.railway.app) AND Vercel Previews (*.vercel.app)
+    allow_origin_regex=r"https://.*\.up\.railway\.app|https://.*\.vercel\.app", 
+    allow_credentials=True,
     allow_credentials=True,
     allow_methods=["GET", "POST", "OPTIONS", "PUT", "DELETE"],
     allow_headers=["*"],
