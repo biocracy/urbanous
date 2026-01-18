@@ -82,7 +82,6 @@ export default function FeedLayout() {
                 isAboutActive={showAbout}
             />
         </div>
-        </div >
     );
 }
 
