@@ -47,6 +47,7 @@ const Globe = dynamic(() => import('react-globe.gl'), {
 interface NewsGlobeProps {
     onCountrySelect?: (countryName: string, countryCode: string) => void;
     disableScrollZoom?: boolean;
+    isAtTop?: boolean;
 }
 
 const isDateCurrent = (extractedDate: string) => {
@@ -75,7 +76,7 @@ const getPathPointLat = (p: any) => p[1];
 const getPathPointLng = (p: any) => p[0];
 const getPathColor = (d: any) => d.color;
 
-export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false }: NewsGlobeProps) {
+export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, isAtTop = true }: NewsGlobeProps) {
     console.log("[NewsGlobe] Render Cycle"); // Debug Log
     const globeEl = useRef<any>(null);
     const { isAuthenticated } = useAuthStore();

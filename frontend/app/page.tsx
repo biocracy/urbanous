@@ -20,14 +20,28 @@ export default function Home() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
 
+  // SCROLL STATE: Track if we are at the top (Hero View)
+  const [isAtTop, setIsAtTop] = useState(true);
+
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
-
+  // Handle Main Container Scroll
+  const handleScroll = (e: React.UIEvent<HTMLElement>) => {
+    const scrollTop = e.currentTarget.scrollTop;
+    // We are "At Top" if within the top 20px threshold
+    const atTop = scrollTop < 20;
+    if (atTop !== isAtTop) {
+      setIsAtTop(atTop);
+    }
+  };
 
   return (
-    <main className="relative h-screen w-full bg-black overflow-y-scroll overflow-x-hidden snap-y snap-mandatory scroll-smooth">
+    <main
+      onScroll={handleScroll}
+      className="relative h-screen w-full bg-black overflow-y-scroll overflow-x-hidden snap-y snap-mandatory scroll-smooth"
+    >
       {/* Header Overlay - Fixed to Viewport (viewport-relative) */}
       <div className="fixed top-0 left-0 w-full z-10 p-4 flex justify-between items-center pointer-events-none">
         <h1 className="text-2xl font-black tracking-tighter pointer-events-auto shadow-sm flex items-center cursor-default select-none">
@@ -64,11 +78,11 @@ export default function Home() {
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
 
       {/* SECTION 1: HERO GLOBE (100vh) - SNAP START */}
-      <div className="h-screen w-full relative z-0 snap-start">
-        <NewsGlobe disableScrollZoom={true} />
+      <div className="h-screen w-full relative z-0 snap-start shrink-0">
+        <NewsGlobe disableScrollZoom={true} isAtTop={isAtTop} />
 
         {/* Scroll Hint */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 text-white/50 text-sm animate-bounce pointer-events-none">
+        <div className={`absolute bottom-8 left-1/2 -translate-x-1/2 text-white/50 text-sm animate-bounce pointer-events-none transition-opacity duration-300 ${isAtTop ? 'opacity-100' : 'opacity-0'}`}>
           Scroll for News ▼
         </div>
       </div>
