@@ -63,8 +63,8 @@ export default function Home() {
 
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
 
-      {/* SECTION 1: HERO GLOBE (100vh) */}
-      <div className="h-screen w-full relative z-0">
+      {/* SECTION 1: HERO GLOBE (100vh) - SNAP START */}
+      <div className="h-screen w-full relative z-0 snap-start">
         <NewsGlobe disableScrollZoom={true} />
 
         {/* Scroll Hint */}
@@ -73,8 +73,12 @@ export default function Home() {
         </div>
       </div>
 
+      {/* SNAP SPACER: Invisible anchor to snap top of viewport to 66vh */}
+      {/* This makes the Globe 33% visible at the top */}
+      <div className="absolute top-[66vh] w-full h-[1px] pointer-events-none snap-start" />
+
       {/* SECTION 2: CONTENT BELOW FOLD */}
-      <div className="min-h-screen w-full bg-neutral-900 border-t border-neutral-800 relative z-20 shadow-[0_-20px_40px_rgba(0,0,0,0.8)]">
+      <div className="min-h-screen w-full bg-neutral-900 border-t border-neutral-800 relative z-20 shadow-[0_-20px_40px_rgba(0,0,0,0.8)] snap-start">
         <div className="max-w-7xl mx-auto py-16 px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-4 mb-8">
             <div className="h-1 w-12 bg-fuchsia-500 rounded-full"></div>
