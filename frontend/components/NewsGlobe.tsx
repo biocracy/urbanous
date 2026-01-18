@@ -2535,31 +2535,32 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false }
 
             // CONTROLS: Enable Zoom only when Meta/Ctrl is pressed (if disableScrollZoom is true)
             // If disableScrollZoom is false (default), zoom is always enabled
-            // CONTROLS: Default = Zoom Enabled (Scroll Trap). Meta/Ctrl = Zoom Disabled (Page Scroll).
-            enableZoom={!isMetaPressed}
+            // CONTROLS: Default = Zoom Enabled (Scroll Trap) ONLY if At Top.
+            // If scrolled down OR Meta pressed -> Zoom Disabled (Page Scroll).
+            enableZoom={isAtTop && !isMetaPressed}
         />
     );
 
-    // Dynamic Control Update for Meta Key
+    // Dynamic Control Update
     useEffect(() => {
         if (globeEl.current) {
             const controls = globeEl.current.controls();
             if (controls) {
-                // If Meta is pressed, DISABLE Zoom to allow Page Scroll
-                // If Meta is NOT pressed, ENABLE Zoom (Trap)
-                controls.enableZoom = !isMetaPressed;
+                // Logic: Zoom enabled ONLY if At Top AND Meta not pressed
+                const shouldEnableZoom = isAtTop && !isMetaPressed;
+                controls.enableZoom = shouldEnableZoom;
                 controls.update?.();
             }
         }
-    }, [isMetaPressed]);
+    }, [isMetaPressed, isAtTop]);
 
     return (
-        <div className={`relative w-full h-full bg-slate-950 transition-cursor ${isMetaPressed ? 'cursor-default' : 'cursor-move'}`}>
+        <div className={`relative w-full h-full bg-slate-950 transition-cursor ${(isAtTop && !isMetaPressed) ? 'cursor-move' : 'cursor-default'}`}>
             {/* Visual Controls Toggle & Overlay */}
             <div className="absolute bottom-4 left-4 z-20 flex flex-col items-start gap-2">
-                {/* TIP: Helper text for user */}
-                <div className={`text-xs px-2 py-1 rounded bg-black/50 backdrop-blur text-white/70 transition-opacity ${isMetaPressed ? 'opacity-100' : 'opacity-0'}`}>
-                    Scroll to Move Page
+                {/* TIP: Helper text for user - Only show if Trapped (At Top & No Meta) */}
+                <div className={`text-xs px-2 py-1 rounded bg-black/50 backdrop-blur text-white/70 transition-opacity ${(isAtTop && !isMetaPressed) ? 'opacity-100' : 'opacity-0'}`}>
+                    Cmd+Scroll to Move Page
                 </div>
                 {!showControls && (
                     <button
