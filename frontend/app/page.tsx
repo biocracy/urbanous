@@ -27,9 +27,9 @@ export default function Home() {
 
 
   return (
-    <main className="relative min-h-screen bg-black">
-      {/* Header Overlay */}
-      <div className="absolute top-0 left-0 w-full z-10 p-4 flex justify-between items-center pointer-events-none sticky top-0" style={{ position: 'fixed' }}>
+    <main className="relative h-screen w-full bg-black overflow-y-scroll snap-y snap-mandatory scroll-smooth">
+      {/* Header Overlay - Fixed to Viewport (viewport-relative) */}
+      <div className="fixed top-0 left-0 w-full z-10 p-4 flex justify-between items-center pointer-events-none">
         <h1 className="text-2xl font-black tracking-tighter pointer-events-auto shadow-sm flex items-center cursor-default select-none">
           {/* Logo with Gradient Mask */}
           <div
