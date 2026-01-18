@@ -28,49 +28,61 @@ export default function FeedLayout() {
             />
 
             {/* EXPANDING ABOUT SECTION */}
-            <div className={`overflow-hidden transition-all duration-700 ease-in-out ${showAbout ? 'max-h-[800px] opacity-100' : 'max-h-0 opacity-0'}`}>
-                <div className="py-12 border-y border-neutral-800/50 bg-neutral-900/30">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
-                        <div className="space-y-6">
-                            <h3 className="text-2xl font-bold text-white">Understanding Urbanous</h3>
-                            <p className="text-neutral-400 leading-relaxed">
-                                Urbanous connects global city data with local news narratives.
-                                Our 3D Globe visualizes real-world clusters of activity, allowing you to
-                                navigate the planet by "Heat" rather than borders.
-                            </p>
-                            <ul className="space-y-4 text-sm text-neutral-300">
-                                <li className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded bg-slate-800 flex items-center justify-center text-blue-400 font-mono font-bold">1</div>
-                                    <span><strong>Scroll</strong> to explore the News Feed.</span>
-                                </li>
-                                <li className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded bg-slate-800 flex items-center justify-center text-fuchsia-400 font-mono font-bold">2</div>
-                                    <span><strong>Cmd + Scroll</strong> (or Ctrl) to Zoom/Pan the map.</span>
-                                </li>
-                                <li className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded bg-slate-800 flex items-center justify-center text-green-400 font-mono font-bold">3</div>
-                                    <span><strong>Click Clusters</strong> to read aggregated digests.</span>
-                                </li>
-                            </ul>
+            <div className={`overflow-hidden transition-all duration-700 ease-in-out ${showAbout ? 'max-h-[1600px] opacity-100' : 'max-h-0 opacity-0'}`}>
+                <div className="py-16 border-y border-neutral-800/50 bg-neutral-900/30">
+                    <div className="max-w-6xl mx-auto px-6 space-y-24">
+
+                        {/* SECTION 1: HERO / INTRO */}
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+                            <div className="space-y-6">
+                                <h3 className="text-3xl font-black text-white tracking-tight">Understanding Urbanous</h3>
+                                <p className="text-neutral-300 text-lg leading-relaxed">
+                                    This is an app specifically created to allow you to seamlessly navigate global news in an effortless fashion.
+                                </p>
+                                <p className="text-neutral-400 text-lg leading-relaxed">
+                                    Rather than relying on what others say about events in foreign places, you can now read local sources from places of interest without having to know their language or news outlet sites. Get a direct overview of what the locals say is happening in their localities.
+                                </p>
+                            </div>
+                            {/* Hero Image */}
+                            <div className="relative group rounded-2xl overflow-hidden border border-neutral-800 shadow-2xl shadow-black/50">
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent z-10" />
+                                <img
+                                    src="/about/hero.png"
+                                    alt="Urbanous Globe Interface"
+                                    className="w-full h-auto transform transition-transform duration-700 group-hover:scale-105"
+                                />
+                            </div>
                         </div>
-                        {/* Visual Placeholder for Guide Image */}
-                        <div className="aspect-video bg-neutral-800 rounded-xl border border-neutral-700 flex items-center justify-center relative overflow-hidden group">
-                            <div className="absolute inset-0 bg-gradient-to-tr from-fuchsia-500/10 to-blue-500/10" />
-                            <span className="text-neutral-500 font-mono text-xs z-10">[ INTERFACE DIAGRAM PLACEHOLDER ]</span>
-                            {/* Simulated Interface Elements */}
-                            <div className="absolute top-1/4 left-1/4 w-1/2 h-1/2 border border-dashed border-neutral-600 rounded opacity-50" />
-                            <div className="absolute bottom-4 right-4 w-8 h-8 rounded-full bg-fuchsia-500/20 animate-pulse" />
+
+                        {/* SECTION 2: MAP LEGEND (Placeholder for Next Step) */}
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+                            {/* Placeholder for Icon Diagram */}
+                            <div className="order-2 lg:order-1 relative rounded-2xl overflow-hidden border border-neutral-800 bg-neutral-900/50 aspect-square flex items-center justify-center">
+                                <div className="text-neutral-500 font-mono text-sm animate-pulse">
+                                    [ UPLOAD SCREENSHOT: CLUSTERS & ICONS ]
+                                </div>
+                            </div>
+
+                            <div className="order-1 lg:order-2 space-y-6">
+                                <h3 className="text-2xl font-bold text-white">Navigating the Map</h3>
+                                <p className="text-neutral-400 leading-relaxed">
+                                    The map is populated with different markers representing the scale and type of activity.
+                                    <br /><span className="text-sm italic text-neutral-600">(Content coming soon...)</span>
+                                </p>
+                            </div>
                         </div>
+
                     </div>
                 </div>
-
-                {/* FOOTER 2: The "Cloned" Footer */}
-                <Footer
-                    onAboutClick={() => setShowAbout(false)}
-                    isAboutActive={showAbout}
-                />
             </div>
+
+            {/* FOOTER 2: The "Cloned" Footer */}
+            <Footer
+                onAboutClick={() => setShowAbout(false)}
+                isAboutActive={showAbout}
+            />
         </div>
+        </div >
     );
 }
 
