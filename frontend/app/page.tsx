@@ -12,6 +12,7 @@ const NewsGlobe = dynamic(() => import('@/components/NewsGlobe'), {
 
 import { Settings } from 'lucide-react';
 import SettingsModal from '@/components/SettingsModal';
+import FeedLayout from '@/components/FeedLayout'; // NEW MOCK FEED
 import { useState } from 'react';
 
 export default function Home() {
@@ -92,25 +93,8 @@ export default function Home() {
       <div className="absolute top-[60vh] w-full h-[1px] pointer-events-none snap-start" />
 
       {/* SECTION 2: CONTENT BELOW FOLD */}
-      <div className="min-h-screen w-full bg-neutral-900 border-t border-neutral-800 relative z-20 shadow-[0_-20px_40px_rgba(0,0,0,0.8)] snap-start pb-[50vh]">
-        <div className="max-w-7xl mx-auto py-16 px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-4 mb-8">
-            <div className="h-1 w-12 bg-fuchsia-500 rounded-full"></div>
-            <h2 className="text-3xl font-bold text-white tracking-tight">Latest Headlines</h2>
-          </div>
-
-          {/* Dummy Content Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => (
-              <div key={i} className="bg-neutral-800/50 rounded-xl p-6 border border-neutral-700/50 hover:border-fuchsia-500/50 transition-colors group cursor-pointer">
-                <div className="h-48 rounded-lg bg-neutral-700 mb-4 animate-pulse"></div>
-                <div className="h-4 w-1/3 bg-fuchsia-500/30 rounded mb-4"></div>
-                <div className="h-6 w-full bg-neutral-600 rounded mb-2 group-hover:bg-neutral-500 transition-colors"></div>
-                <div className="h-6 w-2/3 bg-neutral-600 rounded"></div>
-              </div>
-            ))}
-          </div>
-        </div>
+      <div className="min-h-screen w-full bg-neutral-950 border-t border-neutral-800 relative z-20 shadow-[0_-20px_40px_rgba(0,0,0,0.8)] snap-start pb-[50vh]">
+        <FeedLayout />
       </div>
     </main>
   );
