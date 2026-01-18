@@ -25,7 +25,7 @@ import {
     Share2, Download, Copy, Check, ExternalLink, Search, Filter,
     LayoutGrid, List, Map as MapIcon, Globe as GlobeIcon,
     AlertTriangle, Shield, ShieldAlert, ShieldCheck, Info,
-    Platform, Pause, RotateCcw, Calendar, Trash2,
+    Play, Pause, RotateCcw, Calendar, Trash2,
     Sliders, Loader2, Sparkles, Languages, FileText, Coffee,
     Plus, Minus
 } from 'lucide-react';
