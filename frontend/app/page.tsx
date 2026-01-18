@@ -83,7 +83,7 @@ export default function Home() {
 
         {/* Scroll Hint */}
         <div className={`absolute bottom-8 left-1/2 -translate-x-1/2 text-white/50 text-sm animate-bounce pointer-events-none transition-opacity duration-300 ${isAtTop ? 'opacity-100' : 'opacity-0'}`}>
-          Scroll for News ▼
+          Cmd + Scroll for News ▼
         </div>
       </div>
 

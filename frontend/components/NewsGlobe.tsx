@@ -2559,10 +2559,6 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
         <div className={`relative w-full h-full bg-slate-950 transition-cursor ${(isAtTop && !isMetaPressed) ? 'cursor-move' : 'cursor-default'}`}>
             {/* Visual Controls Toggle & Overlay */}
             <div className="absolute bottom-4 left-4 z-20 flex flex-col items-start gap-2">
-                {/* TIP: Helper text for user - Only show if Trapped (At Top & No Meta) */}
-                <div className={`text-xs px-2 py-1 rounded bg-black/50 backdrop-blur text-white/70 transition-opacity ${(isAtTop && !isMetaPressed) ? 'opacity-100' : 'opacity-0'}`}>
-                    Cmd+Scroll to Move Page
-                </div>
                 {!showControls && (
                     <button
                         onClick={() => setShowControls(true)}
