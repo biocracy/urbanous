@@ -2539,7 +2539,6 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false }
             // FORCE UPDATE: Key change forces OrbitControls to re-evaluate enableZoom
             key={`globe-${!disableScrollZoom || isMetaPressed}`}
         />
-        />
     );
 
     return (
