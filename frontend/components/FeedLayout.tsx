@@ -22,7 +22,7 @@ export default function FeedLayout() {
             <footer className="mt-20 pt-10 border-t border-neutral-800 flex flex-col md:flex-row items-center justify-between gap-8 pb-10">
 
                 {/* Left: Logo (Consistent with Header) */}
-                <div className="flex items-center gap-2 select-none opacity-80 hover:opacity-100 transition-opacity">
+                <div className="flex items-center gap-0.5 select-none opacity-80 hover:opacity-100 transition-opacity">
                     <div
                         className="h-8 w-6 -mt-1 bg-gradient-to-r from-fuchsia-400 to-indigo-400"
                         style={{

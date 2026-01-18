@@ -93,7 +93,7 @@ export default function Home() {
       <div className="absolute top-[60vh] w-full h-[1px] pointer-events-none snap-start" />
 
       {/* SECTION 2: CONTENT BELOW FOLD */}
-      <div className="min-h-screen w-full bg-neutral-950 border-t border-neutral-800 relative z-20 shadow-[0_-20px_40px_rgba(0,0,0,0.8)] snap-start pb-[50vh]">
+      <div className="min-h-screen w-full bg-neutral-950 border-t border-neutral-800 relative z-20 shadow-[0_-20px_40px_rgba(0,0,0,0.8)] snap-start">
         <FeedLayout />
       </div>
     </main>
