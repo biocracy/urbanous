@@ -2536,6 +2536,9 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false }
             // CONTROLS: Enable Zoom only when Meta/Ctrl is pressed (if disableScrollZoom is true)
             // If disableScrollZoom is false (default), zoom is always enabled
             enableZoom={!disableScrollZoom || isMetaPressed}
+            // FORCE UPDATE: Key change forces OrbitControls to re-evaluate enableZoom
+            key={`globe-${!disableScrollZoom || isMetaPressed}`}
+        />
         />
     );
 
