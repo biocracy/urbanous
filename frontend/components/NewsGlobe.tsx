@@ -75,7 +75,7 @@ const getPathPointLat = (p: any) => p[1];
 const getPathPointLng = (p: any) => p[0];
 const getPathColor = (d: any) => d.color;
 
-export default function NewsGlobe({ onCountrySelect }: NewsGlobeProps) {
+export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false }: NewsGlobeProps) {
     console.log("[NewsGlobe] Render Cycle"); // Debug Log
     const globeEl = useRef<any>(null);
     const { isAuthenticated } = useAuthStore();
