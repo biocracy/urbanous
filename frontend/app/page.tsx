@@ -65,7 +65,7 @@ export default function Home() {
 
       {/* SECTION 1: HERO GLOBE (100vh) */}
       <div className="h-screen w-full relative z-0">
-        <NewsGlobe />
+        <NewsGlobe disableScrollZoom={true} />
 
         {/* Scroll Hint */}
         <div className="absolute bottom-8 left-1/2 -translate-x-1/2 text-white/50 text-sm animate-bounce pointer-events-none">
