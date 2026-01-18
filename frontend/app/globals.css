@@ -26,6 +26,8 @@ body {
   /* Prevent horizontal scroll only */
   overflow-y: auto;
   /* Explicitly allow vertical scroll */
+  scroll-behavior: smooth;
+  scroll-snap-type: y mandatory;
 }
 
 /* Translation Toggle Logic */

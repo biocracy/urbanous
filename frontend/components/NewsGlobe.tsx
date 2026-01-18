@@ -88,6 +88,24 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false }
     const [hoverPoint, setHoverPoint] = useState<any | null>(null);
     const [digestData, setDigestData] = useState<any>(null);
     const [isReportSaved, setIsReportSaved] = useState(false); // Track unsaved changes
+    const [isMetaPressed, setIsMetaPressed] = useState(false); // Track Cmd/Ctrl key
+
+    // Key Listener for Meta/Ctrl
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Meta' || e.key === 'Control') setIsMetaPressed(true);
+        };
+        const handleKeyUp = (e: KeyboardEvent) => {
+            if (e.key === 'Meta' || e.key === 'Control') setIsMetaPressed(false);
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        window.addEventListener('keyup', handleKeyUp);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+            window.removeEventListener('keyup', handleKeyUp);
+        };
+    }, []);
     const [isTranslateActive, setIsTranslateActive] = useState(false);
     const [debuggerConfig, setDebuggerConfig] = useState<{ isOpen: boolean; url: string; domain: string }>({
         isOpen: false,
@@ -2515,49 +2533,16 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false }
             // MEMORY OPTIMIZATION: Use 2 radial segments (flat tube)
             pathResolution={2}
 
-            // CONTROLS: Disable Mouse Wheel Zoom if requested (Hero Mode)
-            // Note: This disables OrbitControls zoom interaction, but programmatic zoom (Buttons) still works
-            enableZoom={!disableScrollZoom}
+            // CONTROLS: Enable Zoom only when Meta/Ctrl is pressed (if disableScrollZoom is true)
+            // If disableScrollZoom is false (default), zoom is always enabled
+            enableZoom={!disableScrollZoom || isMetaPressed}
         />
     );
 
-    // Zoom Handlers
-    const handleZoom = (direction: 'in' | 'out') => {
-        if (!globeEl.current) return;
-        // Get current POV
-        const currentPov = globeEl.current.pointOfView();
-        // Zoom In = Lower Altitude (multiply by <1)
-        // Zoom Out = Higher Altitude (multiply by >1)
-        const factor = direction === 'in' ? 0.6 : 1.6;
-        globeEl.current.pointOfView({
-            lat: currentPov.lat,
-            lng: currentPov.lng,
-            altitude: Math.max(0.1, Math.min(4.0, currentPov.altitude * factor)) // Clamp limits
-        }, 400); // 400ms smooth transition
-    };
-
     return (
-        <div className="relative w-full h-full bg-slate-950">
+        <div className={`relative w-full h-full bg-slate-950 transition-cursor ${isMetaPressed ? 'cursor-move' : ''}`}>
             {/* Visual Controls Toggle & Overlay */}
             <div className="absolute bottom-4 left-4 z-20 flex flex-col items-start gap-2">
-                {/* ZOOM CONTROLS (Always visible, especially if ScrollZoom is disabled) */}
-                <div className="flex flex-col gap-1 mb-2 bg-slate-900/80 backdrop-blur rounded-lg border border-slate-700 overflow-hidden shadow-lg">
-                    <button
-                        onClick={() => handleZoom('in')}
-                        className="p-2 text-white hover:bg-slate-700 transition-colors border-b border-slate-700/50"
-                        title="Zoom In"
-                    >
-                        <Plus size={20} />
-                    </button>
-                    <button
-                        onClick={() => handleZoom('out')}
-                        className="p-2 text-white hover:bg-slate-700 transition-colors"
-                        title="Zoom Out"
-                    >
-                        <Minus size={20} />
-                    </button>
-                </div>
-
                 {!showControls && (
                     <button
                         onClick={() => setShowControls(true)}
@@ -2567,6 +2552,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false }
                         <Sliders size={20} />
                     </button>
                 )}
+
 
                 {expandedCluster && (
                     <button
