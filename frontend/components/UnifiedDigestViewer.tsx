@@ -71,6 +71,7 @@ export default function UnifiedDigestViewer({
 
     const [activeTab, setActiveTab] = useState<'articles' | 'digest' | 'analytics'>('digest');
     const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
+    const [isAnalyticsTranslated, setIsAnalyticsTranslated] = useState(false);
 
     // If initial view is empty but we have data, verify tabs
     // Default to 'digest' if summary exists, else 'articles'
@@ -92,6 +93,37 @@ export default function UnifiedDigestViewer({
 
     const isEditorActive = !isReadOnly && !!setDigestSummary;
     const effectiveKeywords = analyticsKeywords.length > 0 ? analyticsKeywords : (digestData?.analysis_source || []);
+
+    // Date Range Helper
+    const formatDateRange = (createdDateStr: string, timeframeStr: string = "24h") => {
+        const createdDate = new Date(createdDateStr || Date.now());
+        // Handle timeframe parsing (default 24h)
+        let msToSubtract = 24 * 60 * 60 * 1000;
+        if (timeframeStr === "3days") msToSubtract = 3 * 24 * 60 * 60 * 1000;
+        else if (timeframeStr === "1week") msToSubtract = 7 * 24 * 60 * 60 * 1000;
+        else if (timeframeStr === "1month") msToSubtract = 30 * 24 * 60 * 60 * 1000;
+
+        const startDate = new Date(createdDate.getTime() - msToSubtract);
+
+        const pad = (n: number) => n.toString().padStart(2, '0');
+        const format = (d: Date) => `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}`;
+        const formatShort = (d: Date) => `${pad(d.getDate())}.${pad(d.getMonth() + 1)}`;
+
+        // Same Year?
+        if (startDate.getFullYear() === createdDate.getFullYear()) {
+            // Same Month?
+            if (startDate.getMonth() === createdDate.getMonth()) {
+                // Same Day? (Unlikely but possible)
+                if (startDate.getDate() === createdDate.getDate()) return format(createdDate);
+                // DD-DD.MM.YYYY
+                return `${startDate.getDate()}-${format(createdDate)}`;
+            }
+            // DD.MM-DD.MM.YYYY
+            return `${formatShort(startDate)}-${format(createdDate)}`;
+        }
+        // Different Year
+        return `${format(startDate)}-${format(createdDate)}`;
+    };
 
     return (
         <div className="flex flex-col h-full bg-[#0a0a0a] text-white">
@@ -226,7 +258,7 @@ export default function UnifiedDigestViewer({
                             <div className="text-neutral-500 font-mono text-sm uppercase tracking-widest flex items-center justify-center gap-4">
                                 <span>{digestData?.city || 'Global'}</span>
                                 <span>•</span>
-                                <span>{new Date(digestData?.created_at || Date.now()).toLocaleDateString()}</span>
+                                <span>{formatDateRange(digestData?.created_at, digestData?.timeframe)}</span>
                             </div>
                         </div>
 
@@ -238,9 +270,58 @@ export default function UnifiedDigestViewer({
                                 placeholder="# Write your intelligence report here..."
                             />
                         ) : (
-                            <div className="prose prose-invert prose-lg max-w-none text-justify prose-p:my-4 prose-headings:font-bold prose-headings:tracking-tight prose-headings:text-blue-400 prose-a:text-blue-400 prose-a:underline prose-a:decoration-blue-500/50 prose-a:underline-offset-4 prose-blockquote:border-l-blue-500 prose-blockquote:bg-blue-900/10 prose-blockquote:py-1">
-                                <ReactMarkdown>
-                                    {digestData?.digest || digestData?.summary_markdown || "*No public summary available.*"}
+                            <div className="max-w-none">
+                                <ReactMarkdown
+                                    urlTransform={(url) => url}
+                                    components={{
+                                        h1: ({ node, ...props }) => <h1 className="text-4xl font-extrabold text-white mb-8 border-b border-white/10 pb-4 mt-8" {...props} />,
+                                        h2: ({ node, ...props }) => <h2 className="text-3xl font-bold text-blue-200 mt-12 mb-6 border-l-4 border-blue-500 pl-4" {...props} />,
+                                        h3: ({ node, ...props }) => <h3 className="text-xl font-bold text-indigo-300 mt-8 mb-3 uppercase tracking-wide" {...props} />,
+                                        p: ({ node, ...props }) => <p className="text-lg text-slate-300 leading-loose mb-8 text-justify" {...props} />,
+                                        ul: ({ node, ...props }) => <ul className="list-disc list-outside ml-6 mb-6 space-y-2 text-slate-300" {...props} />,
+                                        li: ({ node, ...props }) => <li className="pl-2" {...props} />,
+                                        strong: ({ node, ...props }) => <strong className="text-amber-400 font-bold" {...props} />,
+                                        blockquote: ({ node, ...props }) => <blockquote className="border-l-4 border-slate-600 pl-4 italic text-slate-400 my-6 bg-slate-800/30 py-2 rounded-r" {...props} />,
+                                        a: ({ node, ...props }) => {
+                                            const href = props.href || '';
+                                            if (href.startsWith('citation:')) {
+                                                const index = parseInt(href.split(':')[1]);
+                                                const article = digestData?.articles?.[index - 1];
+                                                const title = article ? (article.title || 'Source') : `Source ${index}`;
+                                                const url = article ? article.url : '';
+                                                const isValidUrl = url && url.startsWith('http');
+
+                                                return (
+                                                    <span className="relative inline-block group mx-1 align-baseline">
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                if (isValidUrl) window.open(url, '_blank');
+                                                            }}
+                                                            className={`font-bold text-xs align-super px-1 rounded transition-colors ${isValidUrl
+                                                                ? 'text-blue-400 hover:bg-blue-900/30 cursor-pointer'
+                                                                : 'text-slate-500 cursor-help'
+                                                                }`}
+                                                        >
+                                                            [{index}]
+                                                        </button>
+                                                        {/* Tooltip */}
+                                                        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-72 p-3 bg-slate-900 border border-slate-700 rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 text-xs text-left">
+                                                            <span className="block font-bold text-white mb-1 line-clamp-3 leading-tight">{title}</span>
+                                                            <span className={`block truncate font-mono mt-1 ${isValidUrl ? 'text-blue-400' : 'text-amber-500'}`}>
+                                                                {isValidUrl ? new URL(url).hostname : 'Source URL not available'}
+                                                            </span>
+                                                        </span>
+                                                    </span>
+                                                );
+                                            }
+                                            const isExample = !href.startsWith('http');
+                                            return <a className="text-blue-400 hover:text-blue-300 underline decoration-blue-500/50 underline-offset-4" target="_blank" {...props} />;
+                                        }
+                                    }}
+                                >
+                                    {(digestData?.digest || digestData?.summary_markdown || "")
+                                        .replace(/\[(\d+)\]/g, '[$1](citation:$1)')}
                                 </ReactMarkdown>
                             </div>
                         )}
@@ -277,8 +358,39 @@ export default function UnifiedDigestViewer({
                 {/* TAB 3: ANALYTICS */}
                 <div className={`p-6 max-w-6xl mx-auto w-full transition-opacity duration-300 ${activeTab === 'analytics' ? 'opacity-100 flex' : 'hidden opacity-0'}`}>
                     <div className="w-full">
-                        {!isReadOnly && onRegenerateAnalytics && (
-                            <div className="flex justify-end mb-6">
+                        <div className="flex justify-between items-center mb-6">
+                            {/* Left: View Controls */}
+                            <div className="flex items-center gap-2">
+                                {setAnalyticsViewMode && (
+                                    <div className="flex bg-neutral-900 rounded-lg p-1 border border-neutral-800">
+                                        <button
+                                            onClick={() => setAnalyticsViewMode('cloud')}
+                                            className={`p-2 rounded hover:text-white transition-colors ${analyticsViewMode === 'cloud' ? 'bg-neutral-800 text-white' : 'text-neutral-400'}`}
+                                            title="Word Cloud"
+                                        >
+                                            <LayoutGrid className="w-4 h-4" />
+                                        </button>
+                                        <button
+                                            onClick={() => setAnalyticsViewMode('columns')}
+                                            className={`p-2 rounded hover:text-white transition-colors ${analyticsViewMode === 'columns' ? 'bg-neutral-800 text-white' : 'text-neutral-400'}`}
+                                            title="Columns"
+                                        >
+                                            <FileText className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                )}
+
+                                <button
+                                    onClick={() => setIsAnalyticsTranslated(!isAnalyticsTranslated)}
+                                    className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-colors border ${isAnalyticsTranslated ? 'bg-indigo-900/50 text-indigo-300 border-indigo-700' : 'bg-neutral-900 text-neutral-400 border-neutral-700 hover:text-white'}`}
+                                >
+                                    <RotateCcw className="w-3 h-3" />
+                                    {isAnalyticsTranslated ? 'Show Original' : 'Translate Keywords'}
+                                </button>
+                            </div>
+
+                            {/* Right: Refresh (Editable Only) */}
+                            {!isReadOnly && onRegenerateAnalytics && (
                                 <button
                                     onClick={onRegenerateAnalytics}
                                     disabled={isAnalyzing}
@@ -287,34 +399,63 @@ export default function UnifiedDigestViewer({
                                     <RotateCcw className={`w-4 h-4 ${isAnalyzing ? 'animate-spin' : ''}`} />
                                     Refresh Intelligence
                                 </button>
-                            </div>
-                        )}
+                            )}
+                        </div>
 
                         {effectiveKeywords.length > 0 ? (
-                            <div className="flex flex-wrap gap-3 justify-center">
-                                {effectiveKeywords.map((kw: any, idx: number) => {
-                                    const size = 1 + ((kw.importance || 50) / 100) * 2;
-                                    let colorClass = "border-slate-700 bg-slate-900/50 text-slate-300";
-                                    if (kw.sentiment === 'Positive') colorClass = "border-green-900/50 bg-green-900/20 text-green-400";
-                                    if (kw.sentiment === 'Negative') colorClass = "border-red-900/50 bg-red-900/20 text-red-400";
-
-                                    return (
-                                        <div
-                                            key={idx}
-                                            className={`relative group px-4 py-2 rounded-full border ${colorClass} transition-all hover:scale-110 cursor-default`}
-                                            style={{ fontSize: `${Math.max(0.8, size)}rem` }}
-                                        >
-                                            {kw.word}
-                                            {/* Tooltip */}
-                                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-black/90 border border-neutral-700 p-3 rounded-lg text-xs w-48 z-50 shadow-xl pointer-events-none">
-                                                <div className="font-bold text-white mb-1">{kw.translation || kw.word}</div>
-                                                <div className="text-neutral-400">Imp: {kw.importance}</div>
-                                                <div className="text-neutral-500 mt-1">Sources: {kw.sources?.length || 0}</div>
+                            analyticsViewMode === 'columns' ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {effectiveKeywords.map((kw: any, idx: number) => (
+                                        <div key={idx} className="bg-neutral-900/50 border border-neutral-800 p-4 rounded-lg flex justify-between items-start">
+                                            <div>
+                                                <div className="font-bold text-white text-lg">
+                                                    {isAnalyticsTranslated && kw.translation ? kw.translation : kw.word}
+                                                </div>
+                                                {isAnalyticsTranslated && kw.translation && kw.translation !== kw.word && (
+                                                    <div className="text-xs text-neutral-500 mt-1">{kw.word}</div>
+                                                )}
+                                                <div className="text-xs text-neutral-400 mt-2">
+                                                    {kw.sentiment} • Imp: {kw.importance}
+                                                </div>
+                                            </div>
+                                            <div className="text-xs font-mono bg-neutral-950 px-2 py-1 rounded text-neutral-500">
+                                                {kw.sources?.length || 0} src
                                             </div>
                                         </div>
-                                    );
-                                })}
-                            </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="flex flex-wrap gap-3 justify-center">
+                                    {effectiveKeywords.map((kw: any, idx: number) => {
+                                        const size = 1 + ((kw.importance || 50) / 100) * 2;
+                                        let colorClass = "border-slate-700 bg-slate-900/50 text-slate-300";
+                                        if (kw.sentiment === 'Positive') colorClass = "border-green-900/50 bg-green-900/20 text-green-400";
+                                        if (kw.sentiment === 'Negative') colorClass = "border-red-900/50 bg-red-900/20 text-red-400";
+
+                                        // DISPLAY WORD LOGIC
+                                        const displayWord = (isAnalyticsTranslated && kw.translation) ? kw.translation : kw.word;
+
+                                        return (
+                                            <div
+                                                key={idx}
+                                                className={`relative group px-4 py-2 rounded-full border ${colorClass} transition-all hover:scale-110 cursor-default`}
+                                                style={{ fontSize: `${Math.max(0.8, size)}rem` }}
+                                            >
+                                                {displayWord}
+                                                {/* Tooltip */}
+                                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-black/90 border border-neutral-700 p-3 rounded-lg text-xs w-48 z-50 shadow-xl pointer-events-none">
+                                                    <div className="font-bold text-white mb-1">{kw.translation || kw.word}</div>
+                                                    {isAnalyticsTranslated && kw.translation !== kw.word && (
+                                                        <div className="text-neutral-500 mb-1 text-[10px] uppercase">Orig: {kw.word}</div>
+                                                    )}
+                                                    <div className="text-neutral-400">Imp: {kw.importance}</div>
+                                                    <div className="text-neutral-500 mt-1">Sources: {kw.sources?.length || 0}</div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )
                         ) : (
                             <div className="text-center py-20 text-neutral-500 italic">
                                 No analytics generated yet.
