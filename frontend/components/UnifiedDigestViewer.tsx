@@ -78,6 +78,7 @@ export default function UnifiedDigestViewer({
     // Use prop if available (controlled), else local state
     const viewMode = analyticsViewMode || internalAnalyticsViewMode;
     const handleSetViewMode = (mode: 'cloud' | 'columns') => {
+        console.log(`[UnifiedDigestViewer] Switching View Mode to: ${mode}`);
         if (setAnalyticsViewMode) setAnalyticsViewMode(mode);
         else setInternalAnalyticsViewMode(mode);
     };
@@ -447,8 +448,12 @@ export default function UnifiedDigestViewer({
                                                 {items.map((kw: any, idx: number) => (
                                                     <div
                                                         key={idx}
-                                                        className={`bg-neutral-900/50 border border-neutral-800 p-4 rounded-lg flex justify-between items-start cursor-pointer hover:bg-neutral-800 transition-colors ${selectedKeyword === kw ? 'ring-2 ring-blue-500' : ''}`}
-                                                        onClick={(e) => { e.stopPropagation(); setSelectedKeyword(kw); }}
+                                                        className={`relative group bg-neutral-900/50 border border-neutral-800 p-4 rounded-lg flex justify-between items-start cursor-pointer hover:bg-neutral-800 transition-colors ${selectedKeyword === kw ? 'ring-2 ring-blue-500' : ''}`}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            console.log("[UnifiedDigestViewer] Clicked Keyword (Column):", kw?.word);
+                                                            setSelectedKeyword(kw);
+                                                        }}
                                                     >
                                                         <div className="w-full">
                                                             <div className="font-bold text-white text-lg flex justify-between w-full">
@@ -461,6 +466,17 @@ export default function UnifiedDigestViewer({
                                                             <div className="text-xs text-neutral-400 mt-2 flex justify-between">
                                                                 <span>Imp: {kw.importance}</span>
                                                             </div>
+                                                        </div>
+
+                                                        {/* Hover Tooltip (Column Mode) */}
+                                                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-black/90 border border-neutral-700 p-3 rounded-lg text-xs w-48 z-50 shadow-xl pointer-events-none">
+                                                            <div className="font-bold text-white mb-1">{kw.translation || kw.word}</div>
+                                                            {isAnalyticsTranslated && kw.translation !== kw.word && (
+                                                                <div className="text-neutral-500 mb-1 text-[10px] uppercase">Orig: {kw.word}</div>
+                                                            )}
+                                                            <div className="text-neutral-400">Imp: {kw.importance}</div>
+                                                            <div className="text-neutral-500 mt-1">Sources: {kw.sources?.length || 0}</div>
+                                                            <div className="mt-2 text-[10px] text-blue-400 font-bold uppercase tracking-wide text-center">Click to Lock</div>
                                                         </div>
                                                     </div>
                                                 ))}
@@ -482,7 +498,11 @@ export default function UnifiedDigestViewer({
                                         return (
                                             <div
                                                 key={idx}
-                                                onClick={(e) => { e.stopPropagation(); setSelectedKeyword(kw); }}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    console.log("[UnifiedDigestViewer] Clicked Keyword (Cloud):", kw?.word);
+                                                    setSelectedKeyword(kw);
+                                                }}
                                                 className={`relative group px-4 py-2 rounded-full border ${colorClass} transition-all hover:scale-110 cursor-pointer ${selectedKeyword === kw ? 'ring-2 ring-blue-500 bg-black z-20' : ''}`}
                                                 style={{ fontSize: `${Math.max(0.8, size)}rem` }}
                                             >
@@ -495,7 +515,7 @@ export default function UnifiedDigestViewer({
                                                     )}
                                                     <div className="text-neutral-400">Imp: {kw.importance}</div>
                                                     <div className="text-neutral-500 mt-1">Sources: {kw.sources?.length || 0}</div>
-                                                    <div className="mt-2 text-[10px] text-blue-400 font-bold uppercase tracking-wide text-center">Click to Lock & View Sources</div>
+                                                    <div className="mt-2 text-[10px] text-blue-400 font-bold uppercase tracking-wide text-center">Click to Lock</div>
                                                 </div>
                                             </div>
                                         );
