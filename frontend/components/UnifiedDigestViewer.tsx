@@ -72,6 +72,7 @@ export default function UnifiedDigestViewer({
     const [activeTab, setActiveTab] = useState<'articles' | 'digest' | 'analytics'>('digest');
     const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
     const [isAnalyticsTranslated, setIsAnalyticsTranslated] = useState(false);
+    const [isHeadlineTranslated, setIsHeadlineTranslated] = useState(false); // New State
     const [internalAnalyticsViewMode, setInternalAnalyticsViewMode] = useState<'cloud' | 'columns'>('cloud');
     const [selectedKeyword, setSelectedKeyword] = useState<any | null>(null);
 
@@ -253,11 +254,24 @@ export default function UnifiedDigestViewer({
             <div className="flex-grow overflow-y-auto custom-scrollbar relative bg-neutral-900/30">
 
                 {/* TAB 1: ARTICLES (DigestReportRenderer) */}
-                <div className={`p-6 max-w-5xl mx-auto w-full transition-opacity duration-300 ${activeTab === 'articles' ? 'opacity-100 flex' : 'hidden opacity-0'}`}>
+                <div className={`p-6 max-w-5xl mx-auto w-full transition-opacity duration-300 ${activeTab === 'articles' ? 'opacity-100 flex flex-col' : 'hidden opacity-0'}`}>
+
+                    {/* Toolbar for Headlines */}
+                    <div className="flex justify-end mb-4">
+                        <button
+                            onClick={() => setIsHeadlineTranslated(!isHeadlineTranslated)}
+                            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-colors border ${isHeadlineTranslated ? 'bg-indigo-900/50 text-indigo-300 border-indigo-700' : 'bg-neutral-900 text-neutral-400 border-neutral-700 hover:text-white'}`}
+                        >
+                            <Languages className="w-3 h-3" />
+                            {isHeadlineTranslated ? 'English' : 'Translate'}
+                        </button>
+                    </div>
+
                     <div className="w-full">
                         <DigestReportRenderer
                             articles={digestData?.articles || []}
                             category={digestData?.category}
+                            isTranslated={isHeadlineTranslated} // Pass state
                             selectedUrls={selectedArticleUrls}
                             onToggle={onToggleSelection || (() => { })}
                             onReportSpam={!isReadOnly ? onReportSpam : undefined}
