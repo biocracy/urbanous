@@ -256,14 +256,27 @@ export default function UnifiedDigestViewer({
                 {/* TAB 1: ARTICLES (DigestReportRenderer) */}
                 <div className={`p-6 max-w-5xl mx-auto w-full transition-opacity duration-300 ${activeTab === 'articles' ? 'opacity-100 flex flex-col' : 'hidden opacity-0'}`}>
 
-                    {/* Toolbar for Headlines */}
-                    <div className="flex justify-end mb-4">
+                    {/* Toolbar / Header */}
+                    <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 pb-4 border-b border-neutral-800 gap-4">
+                        <div>
+                            <h2 className="text-2xl md:text-3xl font-bold text-white tracking-tight">
+                                <span className="text-blue-400 capitalize">{digestData?.city || 'Global'}</span> Headlines
+                            </h2>
+                            <p className="text-neutral-400 mt-1 flex flex-wrap items-center gap-2">
+                                <span>Discussing <span className="text-slate-200 font-semibold">{digestData?.category}</span></span>
+                                <span className="w-1 h-1 rounded-full bg-neutral-600"></span>
+                                <span className="text-neutral-500 font-mono text-sm">
+                                    {formatDateRange(digestData?.created_at, digestData?.timeframe)}
+                                </span>
+                            </p>
+                        </div>
+
                         <button
                             onClick={() => setIsHeadlineTranslated(!isHeadlineTranslated)}
-                            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-colors border ${isHeadlineTranslated ? 'bg-indigo-900/50 text-indigo-300 border-indigo-700' : 'bg-neutral-900 text-neutral-400 border-neutral-700 hover:text-white'}`}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all border shadow-lg ${isHeadlineTranslated ? 'bg-indigo-900/40 text-indigo-300 border-indigo-500/50 shadow-indigo-900/20' : 'bg-neutral-900/80 text-neutral-400 border-neutral-700 hover:text-white hover:border-neutral-500'}`}
                         >
-                            <Languages className="w-3 h-3" />
-                            {isHeadlineTranslated ? 'English' : 'Translate'}
+                            <Languages className="w-3.5 h-3.5" />
+                            {isHeadlineTranslated ? 'Translated' : 'Translate Titles'}
                         </button>
                     </div>
 
