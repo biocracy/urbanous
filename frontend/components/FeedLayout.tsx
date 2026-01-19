@@ -60,7 +60,7 @@ export default function FeedLayout() {
                             {/* Legend Image */}
                             <div className="order-2 lg:order-1 relative rounded-2xl overflow-hidden border border-neutral-800 bg-neutral-900/50 shadow-2xl shadow-black/50">
                                 <img
-                                    src="/about/clusters-legend.png"
+                                    src="/about/clusters-legend.png?v=129"
                                     alt="Map Clusters and Icons"
                                     className="w-full h-auto"
                                 />
@@ -73,18 +73,18 @@ export default function FeedLayout() {
                                 </p>
                                 <ul className="space-y-3 mt-4 text-sm text-neutral-300">
                                     <li className="flex items-center gap-3">
-                                        <div className="shrink-0 w-8 h-8 rounded-full bg-[#3b82f6] flex items-center justify-center text-white font-bold font-mono text-sm shadow-lg shadow-blue-900/50">S</div>
+                                        <div className="shrink-0 w-8 h-8 rounded-full bg-[#3b82f6] border-2 border-white flex items-center justify-center text-white font-bold font-mono text-sm shadow-lg shadow-blue-900/50">S</div>
                                         <span>represents a <strong className="text-white">City</strong>.</span>
                                     </li>
                                     <li className="flex items-center gap-3">
-                                        <div className="shrink-0 w-8 h-8 rounded-full bg-[#06b6d4] flex items-center justify-center text-white font-bold font-mono text-sm shadow-lg shadow-cyan-900/50">T</div>
+                                        <div className="shrink-0 w-8 h-8 rounded-full bg-[#06b6d4] border-2 border-white flex items-center justify-center text-white font-bold font-mono text-sm shadow-lg shadow-cyan-900/50">T</div>
                                         <span>
                                             In order to keep the map clutter free, a clustering mechanism has been implemented.
                                             <strong className="text-white ml-1">City Clusters</strong> represent nearby cities.
                                         </span>
                                     </li>
                                     <li className="flex items-center gap-3">
-                                        <div className="shrink-0 w-8 h-8 rounded-full bg-[#e11d48] flex items-center justify-center text-white font-bold font-mono text-sm shadow-lg shadow-rose-900/50">B</div>
+                                        <div className="shrink-0 w-8 h-8 rounded-full bg-[#e11d48] border-2 border-white flex items-center justify-center text-white font-bold font-mono text-sm shadow-lg shadow-rose-900/50">B</div>
                                         <span>represent <strong className="text-white">Capitals</strong>.</span>
                                     </li>
                                 </ul>
