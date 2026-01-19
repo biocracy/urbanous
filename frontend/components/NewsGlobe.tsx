@@ -142,11 +142,12 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
     }
 
     // Use centralized version constant
-    const APP_VERSION = "0.155";
+    const APP_VERSION = "0.156";
 
     // UI States
     const [isDiscovering, setIsDiscovering] = useState(false);
     const [showOutletPanel, setShowOutletPanel] = useState(false);
+    const [showCloseConfirm, setShowCloseConfirm] = useState(false); // Custom Close Dialog
     const [showAddForm, setShowAddForm] = useState(false);
     const [activeTab, setActiveTab] = useState<'manual' | 'import'>('import');
     const [newOutlet, setNewOutlet] = useState({ name: '', url: '', type: 'Online' });
@@ -2664,7 +2665,8 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
                                 digestData={digestData}
                                 onClose={() => {
                                     if (!isReportSaved && digestSummary && digestSummary !== digestData.digest) {
-                                        if (!confirm("Close report? Unsaved progress will be lost.")) return;
+                                        setShowCloseConfirm(true);
+                                        return;
                                     }
                                     setDigestData(null);
                                     setActiveModalTab('articles');
@@ -2690,6 +2692,33 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
                                 onAssessArticle={handleAssessArticle}
                                 onDebugArticle={handleDebugArticle}
                             />
+                            {showCloseConfirm && (
+                                <div className="absolute inset-0 z-[60] bg-black/80 backdrop-blur-sm flex items-center justify-center animate-in fade-in">
+                                    <div className="bg-slate-900 border border-slate-700 p-6 rounded-xl shadow-2xl max-w-sm w-full text-center">
+                                        <h3 className="text-xl font-bold text-white mb-2">Unsaved Changes</h3>
+                                        <p className="text-slate-400 mb-6">You have unsaved edits in your report. Closing will discard them.</p>
+                                        <div className="flex gap-3 justify-center">
+                                            <button
+                                                onClick={() => setShowCloseConfirm(false)}
+                                                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg font-bold transition-colors"
+                                            >
+                                                Keep Editing
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    setShowCloseConfirm(false);
+                                                    setDigestData(null);
+                                                    setActiveModalTab('articles');
+                                                    setIsTranslateActive(false);
+                                                }}
+                                                className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg font-bold transition-colors"
+                                            >
+                                                Discard & Close
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div >
                 )

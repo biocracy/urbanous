@@ -297,7 +297,10 @@ export default function UnifiedDigestViewer({
                     {onClose && (
                         <div className="pl-4 ml-2 border-l border-neutral-800">
                             <button
-                                onClick={onClose}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onClose();
+                                }}
                                 className="p-2 hover:bg-red-900/30 rounded-full text-neutral-400 hover:text-red-400 transition-colors"
                             >
                                 <X className="w-6 h-6" />
