@@ -21,9 +21,26 @@ interface OutletGroupProps {
 }
 
 export function OutletGroup({ group, isTranslated, selectedUrls, onToggle, onAssess, onDebug, onReportSpam, excludedArticles = [], spamArticles = [] }: OutletGroupProps) {
+    const isAdmin = !!onAssess;
     const [isOpen, setIsOpen] = useState(true);
-    const [isExcludedOpen, setIsExcludedOpen] = useState(false);
+    const [isExcludedOpen, setIsExcludedOpen] = useState(!isAdmin); // Default open in Read-Only
     const [isSpamOpen, setIsSpamOpen] = useState(false);
+
+    // Counts
+    const selectedCount = group.articles.filter(a => selectedUrls.has(a.url)).length;
+    const activeCount = group.articles.length;
+    const excludedCount = excludedArticles.length;
+    const totalCount = activeCount + excludedCount;
+
+    // Header Label Pattern
+    // Edit Mode: (X articles - Y selected) 
+    // Read Mode: (Y/Total articles) -- User Request: "(6/25 articles)" where 6 is selected? No, user said "marked as spam... write as in each table title ... (6/25 articles)".
+    // Assuming 6 is "displayed" or "selected"? In read only, nothing is "selected" interactively usually, but `selectedUrls` might be populated from the digest data.
+    // If Read Only, "Selected" usually means "Included in the Report". 
+    // So (Selected / Total).
+    const countLabel = isAdmin
+        ? `(${activeCount} articles - ${selectedCount} selected)`
+        : `(${selectedCount}/${totalCount} articles)`;
 
     return (
         <div className="animate-in fade-in duration-500 slide-in-from-bottom-2">
@@ -35,7 +52,7 @@ export function OutletGroup({ group, isTranslated, selectedUrls, onToggle, onAss
                 <h3 className="text-xl font-bold text-slate-200 flex items-center gap-2">
                     {group.source}
                     <span className="text-sm font-normal text-slate-500">
-                        ({group.articles.length} articles - <span className="text-blue-400 font-bold">{group.articles.filter(a => selectedUrls.has(a.url)).length} selected</span>)
+                        {countLabel}
                     </span>
                 </h3>
                 <div className="text-slate-500 group-hover:text-slate-300">
@@ -51,9 +68,9 @@ export function OutletGroup({ group, isTranslated, selectedUrls, onToggle, onAss
                             <tr>
                                 <th className="px-4 py-3 w-32 text-center">Date</th>
                                 <th className="px-4 py-3">Title</th>
-                                <th className="px-4 py-3 w-24 text-center">AI Title</th>
-                                <th className="px-4 py-3 w-24 text-center">AI Content</th>
-                                <th className="px-4 py-3 w-16 text-center">Select</th>
+                                {isAdmin && <th className="px-4 py-3 w-24 text-center">AI Title</th>}
+                                {isAdmin && <th className="px-4 py-3 w-24 text-center">AI Content</th>}
+                                {isAdmin && <th className="px-4 py-3 w-16 text-center">Select</th>}
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-800/50">
@@ -74,13 +91,13 @@ export function OutletGroup({ group, isTranslated, selectedUrls, onToggle, onAss
                             {excludedArticles.length > 0 && (
                                 <>
                                     <tr className="bg-slate-800/20 border-t border-slate-700/50">
-                                        <td colSpan={5} className="p-0">
+                                        <td colSpan={isAdmin ? 5 : 2} className="p-0">
                                             <button
                                                 onClick={() => setIsExcludedOpen(!isExcludedOpen)}
                                                 className="w-full py-2 text-xs font-bold text-slate-500 hover:text-blue-400 hover:bg-slate-800/50 uppercase tracking-wider flex items-center justify-center gap-2 transition-colors"
                                             >
                                                 {isExcludedOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                                                {isExcludedOpen ? 'Hide' : 'Expand'} {excludedArticles.length} Skipped Articles
+                                                {isExcludedOpen ? 'Hide' : 'Show'} Skipped / Non-Selected ({excludedArticles.length})
                                             </button>
                                         </td>
                                     </tr>
@@ -103,7 +120,7 @@ export function OutletGroup({ group, isTranslated, selectedUrls, onToggle, onAss
                         {spamArticles.length > 0 && (
                             <tbody className="divide-y divide-red-900/30 border-t border-slate-700/50">
                                 <tr className="bg-red-950/20">
-                                    <td colSpan={5} className="p-0">
+                                    <td colSpan={isAdmin ? 5 : 2} className="p-0">
                                         <button
                                             onClick={() => setIsSpamOpen(!isSpamOpen)}
                                             className="w-full py-2 text-xs font-bold text-red-400 hover:text-red-300 hover:bg-red-900/20 uppercase tracking-wider flex items-center justify-center gap-2 transition-colors"
