@@ -57,10 +57,13 @@ export default function FeedLayout() {
                         {/* SECTION 2: MAP LEGEND (Placeholder for Next Step) */}
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
                             {/* Placeholder for Icon Diagram */}
-                            <div className="order-2 lg:order-1 relative rounded-2xl overflow-hidden border border-neutral-800 bg-neutral-900/50 aspect-square flex items-center justify-center">
-                                <div className="text-neutral-500 font-mono text-sm animate-pulse">
-                                    [ UPLOAD SCREENSHOT: CLUSTERS & ICONS ]
-                                </div>
+                            {/* Legend Image */}
+                            <div className="order-2 lg:order-1 relative rounded-2xl overflow-hidden border border-neutral-800 bg-neutral-900/50 shadow-2xl shadow-black/50">
+                                <img
+                                    src="/about/clusters-legend.png"
+                                    alt="Map Clusters and Icons"
+                                    className="w-full h-auto"
+                                />
                             </div>
 
                             <div className="order-1 lg:order-2 space-y-6">
@@ -74,13 +77,13 @@ export default function FeedLayout() {
 
                     </div>
                 </div>
-            </div>
 
-            {/* FOOTER 2: The "Cloned" Footer */}
-            <Footer
-                onAboutClick={() => setShowAbout(false)}
-                isAboutActive={showAbout}
-            />
+                {/* FOOTER 2: The "Cloned" Footer - Now runs away with the content */}
+                <Footer
+                    onAboutClick={() => setShowAbout(false)}
+                    isAboutActive={showAbout}
+                />
+            </div>
         </div>
     );
 }
