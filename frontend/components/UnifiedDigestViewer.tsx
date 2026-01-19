@@ -147,6 +147,7 @@ export default function UnifiedDigestViewer({
     const [internalAnalyticsViewMode, setInternalAnalyticsViewMode] = useState<'cloud' | 'columns'>('cloud');
     const [selectedKeyword, setSelectedKeyword] = useState<any | null>(null);
     const [hoveredKeywordData, setHoveredKeywordData] = useState<{ kw: any, rect: DOMRect } | null>(null);
+    const [isEditing, setIsEditing] = useState(false); // Default to Preview Mode
 
     // Use prop if available (controlled), else local state
     const viewMode = analyticsViewMode || internalAnalyticsViewMode;
@@ -384,7 +385,29 @@ export default function UnifiedDigestViewer({
                             </div>
                         </div>
 
-                        {isEditorActive ? (
+                        {/* Editor Toggle (Only if editable) */}
+                        {isEditorActive && (
+                            <div className="flex justify-end mb-4">
+                                <button
+                                    onClick={() => setIsEditing(!isEditing)}
+                                    className="text-xs font-bold uppercase tracking-wider text-neutral-500 hover:text-blue-400 transition-colors flex items-center gap-2"
+                                >
+                                    {isEditing ? (
+                                        <>
+                                            <FileText className="w-4 h-4" />
+                                            Switch to Preview
+                                        </>
+                                    ) : (
+                                        <>
+                                            <span className="w-4 h-4">✏️</span>
+                                            Edit Report
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        )}
+
+                        {isEditing ? (
                             <textarea
                                 className="w-full h-[80vh] bg-neutral-900/50 border border-neutral-700 rounded-lg p-4 font-mono text-sm text-white focus:outline-none focus:border-blue-500"
                                 value={digestData?.digest || ""}
