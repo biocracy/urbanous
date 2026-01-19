@@ -3,7 +3,10 @@ import sys
 import os
 
 # Updated to new snapshot
-SNAPSHOT_FILE = "Heap-20260115T232254.heapsnapshot"
+if len(sys.argv) > 1:
+    SNAPSHOT_FILE = sys.argv[1]
+else:
+    SNAPSHOT_FILE = "Heap.heapsnapshot"
 
 def analyze_heap(filepath):
     print(f"Loading snapshot: {filepath} (This may take a minute)...", flush=True)

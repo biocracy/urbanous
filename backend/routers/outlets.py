@@ -919,6 +919,7 @@ class DigestDetail(BaseModel):
     id: int
     title: str
     category: str
+    timeframe: Optional[str] = "24h" # Added to support date calculation in frontend
     city: Optional[str] = None
     summary_markdown: str
     articles: List[Dict[str, Any]]
@@ -1806,6 +1807,7 @@ async def get_public_digest(slug: str, db: Session = Depends(get_db)):
         id=digest.id,
         title=digest.title,
         category=digest.category,
+        timeframe=digest.timeframe or "24h", # Pass to frontend
         city=digest.city,
         summary_markdown=digest.summary_markdown,
         articles=safe_json(digest.articles_json),

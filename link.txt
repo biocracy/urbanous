@@ -1,0 +1,37 @@
+[NewsGlobe] Render Cycle
+VM221:63 NewsGlobe Mounted. Fetching initial data...
+VM221:63 Loading clusters for radius: 0.7 (requested: 0.7)
+VM221:63 [NewsGlobe] MOUNTED
+VM221:63 [NewsGlobe] Render Cycle
+VM221:63 Loaded 2482 clusters.
+2VM221:63 [NewsGlobe] Render Cycle
+9c73c0db5006053d.js:351 [Violation] 'requestAnimationFrame' handler took 213ms
+9c73c0db5006053d.js:351 [Violation] 'setTimeout' handler took 117ms
+9c73c0db5006053d.js:351 [Violation] 'setTimeout' handler took 136ms
+9c73c0db5006053d.js:351 [Violation] 'requestAnimationFrame' handler took 65ms
+VM221:63 Discovered Cities Loaded: 53
+VM221:63 [NewsGlobe] Render Cycle
+VM221:63 [NewsGlobe] Render Cycle
+4c631c12e6a90c7e.js:1 Uncaught Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Btitle%2C%20url%2C%20source%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
+    at lD (4c631c12e6a90c7e.js:1:53325)
+    at i (4c631c12e6a90c7e.js:1:58674)
+    at 4c631c12e6a90c7e.js:1:58872
+    at oB (4c631c12e6a90c7e.js:1:81128)
+    at io (4c631c12e6a90c7e.js:1:97735)
+    at sc (4c631c12e6a90c7e.js:1:137998)
+    at 4c631c12e6a90c7e.js:1:137843
+    at ss (4c631c12e6a90c7e.js:1:137851)
+    at u9 (4c631c12e6a90c7e.js:1:133776)
+    at sV (4c631c12e6a90c7e.js:1:159371)
+lD @ 4c631c12e6a90c7e.js:1
+i @ 4c631c12e6a90c7e.js:1
+(anonymous) @ 4c631c12e6a90c7e.js:1
+oB @ 4c631c12e6a90c7e.js:1
+io @ 4c631c12e6a90c7e.js:1
+sc @ 4c631c12e6a90c7e.js:1
+(anonymous) @ 4c631c12e6a90c7e.js:1
+ss @ 4c631c12e6a90c7e.js:1
+u9 @ 4c631c12e6a90c7e.js:1
+sV @ 4c631c12e6a90c7e.js:1
+O @ 4c631c12e6a90c7e.js:1Understand this error
+VM221:63 [NewsGlobe] UNMOUNTED
