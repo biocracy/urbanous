@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
     LayoutGrid, FileText, Sparkles, Check, Share2, Download, Copy,
-    RotateCcw, Trash2
+    RotateCcw, Trash2, Languages, Cloud, Columns
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import DigestReportRenderer from './DigestReportRenderer';
@@ -56,7 +56,7 @@ export default function UnifiedDigestViewer({
     selectedArticleUrls = new Set(),
     onToggleSelection,
     analyticsKeywords = [],
-    analyticsViewMode = 'cloud',
+    analyticsViewMode, // Removed default to allow local state fallback
     isReadOnly = false,
     isSaving = false,
     isSharing = false,
@@ -110,9 +110,11 @@ export default function UnifiedDigestViewer({
         // So we subtract 2 days from the valid range "start".
 
         let daysToSubtract = 0;
-        if (timeframeStr === "3days") daysToSubtract = 2; // 3 - 1
-        else if (timeframeStr === "1week") daysToSubtract = 6; // 7 - 1
-        else if (timeframeStr === "1month") daysToSubtract = 29; // 30 - 1
+        const normalizedTime = (timeframeStr || "").toLowerCase().replace(/\s/g, '');
+
+        if (normalizedTime.includes("3day")) daysToSubtract = 2; // 3 - 1
+        else if (normalizedTime.includes("1week") || normalizedTime.includes("7day")) daysToSubtract = 6; // 7 - 1
+        else if (normalizedTime.includes("1month") || normalizedTime.includes("30day")) daysToSubtract = 29; // 30 - 1
 
         const msToSubtract = daysToSubtract * 24 * 60 * 60 * 1000;
         const startDate = new Date(createdDate.getTime() - msToSubtract);
@@ -386,14 +388,14 @@ export default function UnifiedDigestViewer({
                                         className={`p-2 rounded hover:text-white transition-colors ${viewMode === 'cloud' ? 'bg-neutral-800 text-white' : 'text-neutral-400'}`}
                                         title="Word Cloud"
                                     >
-                                        <LayoutGrid className="w-4 h-4" />
+                                        <Cloud className="w-4 h-4" />
                                     </button>
                                     <button
                                         onClick={() => handleSetViewMode('columns')}
                                         className={`p-2 rounded hover:text-white transition-colors ${viewMode === 'columns' ? 'bg-neutral-800 text-white' : 'text-neutral-400'}`}
                                         title="Columns"
                                     >
-                                        <FileText className="w-4 h-4" />
+                                        <Columns className="w-4 h-4" />
                                     </button>
                                 </div>
 
@@ -401,8 +403,8 @@ export default function UnifiedDigestViewer({
                                     onClick={() => setIsAnalyticsTranslated(!isAnalyticsTranslated)}
                                     className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-colors border ${isAnalyticsTranslated ? 'bg-indigo-900/50 text-indigo-300 border-indigo-700' : 'bg-neutral-900 text-neutral-400 border-neutral-700 hover:text-white'}`}
                                 >
-                                    <RotateCcw className="w-3 h-3" />
-                                    {isAnalyticsTranslated ? 'Show Original' : 'Translate Keywords'}
+                                    <Languages className="w-3 h-3" />
+                                    {isAnalyticsTranslated ? 'A/文' : 'A/文'}
                                 </button>
                             </div>
 
