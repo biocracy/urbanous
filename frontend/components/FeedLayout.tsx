@@ -1,9 +1,51 @@
 import React, { useState } from 'react';
 import { MOCK_NEWS, NewsItem } from '../data/mock-news';
 import Footer from './Footer';
+import UnifiedDigestViewer from './UnifiedDigestViewer';
+import { ArrowLeft } from 'lucide-react';
 
-export default function FeedLayout() {
+interface FeedLayoutProps {
+    activeDigest?: any;
+    onCloseDigest?: () => void;
+}
+
+export default function FeedLayout({ activeDigest, onCloseDigest }: FeedLayoutProps) {
     const [showAbout, setShowAbout] = useState(false);
+
+    // If Viewing a Digest, override the main content
+    if (activeDigest) {
+        return (
+            <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8 flex flex-col min-h-full">
+                {/* Header with Back Button */}
+                <div className="flex items-center gap-4 mb-4">
+                    <button
+                        onClick={onCloseDigest}
+                        className="p-2 hover:bg-neutral-800 rounded-full text-neutral-400 hover:text-white transition-colors flex items-center gap-2 group"
+                    >
+                        <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+                        <span className="font-mono text-sm uppercase">Back to Live Stream</span>
+                    </button>
+                    <div className="h-1 w-12 bg-blue-500 rounded-full shadow-[0_0_10px_#3b82f6] ml-auto"></div>
+                    <span className="text-neutral-500 text-sm font-mono">ARCHIVED REPORT MODE</span>
+                </div>
+
+                {/* Unified Viewer Container */}
+                <div className="w-full bg-neutral-900/30 border border-neutral-800 rounded-2xl overflow-hidden shadow-2xl min-h-[800px]">
+                    <UnifiedDigestViewer
+                        digestData={activeDigest}
+                        isReadOnly={true}
+                        onShare={() => {
+                            if (activeDigest.public_slug) {
+                                const link = `${window.location.origin}/s/${activeDigest.public_slug}`;
+                                navigator.clipboard.writeText(link);
+                                alert("Link copied to clipboard!");
+                            }
+                        }}
+                    />
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="max-w-7xl mx-auto py-16 px-4 sm:px-6 lg:px-8 flex flex-col min-h-full">
@@ -54,9 +96,8 @@ export default function FeedLayout() {
                             </div>
                         </div>
 
-                        {/* SECTION 2: MAP LEGEND (Placeholder for Next Step) */}
+                        {/* SECTION 2: MAP LEGEND */}
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-                            {/* Placeholder for Icon Diagram */}
                             {/* Legend Image */}
                             <div className="order-2 lg:order-1 relative rounded-2xl overflow-hidden border border-neutral-800 bg-neutral-900/50 shadow-2xl shadow-black/50">
                                 <img

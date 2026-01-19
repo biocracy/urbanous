@@ -1,6 +1,6 @@
 'use client';
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState, useRef } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/lib/store';
 import dynamic from 'next/dynamic';
 
@@ -13,20 +13,55 @@ const NewsGlobe = dynamic(() => import('@/components/NewsGlobe'), {
 import { Settings } from 'lucide-react';
 import SettingsModal from '@/components/SettingsModal';
 import FeedLayout from '@/components/FeedLayout'; // NEW MOCK FEED
-import { useState } from 'react';
 
 export default function Home() {
   const { isAuthenticated, logout } = useAuthStore();
   const router = useRouter();
+  const searchParams = useSearchParams();
+
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+  const [activeDigest, setActiveDigest] = useState<any>(null);
 
   // SCROLL STATE: Track if we are at the top (Hero View)
   const [isAtTop, setIsAtTop] = useState(true);
 
+  const mainRef = useRef<HTMLElement>(null);
+
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  // Handle URL Params for Digest View
+  useEffect(() => {
+    const viewDigestSlug = searchParams.get('view_digest');
+    if (viewDigestSlug) {
+      // Fetch the digest
+      const fetchDigest = async () => {
+        try {
+          const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+          const res = await fetch(`${baseUrl}/digests/public/${viewDigestSlug}`);
+          if (res.ok) {
+            const data = await res.json();
+            setActiveDigest(data);
+
+            // Auto-scroll to feed section
+            setTimeout(() => {
+              const feedSection = document.getElementById('feed-section');
+              if (feedSection) {
+                feedSection.scrollIntoView({ behavior: 'smooth' });
+              }
+            }, 500);
+          }
+        } catch (err) {
+          console.error("Failed to load digest from params", err);
+        }
+      };
+      fetchDigest();
+    } else {
+      setActiveDigest(null);
+    }
+  }, [searchParams]);
 
   // Handle Main Container Scroll
   const handleScroll = (e: React.UIEvent<HTMLElement>) => {
@@ -38,8 +73,14 @@ export default function Home() {
     }
   };
 
+  const closeDigestView = () => {
+    setActiveDigest(null);
+    router.push('/', { scroll: false });
+  };
+
   return (
     <main
+      ref={mainRef}
       onScroll={handleScroll}
       className="relative h-screen w-full bg-black overflow-y-scroll overflow-x-hidden snap-y snap-mandatory scroll-smooth"
     >
@@ -93,8 +134,14 @@ export default function Home() {
       <div className="absolute top-[60vh] w-full h-[1px] pointer-events-none snap-start" />
 
       {/* SECTION 2: CONTENT BELOW FOLD */}
-      <div className="min-h-screen w-full bg-neutral-950 border-t border-neutral-800 relative z-20 shadow-[0_-20px_40px_rgba(0,0,0,0.8)] snap-start">
-        <FeedLayout />
+      <div
+        id="feed-section"
+        className="min-h-screen w-full bg-neutral-950 border-t border-neutral-800 relative z-20 shadow-[0_-20px_40px_rgba(0,0,0,0.8)] snap-start"
+      >
+        <FeedLayout
+          activeDigest={activeDigest}
+          onCloseDigest={closeDigestView}
+        />
       </div>
     </main>
   );

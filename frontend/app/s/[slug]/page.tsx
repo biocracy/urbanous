@@ -1,5 +1,5 @@
 import { Metadata, ResolvingMetadata } from 'next';
-import PublicDigestClient from './PublicDigestClient';
+import { redirect } from 'next/navigation';
 
 // Ensure fresh fetch every time (fixes caching of "Not Found" errors)
 export const dynamic = 'force-dynamic';
@@ -92,7 +92,7 @@ export async function generateMetadata(
 }
 
 export default async function Page({ params }: Props) {
-    // We don't need params here for the client component, but we must respect the async signature
-    await params;
-    return <PublicDigestClient />;
+    const { slug } = await params;
+    // Redirect to main page with view_digest param
+    redirect(`/?view_digest=${slug}`);
 }
