@@ -106,6 +106,7 @@ export default function UnifiedDigestViewer({
 
     // Date Range Helper
     const formatDateRange = (createdDateStr: string, timeframeStr: string = "24h") => {
+        console.log(`[UnifiedDigestViewer] formatDateRange Input:`, { createdDateStr, timeframeStr });
         const createdDate = new Date(createdDateStr || Date.now());
 
         // "Inclusive" subtraction: If 3 days, we want Today + (Today-1) + (Today-2). 
