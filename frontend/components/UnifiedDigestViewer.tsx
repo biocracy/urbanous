@@ -468,15 +468,44 @@ export default function UnifiedDigestViewer({
                                                             </div>
                                                         </div>
 
-                                                        {/* Hover Tooltip (Column Mode) */}
-                                                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-black/90 border border-neutral-700 p-3 rounded-lg text-xs w-48 z-50 shadow-xl pointer-events-none">
-                                                            <div className="font-bold text-white mb-1">{kw.translation || kw.word}</div>
+                                                        {/* Hover Tooltip (Column Mode) - Interactive/Scrollable */}
+                                                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-black/95 border border-neutral-700 p-3 rounded-xl text-xs w-64 z-50 shadow-2xl overflow-hidden">
+                                                            <div className="font-bold text-white mb-1 text-base">{kw.translation || kw.word}</div>
                                                             {isAnalyticsTranslated && kw.translation !== kw.word && (
-                                                                <div className="text-neutral-500 mb-1 text-[10px] uppercase">Orig: {kw.word}</div>
+                                                                <div className="text-neutral-500 mb-2 text-[10px] uppercase font-mono">Orig: {kw.word}</div>
                                                             )}
-                                                            <div className="text-neutral-400">Imp: {kw.importance}</div>
-                                                            <div className="text-neutral-500 mt-1">Sources: {kw.sources?.length || 0}</div>
-                                                            <div className="mt-2 text-[10px] text-blue-400 font-bold uppercase tracking-wide text-center">Click to Lock</div>
+
+                                                            <div className="flex gap-2 mb-3">
+                                                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${kw.sentiment === 'Positive' ? 'bg-green-900/30 text-green-400 border border-green-900' :
+                                                                    kw.sentiment === 'Negative' ? 'bg-red-900/30 text-red-400 border border-red-900' :
+                                                                        'bg-neutral-800 text-neutral-400 border border-neutral-700'
+                                                                    }`}>
+                                                                    {kw.sentiment}
+                                                                </span>
+                                                                <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-neutral-800 text-neutral-400 border border-neutral-700">
+                                                                    Imp: {kw.importance}
+                                                                </span>
+                                                            </div>
+
+                                                            <div className="text-neutral-500 font-bold uppercase tracking-widest text-[10px] mb-1">
+                                                                Sources ({kw.sources?.length || 0})
+                                                            </div>
+                                                            <div className="max-h-32 overflow-y-auto custom-scrollbar space-y-1 mb-2 pr-1">
+                                                                {kw.sources?.map((s: string, i: number) => {
+                                                                    // Extract Hostname safely
+                                                                    let hostname = s;
+                                                                    try { hostname = new URL(s).hostname; } catch { }
+                                                                    return (
+                                                                        <div key={i} className="text-blue-300/80 truncate border-b border-white/5 pb-0.5 last:border-0">
+                                                                            {hostname}
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            </div>
+
+                                                            <div className="mt-2 py-1 bg-blue-900/20 text-blue-300 font-bold uppercase tracking-wide text-center rounded border border-blue-900/50 text-[10px]">
+                                                                Click to Lock & Open Links
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 ))}
@@ -507,15 +536,42 @@ export default function UnifiedDigestViewer({
                                                 style={{ fontSize: `${Math.max(0.8, size)}rem` }}
                                             >
                                                 {displayWord}
-                                                {/* Tooltip on Hover (Restored) */}
-                                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-black/90 border border-neutral-700 p-3 rounded-lg text-xs w-48 z-50 shadow-xl pointer-events-none">
-                                                    <div className="font-bold text-white mb-1">{kw.translation || kw.word}</div>
+                                                {/* Tooltip on Hover (Cloud Mode) - Interactive/Scrollable */}
+                                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-black/95 border border-neutral-700 p-3 rounded-xl text-xs w-64 z-50 shadow-2xl overflow-hidden cursor-pointer">
+                                                    <div className="font-bold text-white mb-1 text-base">{kw.translation || kw.word}</div>
                                                     {isAnalyticsTranslated && kw.translation !== kw.word && (
-                                                        <div className="text-neutral-500 mb-1 text-[10px] uppercase">Orig: {kw.word}</div>
+                                                        <div className="text-neutral-500 mb-2 text-[10px] uppercase font-mono">Orig: {kw.word}</div>
                                                     )}
-                                                    <div className="text-neutral-400">Imp: {kw.importance}</div>
-                                                    <div className="text-neutral-500 mt-1">Sources: {kw.sources?.length || 0}</div>
-                                                    <div className="mt-2 text-[10px] text-blue-400 font-bold uppercase tracking-wide text-center">Click to Lock</div>
+
+                                                    <div className="flex gap-2 mb-3">
+                                                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${kw.sentiment === 'Positive' ? 'bg-green-900/30 text-green-400 border border-green-900' :
+                                                            kw.sentiment === 'Negative' ? 'bg-red-900/30 text-red-400 border border-red-900' :
+                                                                'bg-neutral-800 text-neutral-400 border border-neutral-700'
+                                                            }`}>
+                                                            {kw.sentiment}
+                                                        </span>
+                                                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-neutral-800 text-neutral-400 border border-neutral-700">
+                                                            Imp: {kw.importance}
+                                                        </span>
+                                                    </div>
+
+                                                    <div className="text-neutral-500 font-bold uppercase tracking-widest text-[10px] mb-1">
+                                                        Sources ({kw.sources?.length || 0})
+                                                    </div>
+                                                    <div className="max-h-32 overflow-y-auto custom-scrollbar space-y-1 mb-2 pr-1">
+                                                        {kw.sources?.map((s: string, i: number) => {
+                                                            let hostname = s;
+                                                            try { hostname = new URL(s).hostname; } catch { }
+                                                            return (
+                                                                <div key={i} className="text-blue-300/80 truncate border-b border-white/5 pb-0.5 last:border-0">
+                                                                    {hostname}
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                    <div className="mt-2 py-1 bg-blue-900/20 text-blue-300 font-bold uppercase tracking-wide text-center rounded border border-blue-900/50 text-[10px]">
+                                                        Click to Lock & Open Links
+                                                    </div>
                                                 </div>
                                             </div>
                                         );
@@ -565,7 +621,7 @@ export default function UnifiedDigestViewer({
                                     Found in {selectedKeyword.sources?.length || 0} Sources
                                 </div>
                                 <ul className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
-                                    {selectedKeyword.sources?.map((s: string, i: number) => {
+                                    {(selectedKeyword.sources || []).map((s: string, i: number) => {
                                         // Use Safe Parsing inside the render to avoid crashes
                                         return (
                                             <li key={i}>
@@ -574,12 +630,15 @@ export default function UnifiedDigestViewer({
                                                     target="_blank"
                                                     rel="noopener noreferrer"
                                                     className="block p-3 rounded-lg bg-neutral-950 border border-neutral-800 hover:border-blue-700 hover:bg-blue-900/10 transition-colors group"
+                                                    onClick={(e) => e.stopPropagation()} // Prevent closing modal on link click
                                                 >
                                                     <div className="text-sm text-blue-300 font-medium line-clamp-2 group-hover:text-blue-200">
                                                         {(() => {
-                                                            const article = digestData?.articles?.find((a: any) => a.url === s);
-                                                            if (article) return article.title;
-                                                            try { return new URL(s).hostname; } catch { return s; }
+                                                            try {
+                                                                const article = digestData?.articles?.find((a: any) => a.url === s);
+                                                                if (article && article.title) return article.title;
+                                                                return new URL(s).hostname;
+                                                            } catch { return s; }
                                                         })()}
                                                     </div>
                                                     <div className="text-xs text-neutral-600 mt-1 truncate">
