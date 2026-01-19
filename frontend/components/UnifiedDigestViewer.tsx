@@ -443,7 +443,9 @@ export default function UnifiedDigestViewer({
                                     }}
                                 >
                                     {(digestData?.digest || digestData?.summary_markdown || "")
-                                        .replace(/^#\s+.+$/m, '') // Remove duplicate title (first H1)
+                                        .replace(/^```(?:markdown)?\s*/i, '') // Remove leading code block
+                                        .replace(/\s*```$/i, '')          // Remove trailing code block
+                                        .replace(/^#\s+.+$/m, '')         // Remove duplicate title
                                         .replace(/\[(\d+)\]/g, '[$1](citation:$1)')}
                                 </ReactMarkdown>
                             </div>
