@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState, useRef, Suspense } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/lib/store';
 import dynamic from 'next/dynamic';
@@ -20,17 +20,9 @@ function HomeContent() {
   const searchParams = useSearchParams();
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
-  const [activeDigest, setActiveDigest] = useState<any>(null);
-
   // SCROLL STATE: Track if we are at the top (Hero View)
+  const [activeDigest, setActiveDigest] = useState<any>(null);
   const [isAtTop, setIsAtTop] = useState(true);
-
-  const mainRef = useRef<HTMLElement>(null);
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
 
   // Handle URL Params for Digest View
   useEffect(() => {
@@ -80,9 +72,8 @@ function HomeContent() {
 
   return (
     <main
-      ref={mainRef}
       onScroll={handleScroll}
-      className="relative h-screen w-full bg-black overflow-y-scroll overflow-x-hidden snap-y snap-mandatory scroll-smooth"
+      className="relative h-screen w-full bg-black overflow-y-scroll overflow-x-hidden scroll-smooth"
     >
       {/* Header Overlay - Fixed to Viewport (viewport-relative) */}
       <div className="fixed top-0 left-0 w-full z-10 p-4 flex justify-between items-center pointer-events-none">
@@ -119,8 +110,8 @@ function HomeContent() {
 
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
 
-      {/* SECTION 1: HERO GLOBE (100vh) - SNAP START */}
-      <div className="h-screen w-full relative z-0 snap-start shrink-0">
+      {/* SECTION 1: HERO GLOBE (100vh) */}
+      <div className="h-screen w-full relative z-0 shrink-0">
         <NewsGlobe disableScrollZoom={true} isAtTop={isAtTop} />
 
         {/* Scroll Hint */}
@@ -131,12 +122,12 @@ function HomeContent() {
 
       {/* SNAP SPACER: Invisible anchor to snap top of viewport to 66vh */}
       {/* This makes the Globe 33% visible at the top */}
-      <div className="absolute top-[60vh] w-full h-[1px] pointer-events-none snap-start" />
+      <div className="absolute top-[60vh] w-full h-[1px] pointer-events-none" />
 
       {/* SECTION 2: CONTENT BELOW FOLD */}
       <div
         id="feed-section"
-        className="min-h-screen w-full bg-neutral-950 border-t border-neutral-800 relative z-20 shadow-[0_-20px_40px_rgba(0,0,0,0.8)] snap-start"
+        className="min-h-screen w-full bg-neutral-950 border-t border-neutral-800 relative z-20 shadow-[0_-20px_40px_rgba(0,0,0,0.8)]"
       >
         <FeedLayout
           activeDigest={activeDigest}
