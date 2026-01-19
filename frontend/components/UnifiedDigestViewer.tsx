@@ -491,10 +491,14 @@ export default function UnifiedDigestViewer({
                                                                 Sources ({kw.sources?.length || 0})
                                                             </div>
                                                             <div className="max-h-32 overflow-y-auto custom-scrollbar space-y-1 mb-2 pr-1">
-                                                                {kw.sources?.map((s: string, i: number) => {
-                                                                    // Extract Hostname safely
-                                                                    let hostname = s;
-                                                                    try { hostname = new URL(s).hostname; } catch { }
+                                                                {kw.sources?.map((s: any, i: number) => {
+                                                                    // Extract Hostname safely from String OR Object
+                                                                    let hostname = "";
+                                                                    const url = typeof s === 'string' ? s : s?.url;
+
+                                                                    if (!url) return null; // Skip invalid
+
+                                                                    try { hostname = new URL(url).hostname; } catch { hostname = "Source"; }
                                                                     return (
                                                                         <div key={i} className="text-blue-300/80 truncate border-b border-white/5 pb-0.5 last:border-0">
                                                                             {hostname}
@@ -559,9 +563,13 @@ export default function UnifiedDigestViewer({
                                                         Sources ({kw.sources?.length || 0})
                                                     </div>
                                                     <div className="max-h-32 overflow-y-auto custom-scrollbar space-y-1 mb-2 pr-1">
-                                                        {kw.sources?.map((s: string, i: number) => {
-                                                            let hostname = s;
-                                                            try { hostname = new URL(s).hostname; } catch { }
+                                                        {kw.sources?.map((s: any, i: number) => {
+                                                            let hostname = "";
+                                                            const url = typeof s === 'string' ? s : s?.url;
+
+                                                            if (!url) return null;
+
+                                                            try { hostname = new URL(url).hostname; } catch { hostname = "Source"; }
                                                             return (
                                                                 <div key={i} className="text-blue-300/80 truncate border-b border-white/5 pb-0.5 last:border-0">
                                                                     {hostname}
@@ -621,12 +629,15 @@ export default function UnifiedDigestViewer({
                                     Found in {selectedKeyword.sources?.length || 0} Sources
                                 </div>
                                 <ul className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
-                                    {(selectedKeyword.sources || []).map((s: string, i: number) => {
-                                        // Use Safe Parsing inside the render to avoid crashes
+                                    {(selectedKeyword.sources || []).map((s: any, i: number) => {
+                                        // Handle String vs Object source
+                                        const url = typeof s === 'string' ? s : s?.url;
+                                        if (!url) return null;
+
                                         return (
                                             <li key={i}>
                                                 <a
-                                                    href={s}
+                                                    href={url}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
                                                     className="block p-3 rounded-lg bg-neutral-950 border border-neutral-800 hover:border-blue-700 hover:bg-blue-900/10 transition-colors group"
@@ -635,15 +646,18 @@ export default function UnifiedDigestViewer({
                                                     <div className="text-sm text-blue-300 font-medium line-clamp-2 group-hover:text-blue-200">
                                                         {(() => {
                                                             try {
-                                                                const article = digestData?.articles?.find((a: any) => a.url === s);
+                                                                // Use object title if available, else find in articles
+                                                                if (typeof s === 'object' && s.title) return s.title;
+
+                                                                const article = digestData?.articles?.find((a: any) => a.url === url);
                                                                 if (article && article.title) return article.title;
-                                                                return new URL(s).hostname;
-                                                            } catch { return s; }
+                                                                return new URL(url).hostname;
+                                                            } catch { return "Source Detail"; }
                                                         })()}
                                                     </div>
                                                     <div className="text-xs text-neutral-600 mt-1 truncate">
                                                         {(() => {
-                                                            try { return new URL(s).hostname; } catch { return 'Source'; }
+                                                            try { return new URL(url).hostname; } catch { return 'Source'; }
                                                         })()}
                                                     </div>
                                                 </a>
