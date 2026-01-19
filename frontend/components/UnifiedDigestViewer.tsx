@@ -1,10 +1,77 @@
 import React, { useState, useEffect } from 'react';
 import {
     LayoutGrid, FileText, Sparkles, Check, Share2, Download, Copy,
-    RotateCcw, Trash2, Languages, Cloud, Columns
+    RotateCcw, Trash2, Languages, Cloud, Columns, X
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import DigestReportRenderer from './DigestReportRenderer';
+
+// Fixed Tooltip Component
+const AnalyticsTooltip = ({ data, isTranslated, onClose }: { data: { kw: any, rect: DOMRect }, isTranslated: boolean, onClose: () => void }) => {
+    const { kw, rect } = data;
+    if (!kw || !rect) return null;
+
+    // Position calculation
+    // Default: Centered above the element
+    const top = rect.top - 10; // 10px buffer
+    const left = rect.left + (rect.width / 2);
+
+    // If too close to top, flip to bottom?
+    // For now, let's just default to above, but strict fixed positioning.
+
+    return (
+        <div
+            className="fixed z-[9999] bg-black/95 border border-neutral-700 p-3 rounded-xl text-xs w-64 shadow-2xl overflow-hidden text-left animate-in fade-in zoom-in-95 duration-200"
+            style={{
+                top: top,
+                left: left,
+                transform: 'translate(-50%, -100%)', // Shift up and center
+                pointerEvents: 'none' // Initially just visual? NO, user needs to scroll.
+                // Wait, if pointerEvents is none, we can't scroll.
+                // If pointerEvents is auto, and there is a gap between element and tooltip, we might lose hover.
+                // But the user said "Click to Lock".
+            }}
+        >
+            <div className="font-bold text-white mb-1 text-base">{kw.translation || kw.word}</div>
+            {isTranslated && kw.translation !== kw.word && (
+                <div className="text-neutral-500 mb-2 text-[10px] uppercase font-mono">Orig: {kw.word}</div>
+            )}
+
+            <div className="flex gap-2 mb-3">
+                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${kw.sentiment === 'Positive' ? 'bg-green-900/30 text-green-400 border border-green-900' :
+                    kw.sentiment === 'Negative' ? 'bg-red-900/30 text-red-400 border border-red-900' :
+                        'bg-neutral-800 text-neutral-400 border border-neutral-700'
+                    }`}>
+                    {kw.sentiment}
+                </span>
+                <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-neutral-800 text-neutral-400 border border-neutral-700">
+                    Imp: {kw.importance}
+                </span>
+            </div>
+
+            <div className="text-neutral-500 font-bold uppercase tracking-widest text-[10px] mb-1">
+                Sources ({kw.sources?.length || 0})
+            </div>
+            <div className="max-h-32 overflow-y-auto custom-scrollbar space-y-1 mb-2 pr-1">
+                {kw.sources?.map((s: any, i: number) => {
+                    let hostname = "";
+                    const url = typeof s === 'string' ? s : s?.url;
+                    if (!url) return null;
+                    try { hostname = new URL(url).hostname; } catch { hostname = "Source"; }
+                    return (
+                        <div key={i} className="text-blue-300/80 truncate border-b border-white/5 pb-0.5 last:border-0">
+                            {hostname}
+                        </div>
+                    );
+                })}
+            </div>
+
+            <div className="mt-2 py-1 bg-blue-900/20 text-blue-300 font-bold uppercase tracking-wide text-center rounded border border-blue-900/50 text-[10px]">
+                Click to Lock & Open Links
+            </div>
+        </div>
+    );
+};
 
 interface UnifiedDigestViewerProps {
     digestData: any;
@@ -75,6 +142,7 @@ export default function UnifiedDigestViewer({
     const [isHeadlineTranslated, setIsHeadlineTranslated] = useState(false); // New State
     const [internalAnalyticsViewMode, setInternalAnalyticsViewMode] = useState<'cloud' | 'columns'>('cloud');
     const [selectedKeyword, setSelectedKeyword] = useState<any | null>(null);
+    const [hoveredKeywordData, setHoveredKeywordData] = useState<{ kw: any, rect: DOMRect } | null>(null);
 
     // Use prop if available (controlled), else local state
     const viewMode = analyticsViewMode || internalAnalyticsViewMode;
@@ -476,13 +544,16 @@ export default function UnifiedDigestViewer({
                                                 {items.map((kw: any, idx: number) => (
                                                     <div
                                                         key={idx}
-                                                        className={`relative group bg-neutral-900/50 border border-neutral-800 p-4 rounded-lg flex justify-between items-start cursor-pointer hover:bg-neutral-800 transition-colors hover:z-[60] ${selectedKeyword === kw ? 'ring-2 ring-blue-500 z-50' : ''}`}
+                                                        className={`relative group bg-neutral-900/50 border border-neutral-800 p-4 rounded-lg flex justify-between items-start cursor-pointer hover:bg-neutral-800 transition-colors ${selectedKeyword === kw ? 'ring-2 ring-blue-500' : ''}`}
                                                         onClick={(e) => {
                                                             e.stopPropagation();
                                                             console.log("[UnifiedDigestViewer] Clicked Keyword (Column):", kw?.word);
                                                             setSelectedKeyword(kw);
                                                         }}
+                                                        onMouseEnter={(e) => setHoveredKeywordData({ kw, rect: e.currentTarget.getBoundingClientRect() })}
+                                                        onMouseLeave={() => setHoveredKeywordData(null)}
                                                     >
+
                                                         <div className="w-full">
                                                             <div className="font-bold text-white text-lg flex justify-between w-full">
                                                                 <span>{isAnalyticsTranslated && kw.translation ? kw.translation : kw.word}</span>
@@ -496,49 +567,6 @@ export default function UnifiedDigestViewer({
                                                             </div>
                                                         </div>
 
-                                                        {/* Hover Tooltip (Column Mode) - Interactive/Scrollable */}
-                                                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-black/95 border border-neutral-700 p-3 rounded-xl text-xs w-64 z-[100] shadow-2xl overflow-hidden text-left cursor-default">
-                                                            <div className="font-bold text-white mb-1 text-base">{kw.translation || kw.word}</div>
-                                                            {isAnalyticsTranslated && kw.translation !== kw.word && (
-                                                                <div className="text-neutral-500 mb-2 text-[10px] uppercase font-mono">Orig: {kw.word}</div>
-                                                            )}
-
-                                                            <div className="flex gap-2 mb-3">
-                                                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${kw.sentiment === 'Positive' ? 'bg-green-900/30 text-green-400 border border-green-900' :
-                                                                    kw.sentiment === 'Negative' ? 'bg-red-900/30 text-red-400 border border-red-900' :
-                                                                        'bg-neutral-800 text-neutral-400 border border-neutral-700'
-                                                                    }`}>
-                                                                    {kw.sentiment}
-                                                                </span>
-                                                                <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-neutral-800 text-neutral-400 border border-neutral-700">
-                                                                    Imp: {kw.importance}
-                                                                </span>
-                                                            </div>
-
-                                                            <div className="text-neutral-500 font-bold uppercase tracking-widest text-[10px] mb-1">
-                                                                Sources ({kw.sources?.length || 0})
-                                                            </div>
-                                                            <div className="max-h-32 overflow-y-auto custom-scrollbar space-y-1 mb-2 pr-1">
-                                                                {kw.sources?.map((s: any, i: number) => {
-                                                                    // Extract Hostname safely from String OR Object
-                                                                    let hostname = "";
-                                                                    const url = typeof s === 'string' ? s : s?.url;
-
-                                                                    if (!url) return null; // Skip invalid
-
-                                                                    try { hostname = new URL(url).hostname; } catch { hostname = "Source"; }
-                                                                    return (
-                                                                        <div key={i} className="text-blue-300/80 truncate border-b border-white/5 pb-0.5 last:border-0">
-                                                                            {hostname}
-                                                                        </div>
-                                                                    );
-                                                                })}
-                                                            </div>
-
-                                                            <div className="mt-2 py-1 bg-blue-900/20 text-blue-300 font-bold uppercase tracking-wide text-center rounded border border-blue-900/50 text-[10px]">
-                                                                Click to Lock & Open Links
-                                                            </div>
-                                                        </div>
                                                     </div>
                                                 ))}
                                             </div>
@@ -564,51 +592,12 @@ export default function UnifiedDigestViewer({
                                                     console.log("[UnifiedDigestViewer] Clicked Keyword (Cloud):", kw?.word);
                                                     setSelectedKeyword(kw);
                                                 }}
-                                                className={`relative group px-4 py-2 rounded-full border ${colorClass} transition-all hover:scale-110 cursor-pointer hover:z-[60] ${selectedKeyword === kw ? 'ring-2 ring-blue-500 bg-black z-50' : ''}`}
+                                                className={`relative group px-4 py-2 rounded-full border ${colorClass} transition-all hover:scale-110 cursor-pointer ${selectedKeyword === kw ? 'ring-2 ring-blue-500 bg-black' : ''}`}
                                                 style={{ fontSize: `${Math.max(0.8, size)}rem` }}
+                                                onMouseEnter={(e) => setHoveredKeywordData({ kw, rect: e.currentTarget.getBoundingClientRect() })}
+                                                onMouseLeave={() => setHoveredKeywordData(null)}
                                             >
                                                 {displayWord}
-                                                {/* Tooltip on Hover (Cloud Mode) - Interactive/Scrollable */}
-                                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-black/95 border border-neutral-700 p-3 rounded-xl text-xs w-64 z-[100] shadow-2xl overflow-hidden cursor-default text-left">
-                                                    <div className="font-bold text-white mb-1 text-base">{kw.translation || kw.word}</div>
-                                                    {isAnalyticsTranslated && kw.translation !== kw.word && (
-                                                        <div className="text-neutral-500 mb-2 text-[10px] uppercase font-mono">Orig: {kw.word}</div>
-                                                    )}
-
-                                                    <div className="flex gap-2 mb-3">
-                                                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${kw.sentiment === 'Positive' ? 'bg-green-900/30 text-green-400 border border-green-900' :
-                                                            kw.sentiment === 'Negative' ? 'bg-red-900/30 text-red-400 border border-red-900' :
-                                                                'bg-neutral-800 text-neutral-400 border border-neutral-700'
-                                                            }`}>
-                                                            {kw.sentiment}
-                                                        </span>
-                                                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-neutral-800 text-neutral-400 border border-neutral-700">
-                                                            Imp: {kw.importance}
-                                                        </span>
-                                                    </div>
-
-                                                    <div className="text-neutral-500 font-bold uppercase tracking-widest text-[10px] mb-1">
-                                                        Sources ({kw.sources?.length || 0})
-                                                    </div>
-                                                    <div className="max-h-32 overflow-y-auto custom-scrollbar space-y-1 mb-2 pr-1">
-                                                        {kw.sources?.map((s: any, i: number) => {
-                                                            let hostname = "";
-                                                            const url = typeof s === 'string' ? s : s?.url;
-
-                                                            if (!url) return null;
-
-                                                            try { hostname = new URL(url).hostname; } catch { hostname = "Source"; }
-                                                            return (
-                                                                <div key={i} className="text-blue-300/80 truncate border-b border-white/5 pb-0.5 last:border-0">
-                                                                    {hostname}
-                                                                </div>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                    <div className="mt-2 py-1 bg-blue-900/20 text-blue-300 font-bold uppercase tracking-wide text-center rounded border border-blue-900/50 text-[10px]">
-                                                        Click to Lock & Open Links
-                                                    </div>
-                                                </div>
                                             </div>
                                         );
                                     })}
@@ -699,6 +688,9 @@ export default function UnifiedDigestViewer({
                 )}
 
             </div>
+            {/* Fixed Analytics Tooltip */}
+            {hoveredKeywordData && <AnalyticsTooltip data={hoveredKeywordData} isTranslated={isAnalyticsTranslated} onClose={() => setHoveredKeywordData(null)} />}
+
         </div >
     );
 }
