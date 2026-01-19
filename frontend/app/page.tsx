@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/lib/store';
 import dynamic from 'next/dynamic';
@@ -14,7 +14,7 @@ import { Settings } from 'lucide-react';
 import SettingsModal from '@/components/SettingsModal';
 import FeedLayout from '@/components/FeedLayout'; // NEW MOCK FEED
 
-export default function Home() {
+function HomeContent() {
   const { isAuthenticated, logout } = useAuthStore();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -144,5 +144,13 @@ export default function Home() {
         />
       </div>
     </main>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={<div className="h-screen w-full flex items-center justify-center bg-black text-white">Loading...</div>}>
+      <HomeContent />
+    </Suspense>
   );
 }
