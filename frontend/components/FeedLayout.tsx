@@ -1,8 +1,33 @@
-import React, { useState } from 'react';
-import { MOCK_NEWS, NewsItem } from '../data/mock-news';
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Footer from './Footer';
 import UnifiedDigestViewer from './UnifiedDigestViewer';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+
+// --- DATA TYPES ---
+interface DigestFeedItem {
+    id: number;
+    slug: string;
+    title: string;
+    category: string;
+    city: string;
+    created_at: string;
+    image_url?: string;
+    user_name: string;
+}
+
+// --- STATIC IMAGES ---
+const CITY_IMAGES: Record<string, string> = {
+    "Tbilisi": "https://images.unsplash.com/photo-1565008447742-97f6f38c985c?auto=format&fit=crop&w=800&q=80",
+    "Kyiv": "https://images.unsplash.com/photo-1561542320-9a18cd340469?auto=format&fit=crop&w=800&q=80",
+    "Kiev": "https://images.unsplash.com/photo-1561542320-9a18cd340469?auto=format&fit=crop&w=800&q=80",
+    "London": "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?auto=format&fit=crop&w=800&q=80",
+    "New York": "https://images.unsplash.com/photo-1496442226666-8d4a0e62e6e9?auto=format&fit=crop&w=800&q=80",
+    "Paris": "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=800&q=80",
+    "Berlin": "https://images.unsplash.com/photo-1560969184-10fe8719e047?auto=format&fit=crop&w=800&q=80",
+    "Tokyo": "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?auto=format&fit=crop&w=800&q=80",
+};
+const DEFAULT_IMAGE = "https://images.unsplash.com/photo-1495020689067-958852a7765e?auto=format&fit=crop&w=800&q=80"; // Generic News
 
 interface FeedLayoutProps {
     activeDigest?: any;
@@ -11,6 +36,38 @@ interface FeedLayoutProps {
 
 export default function FeedLayout({ activeDigest, onCloseDigest }: FeedLayoutProps) {
     const [showAbout, setShowAbout] = useState(false);
+    const [feedItems, setFeedItems] = useState<DigestFeedItem[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [page, setPage] = useState(0); // 0-indexed
+    const ITEMS_PER_PAGE = 6;
+    const router = useRouter();
+
+    // Fetch Feed
+    useEffect(() => {
+        const fetchFeed = async () => {
+            setIsLoading(true);
+            try {
+                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/digests/public?limit=${ITEMS_PER_PAGE}&offset=${page * ITEMS_PER_PAGE}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    setFeedItems(data);
+                } else {
+                    console.error("Failed to fetch feed");
+                }
+            } catch (err) {
+                console.error("Error fetching feed:", err);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchFeed();
+    }, [page]);
+
+    // Handle Card Click
+    const handleCardClick = (slug: string) => {
+        router.push(`/?view_digest=${slug}`);
+    };
 
     // If Viewing a Digest, override the main content
     if (activeDigest) {
@@ -53,15 +110,49 @@ export default function FeedLayout({ activeDigest, onCloseDigest }: FeedLayoutPr
             <div className="flex items-center gap-4 mb-8">
                 <div className="h-1 w-12 bg-fuchsia-500 rounded-full shadow-[0_0_10px_#d946ef]"></div>
                 <h2 className="text-3xl font-bold text-white tracking-tight">Today's Urban Pulse</h2>
-                <span className="text-neutral-500 text-sm font-mono ml-auto">LIVE FEED / MOCK MODE</span>
+                <span className="text-neutral-500 text-sm font-mono ml-auto">LIVE FEED / REAL MODE</span>
             </div>
 
-            {/* Masonry-ish Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 flex-grow">
-                {MOCK_NEWS.map((item) => (
-                    <NewsCard key={item.id} item={item} />
-                ))}
-            </div>
+            {/* Content Area */}
+            {isLoading ? (
+                <div className="flex-grow flex items-center justify-center min-h-[400px]">
+                    <Loader2 className="w-8 h-8 text-fuchsia-500 animate-spin" />
+                </div>
+            ) : (
+                <>
+                    {/* Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 flex-grow mb-12">
+                        {feedItems.length > 0 ? (
+                            feedItems.map((item) => (
+                                <NewsCard key={item.id} item={item} onClick={() => handleCardClick(item.slug)} />
+                            ))
+                        ) : (
+                            <div className="col-span-full text-center py-20 text-neutral-500">
+                                No public digests found.
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Pagination */}
+                    <div className="flex justify-center items-center gap-4 pb-8">
+                        <button
+                            onClick={() => setPage(p => Math.max(0, p - 1))}
+                            disabled={page === 0}
+                            className="bg-neutral-900 border border-neutral-800 text-white p-3 rounded-full hover:bg-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                        >
+                            <ChevronLeft className="w-5 h-5" />
+                        </button>
+                        <span className="text-neutral-500 font-mono text-sm">Page {page + 1}</span>
+                        <button
+                            onClick={() => setPage(p => p + 1)}
+                            disabled={feedItems.length < ITEMS_PER_PAGE} // Simple logic, assumes if < limit then last page
+                            className="bg-neutral-900 border border-neutral-800 text-white p-3 rounded-full hover:bg-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                        >
+                            <ChevronRight className="w-5 h-5" />
+                        </button>
+                    </div>
+                </>
+            )}
 
             {/* FOOTER 1: The "Top" Footer */}
             <Footer
@@ -146,9 +237,23 @@ export default function FeedLayout({ activeDigest, onCloseDigest }: FeedLayoutPr
 }
 
 // Sub-Component for individual cards
-function NewsCard({ item }: { item: NewsItem }) {
+function NewsCard({ item, onClick }: { item: DigestFeedItem, onClick: () => void }) {
+    // Determine Image: flag_url OR city map OR default
+    const imageUrl = item.image_url // Coat of Arms
+        || CITY_IMAGES[item.city || ""]
+        || DEFAULT_IMAGE;
+
+    // Determine Source Text (user name? or generic?)
+    // User requested "freshest first".
+    const dateStr = new Date(item.created_at).toLocaleDateString(undefined, {
+        month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+    });
+
     return (
-        <div className={`group relative bg-neutral-900/50 border border-neutral-800 rounded-xl overflow-hidden hover:border-neutral-600 transition-all duration-300 hover:shadow-2xl hover:shadow-fuchsia-900/10 flex flex-col ${!item.imageUrl ? 'bg-gradient-to-br from-neutral-900 to-neutral-800' : ''}`}>
+        <div
+            onClick={onClick}
+            className={`group relative bg-neutral-900/50 border border-neutral-800 rounded-xl overflow-hidden hover:border-neutral-600 transition-all duration-500 hover:shadow-2xl hover:shadow-fuchsia-900/20 flex flex-col cursor-pointer active:scale-95`}
+        >
 
             {/* Label Badge */}
             <div className="absolute top-4 left-4 z-10">
@@ -157,39 +262,36 @@ function NewsCard({ item }: { item: NewsItem }) {
                 </span>
             </div>
 
-            {item.imageUrl ? (
-                <div className="h-48 overflow-hidden relative">
-                    {/* Image Hover Zoom Effect */}
-                    <div
-                        className="absolute inset-0 bg-cover bg-center group-hover:scale-105 transition-transform duration-700 ease-out"
-                        style={{ backgroundImage: `url(${item.imageUrl})` }}
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-neutral-900 via-transparent to-transparent opacity-80" />
-                </div>
-            ) : (
-                // Text-Only Card Spacer
-                <div className="h-6 w-full" />
-            )}
+            <div className="h-48 overflow-hidden relative">
+                {/* Image Hover Zoom Effect */}
+                <div
+                    className="absolute inset-0 bg-cover bg-center group-hover:scale-105 transition-transform duration-700 ease-out"
+                    style={{ backgroundImage: `url(${imageUrl})` }}
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-neutral-900 via-transparent to-transparent opacity-80" />
+            </div>
 
             <div className="p-6 flex flex-col flex-grow">
                 <div className="flex items-center gap-2 text-xs text-fuchsia-400 mb-2 font-mono uppercase tracking-widest">
-                    <span>{item.location}</span>
+                    <span>{item.city || 'Global'}</span>
                     <span className="w-1 h-1 bg-neutral-600 rounded-full" />
-                    <span className="text-neutral-500">{item.source}</span>
+                    <span className="text-neutral-500">{item.user_name}</span>
                 </div>
 
-                <h3 className="text-xl font-bold text-white mb-3 leading-tight group-hover:text-fuchsia-300 transition-colors">
+                <h3 className="text-xl font-bold text-white mb-3 leading-tight group-hover:text-fuchsia-300 transition-colors line-clamp-2">
                     {item.title}
                 </h3>
 
                 <p className="text-neutral-400 text-sm leading-relaxed mb-6 line-clamp-3">
-                    {item.summary}
+                    {/* Summary is not in list feed to save bandwidth, using title as main hook or we could add short summary to API */}
+                    {/* For now, just show date or subheading? */}
+                    Explore this digest covering the latest events in {item.city || 'the world'}.
                 </p>
 
                 <div className="mt-auto flex items-center justify-between border-t border-neutral-800 pt-4">
-                    <span className="text-xs text-neutral-600">{item.date}</span>
+                    <span className="text-xs text-neutral-600">{dateStr}</span>
                     <button className="text-xs font-bold text-white group-hover:underline decoration-fuchsia-500 underline-offset-4">
-                        READ MORE →
+                        READ DIGEST →
                     </button>
                 </div>
             </div>

@@ -1817,6 +1817,55 @@ async def get_public_digest(slug: str, db: Session = Depends(get_db)):
         owner_id=digest.user_id # Required by DigestDetail
     )
 
+class DigestFeedItem(BaseModel):
+    id: int
+    slug: str
+    title: str
+    category: str
+    city: Optional[str] = None
+    created_at: str
+    image_url: Optional[str] = None # Flag or Coat of Arms
+    user_name: Optional[str] = None
+
+@router.get("/digests/public", response_model=List[DigestFeedItem])
+async def get_public_digests_feed(limit: int = 6, offset: int = 0, db: Session = Depends(get_db)):
+    """
+    Get a paginated feed of public digests.
+    """
+    # Join Digest -> CityMetadata to get flag
+    stmt = (
+        select(NewsDigest, CityMetadata.flag_url, User.username, User.is_username_visible)
+        .outerjoin(CityMetadata, NewsDigest.city == CityMetadata.name)
+        .join(User, NewsDigest.user_id == User.id)
+        .where(NewsDigest.is_public == True)
+        .order_by(NewsDigest.created_at.desc())
+        .limit(limit)
+        .offset(offset)
+    )
+    
+    results = await db.execute(stmt)
+    rows = results.all()
+    
+    feed = []
+    for row in rows:
+        digest = row[0]
+        flag_url = row[1]
+        username = row[2]
+        is_visible = row[3]
+        
+        feed.append(DigestFeedItem(
+            id=digest.id,
+            slug=digest.public_slug,
+            title=digest.title,
+            category=digest.category,
+            city=digest.city,
+            created_at=(digest.created_at or datetime.now()).isoformat(),
+            image_url=flag_url, # Return Coat of Arms as "Image"
+            user_name=username if is_visible else "Anonymous"
+        ))
+        
+    return feed
+
 @router.post("/digests/public/{slug}/translate_articles")
 async def translate_public_digest_articles(slug: str, db: Session = Depends(get_db)):
     """
