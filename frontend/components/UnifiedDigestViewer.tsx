@@ -108,6 +108,9 @@ interface UnifiedDigestViewerProps {
     onReportSpam?: (article: any) => void;
     onAssessArticle?: (article: any) => void;
     onDebugArticle?: (article: any) => void;
+
+    // Navigation
+    onClose?: () => void;
 }
 
 export default function UnifiedDigestViewer({
@@ -133,7 +136,8 @@ export default function UnifiedDigestViewer({
     spamUrls = new Set(),
     onReportSpam,
     onAssessArticle,
-    onDebugArticle
+    onDebugArticle,
+    onClose
 }: UnifiedDigestViewerProps) {
 
     const [activeTab, setActiveTab] = useState<'articles' | 'digest' | 'analytics'>('digest');
@@ -287,6 +291,17 @@ export default function UnifiedDigestViewer({
                         >
                             <Download className="w-5 h-5" />
                         </button>
+                    )}
+
+                    {onClose && (
+                        <div className="pl-4 ml-2 border-l border-neutral-800">
+                            <button
+                                onClick={onClose}
+                                className="p-2 hover:bg-red-900/30 rounded-full text-neutral-400 hover:text-red-400 transition-colors"
+                            >
+                                <X className="w-6 h-6" />
+                            </button>
+                        </div>
                     )}
 
                     {!isReadOnly && onDelete && digestData?.id && (

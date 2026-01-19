@@ -35,6 +35,7 @@ import { CAPITALS } from '../utils/capitals';
 import DigestReportRenderer from './DigestReportRenderer';
 import SettingsModal from './SettingsModal';
 import UIMarquee from './UIMarquee';
+import UnifiedDigestViewer from './UnifiedDigestViewer';
 import * as THREE from 'three';
 import { CITY_ICONS, GENERIC_CITY_ICON } from '../data/landmarks';
 
@@ -141,7 +142,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
     }
 
     // Use centralized version constant
-    const APP_VERSION = "0.151";
+    const APP_VERSION = "0.152";
 
     // UI States
     const [isDiscovering, setIsDiscovering] = useState(false);
@@ -2658,460 +2659,39 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
             {
                 digestData && (
                     <div className="absolute inset-0 z-50 bg-slate-950/95 backdrop-blur-sm flex items-center justify-center p-8 animate-in fade-in duration-200">
-                        <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-4xl h-[90vh] flex flex-col overflow-hidden">
-                            <div className="p-6 border-b border-slate-700 flex justify-between items-center bg-slate-800/50 relative">
-                                <div className="flex flex-col gap-1 items-start">
-                                    {/* Publication Status Bar (Replaces Debug Strip) */}
-                                    {digestData?.id && (
-                                        <div className="h-5 flex items-center">
-                                            {digestData.is_public && digestData.public_slug ? (
-                                                <div className="font-mono text-[10px] text-slate-500 flex items-center gap-2 animate-in slide-in-from-top-2 fade-in">
-                                                    <span className="opacity-50 tracking-wider">PUBLISHED AT:</span>
-                                                    <button
-                                                        className="flex items-center gap-1.5 bg-blue-950/30 hover:bg-blue-900/40 border border-blue-900/20 px-1.5 py-0.5 rounded transition-all group cursor-pointer"
-                                                        onClick={() => {
-                                                            navigator.clipboard.writeText(`${window.location.origin}/s/${digestData.public_slug}`);
-                                                            setCopiedSlug(digestData.public_slug);
-                                                            setTimeout(() => setCopiedSlug(null), 2000);
-                                                        }}
-                                                        title="Copy Link to Clipboard"
-                                                    >
-                                                        <span className="text-blue-500 font-bold">
-                                                            {window.location.host}/s/{digestData.public_slug}
-                                                        </span>
-                                                        {copiedSlug === digestData.public_slug ? (
-                                                            <Check size={10} className="text-emerald-500" />
-                                                        ) : (
-                                                            <Copy size={10} className="text-blue-400/70 group-hover:text-blue-400" />
-                                                        )}
-                                                    </button>
-                                                </div>
-                                            ) : (
-                                                <button
-                                                    onClick={handleShareDigest}
-                                                    disabled={isSharing}
-                                                    className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 hover:text-blue-400 transition-colors animate-in fade-in"
-                                                    title="Generate a public link"
-                                                >
-                                                    {isSharing ? <Loader2 size={10} className="animate-spin" /> : <Share2 size={10} />}
-                                                    Create Public Link
-                                                </button>
-                                            )}
-                                        </div>
-                                    )}
-
-                                    <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
-                                        {digestData?.city || selectedCityData?.name} Digest
-                                    </h2>
-                                    <div className="flex gap-4 mt-2">
-                                        {['articles', 'digest', 'analytics'].map((tab) => (
-                                            <button
-                                                key={tab}
-                                                onClick={() => setActiveModalTab(tab as any)}
-                                                className={`text-xs font-bold uppercase tracking-wider pb-1 transition-colors ${activeModalTab === tab ? 'text-blue-400 border-b-2 border-blue-400' : 'text-slate-500 hover:text-slate-300'}`}
-                                            >
-                                                {tab}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-
-
-                                <div className="flex gap-2">
-                                    <button
-                                        onClick={() => setIsTranslateActive(!isTranslateActive)}
-                                        className={`flex items-center gap-2 px-3 py-1.5 rounded-full font-bold text-xs transition-colors ${isTranslateActive ? 'bg-amber-500/20 text-amber-400 border border-amber-500/50' : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'}`}
-                                        title="Toggle Translation"
-                                    >
-                                        <Languages size={14} />
-                                        {isTranslateActive ? 'Original' : 'Translate'}
-                                    </button>
-
-                                    {/* Share Button Removed (Moved to header status) */}
-
-                                    <button
-                                        onClick={handleDownloadDigest}
-                                        className="text-white hover:text-blue-200 bg-slate-700 hover:bg-slate-600 px-4 py-1.5 rounded-full font-bold text-xs transition-colors border border-slate-600"
-                                        title="Download as standalone HTML file"
-                                    >
-                                        📥 Download
-                                    </button>
-                                    <button
-                                        onClick={handleSaveDigest}
-                                        disabled={isSaving}
-                                        className="text-white hover:text-blue-200 bg-blue-600 hover:bg-blue-500 px-4 py-1.5 rounded-full font-bold text-xs transition-colors disabled:opacity-50"
-                                    >
-                                        {isSaving ? 'Saving...' : '💾 Save Report'}
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            if (isReportSaved || confirm("Close report? Unsaved progress will be lost.")) {
-                                                setDigestData(null);
-                                            }
-                                        }}
-                                        className="text-slate-400 hover:text-white hover:bg-slate-800 p-2 rounded-full transition-colors"
-                                    >
-                                        <X size={24} />
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-                                {activeModalTab === 'articles' ? (
-                                    <div className={`flex flex-col gap-8 ${isTranslateActive ? 'translate-active' : ''}`}>
-                                        <div className="border-b border-white/10 pb-4 mb-2">
-                                            <h2 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-indigo-400">
-                                                News Digest: {selectedCategory}
-                                            </h2>
-                                            <p className="text-gray-400 text-sm mt-1 flex items-center gap-4">
-                                                <span>Timeframe: <span className="text-white font-medium">
-                                                    {(() => {
-                                                        const now = new Date();
-                                                        const start = new Date();
-                                                        if (selectedTimeframe === '24h') start.setDate(now.getDate() - 1);
-                                                        if (selectedTimeframe === '3days') start.setDate(now.getDate() - 3);
-                                                        if (selectedTimeframe === '1week') start.setDate(now.getDate() - 7);
-
-                                                        const fmt = (d: Date) => `${d.getDate()}.${d.getMonth() + 1}.${d.getFullYear()}`;
-                                                        return `${fmt(start)} - ${fmt(now)}`;
-                                                    })()}
-                                                </span></span>
-                                                <span className="w-1 h-1 bg-slate-600 rounded-full"></span>
-                                                <span>Ordered by: <span className="text-blue-400 font-medium">{getOwnerName(digestData)}</span></span>
-                                            </p>
-
-                                            <div className="mt-4 flex items-center justify-between bg-slate-800/50 p-3 rounded-lg border border-white/5">
-                                                <div className="flex items-center gap-4">
-                                                    <span className="text-slate-400 text-sm">{selectedArticleUrls.size} articles selected</span>
-                                                    <button
-                                                        onClick={handleSmartSelect}
-                                                        className="px-3 py-1 bg-emerald-900/40 hover:bg-emerald-800/60 text-emerald-400 border border-emerald-800/50 font-bold rounded text-[10px] uppercase tracking-wider transition-all"
-                                                        title="Auto-select Fresh & Verified articles"
-                                                    >
-                                                        Auto-Select
-                                                    </button>
-                                                </div>
-                                                <div className="flex gap-2">
-                                                    <button
-                                                        onClick={handleGenerateBackendSummary}
-                                                        disabled={isSummarizing || isGeneratingDigest || selectedArticleUrls.size === 0}
-                                                        className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded text-xs transition-all disabled:opacity-50 flex items-center gap-2 min-w-[180px] justify-center"
-                                                    >
-                                                        {isSummarizing ? (
-                                                            <>
-                                                                <Loader2 className="animate-spin shrink-0" size={14} />
-                                                                <span className="truncate max-w-[200px]">{analyzingTickerText || "Analyzing..."}</span>
-                                                            </>
-                                                        ) : isGeneratingDigest ? (
-                                                            <div className="relative w-full h-full flex items-center justify-center">
-                                                                <div
-                                                                    className="absolute left-0 top-0 bottom-0 bg-blue-500/30 transition-all duration-500"
-                                                                    style={{ width: `${(progress.total > 0 ? (progress.current / progress.total) * 100 : 0)}%` }}
-                                                                />
-                                                                <Loader2 className="animate-spin shrink-0 z-10 mr-2" size={14} />
-                                                                <span className="truncate z-10 relative">Gathering {Math.round((progress.current / progress.total) * 100) || 0}%...</span>
-                                                            </div>
-                                                        ) : "Summarize Selection"}
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* React Renderer (Virtualization Friendly) */}
-                                        <DigestReportRenderer
-                                            articles={digestData.articles || []}
-                                            excludedArticles={digestData.excluded_articles || []}
-                                            category={selectedCategory}
-                                            isTranslated={isTranslateActive}
-                                            selectedUrls={selectedArticleUrls}
-                                            onToggle={handleToggleSelection}
-                                            onAssess={handleAssessArticle}
-                                            onDebug={handleDebugArticle}
-                                            onReportSpam={handleReportSpam}
-                                            spamUrls={spamUrls}
-                                            isLoading={isGeneratingDigest}
-                                        />
-                                    </div>
-                                ) : activeModalTab === 'digest' ? (
-                                    <div className="flex flex-col gap-6">
-                                        {digestSummary ? (
-                                            <div className="bg-slate-900/50 p-12 rounded-xl border border-white/5 animate-in fade-in duration-500 text-slate-300">
-                                                <ReactMarkdown
-                                                    urlTransform={(url) => url}
-                                                    components={{
-                                                        h1: ({ node, ...props }) => <h1 className="text-4xl font-extrabold text-white mb-8 border-b border-white/10 pb-4 mt-8" {...props} />,
-                                                        h2: ({ node, ...props }) => <h2 className="text-3xl font-bold text-blue-200 mt-12 mb-6 border-l-4 border-blue-500 pl-4" {...props} />,
-                                                        h3: ({ node, ...props }) => <h3 className="text-xl font-bold text-indigo-300 mt-8 mb-3 uppercase tracking-wide" {...props} />,
-                                                        p: ({ node, ...props }) => <p className="text-lg text-slate-300 leading-loose mb-6 text-justify" {...props} />,
-                                                        ul: ({ node, ...props }) => <ul className="list-disc list-outside ml-6 mb-6 space-y-2 text-slate-300" {...props} />,
-                                                        li: ({ node, ...props }) => <li className="pl-2" {...props} />,
-                                                        a: ({ node, ...props }) => {
-                                                            const href = props.href || '';
-                                                            if (href.startsWith('citation:')) {
-                                                                const index = parseInt(href.split(':')[1]);
-                                                                const article = selectedArticlesList[index - 1]; // 1-based index
-
-                                                                // DEBUG CITATION
-                                                                if (!article) console.warn(`Citation Mismatch: [${index}] not found in list of ${selectedArticlesList.length}`);
-
-                                                                const title = article ? (article.title || 'Source') : `Source ${index}`;
-                                                                let url = article ? article.url : '';
-
-                                                                // Validate URL to prevent localhost redirects
-                                                                const isValidUrl = url && url.startsWith('http');
-
-                                                                return (
-                                                                    <span className="relative inline-block group mx-1 align-baseline">
-                                                                        <button
-                                                                            onClick={(e) => {
-                                                                                e.stopPropagation();
-                                                                                if (isValidUrl) window.open(url, '_blank');
-                                                                            }}
-                                                                            className={`font-bold text-xs align-super px-1 rounded transition-colors ${isValidUrl
-                                                                                ? 'text-blue-400 hover:bg-blue-900/30 cursor-pointer'
-                                                                                : 'text-slate-500 cursor-help'
-                                                                                }`}
-                                                                        >
-                                                                            [{index}]
-                                                                        </button>
-                                                                        {/* Tooltip */}
-                                                                        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-72 p-3 bg-slate-900 border border-slate-700 rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 text-xs text-left">
-                                                                            <span className="block font-bold text-white mb-1 line-clamp-3 leading-tight">{title}</span>
-                                                                            <span className={`block truncate font-mono mt-1 ${isValidUrl ? 'text-blue-400' : 'text-amber-500'}`}>
-                                                                                {isValidUrl ? new URL(url).hostname : 'Source URL not available'}
-                                                                            </span>
-                                                                        </span>
-                                                                    </span>
-                                                                );
-                                                            }
-
-                                                            const fallbackHref = props.href || '';
-                                                            const isFallbackValid = fallbackHref.startsWith('http') || fallbackHref.startsWith('mailto');
-
-                                                            return (
-                                                                <a
-                                                                    className={`${isFallbackValid ? 'text-blue-400 hover:text-blue-300 hover:underline' : 'text-slate-500 cursor-help decoration-dotted underline'} underline-offset-4`}
-                                                                    target={isFallbackValid ? "_blank" : undefined}
-                                                                    rel="noopener noreferrer"
-                                                                    {...props}
-                                                                    href={isFallbackValid ? fallbackHref : undefined}
-                                                                    title={isFallbackValid ? undefined : `Invalid/Relative Link: ${fallbackHref}`}
-                                                                    onClick={(e) => { if (!isFallbackValid) e.preventDefault(); }}
-                                                                />
-                                                            );
-                                                        },
-                                                        strong: ({ node, ...props }) => <strong className="text-amber-400 font-bold" {...props} />,
-                                                        blockquote: ({ node, ...props }) => <blockquote className="border-l-4 border-slate-600 pl-4 italic text-slate-400 my-6 bg-slate-800/30 py-2 rounded-r" {...props} />
-                                                    }}
-                                                >
-                                                    {/* Regex to convert [n] to [n](citation:n) */}
-                                                    {digestSummary.replace(/\[(\d+)\]/g, '[$1](citation:$1)')}
-                                                </ReactMarkdown>
-                                            </div>
-                                        ) : (
-                                            <div className="text-center py-20 text-slate-600 italic border-2 border-dashed border-slate-800 rounded-xl">
-                                                Select articles from the "Articles" tab and click Summarize.
-                                            </div>
-                                        )}
-                                    </div>
-                                ) : (
-                                    <div className="min-h-full flex flex-col">
-                                        <div className="flex justify-between items-center mb-6">
-                                            <div className="flex flex-col">
-                                                <h3 className="text-xl font-bold text-slate-300 flex items-center gap-2">
-                                                    Semantic Cloud
-                                                </h3>
-                                                <span className="text-slate-500 text-sm font-normal">
-                                                    {(() => {
-                                                        const now = new Date();
-                                                        const start = new Date();
-                                                        if (selectedTimeframe === '24h') start.setDate(now.getDate() - 1);
-                                                        if (selectedTimeframe === '3days') start.setDate(now.getDate() - 3);
-                                                        if (selectedTimeframe === '1week') start.setDate(now.getDate() - 7);
-
-                                                        const fmt = (d: Date) => `${d.getDate()}.${d.getMonth() + 1}`;
-                                                        return `${fmt(start)} - ${fmt(now)}`;
-                                                    })()}
-                                                </span>
-                                            </div>
-
-                                            <div className="flex items-center gap-3">
-                                                {/* Controls */}
-                                                {analyticsKeywords.length > 0 && (
-                                                    <>
-                                                        <div className="flex bg-slate-800 rounded-lg p-0.5 border border-slate-700">
-                                                            <button
-                                                                onClick={() => setIsAnalyticsTranslated(!isAnalyticsTranslated)}
-                                                                className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${isAnalyticsTranslated ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
-                                                                title="Translate to English"
-                                                            >
-                                                                A/文
-                                                            </button>
-                                                        </div>
-
-                                                        <div className="flex bg-slate-800 rounded-lg p-0.5 border border-slate-700">
-                                                            <button
-                                                                onClick={() => setAnalyticsViewMode('cloud')}
-                                                                className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${analyticsViewMode === 'cloud' ? 'bg-slate-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
-                                                            >
-                                                                ☁️
-                                                            </button>
-                                                            <button
-                                                                onClick={() => setAnalyticsViewMode('columns')}
-                                                                className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${analyticsViewMode === 'columns' ? 'bg-slate-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
-                                                            >
-                                                                |||
-                                                            </button>
-                                                        </div>
-
-                                                        <button
-                                                            onClick={handleGenerateAnalytics}
-                                                            disabled={isAnalyzing}
-                                                            className="px-3 py-1 text-xs font-bold text-slate-400 hover:text-white flex items-center gap-1 transition-colors border border-slate-700 rounded-lg bg-slate-800/50"
-                                                        >
-                                                            <Sparkles className="w-3 h-3" /> Regenerate
-                                                        </button>
-                                                    </>
-                                                )}
-                                            </div>
-                                        </div>
-
-                                        {isAnalyzing ? (
-                                            <div className="flex flex-col items-center justify-center h-64 text-slate-400 animate-pulse">
-                                                <Loader2 className="w-8 h-8 mb-3 text-purple-500 animate-spin" />
-                                                <p>Extracting Insights...</p>
-                                            </div>
-                                        ) : analyticsKeywords.length === 0 ? (
-                                            <div className="flex flex-col items-center justify-center h-64 border-2 border-dashed border-slate-700/50 rounded-xl bg-slate-900/30">
-                                                <p className="text-slate-400 mb-6 max-w-sm text-center">
-                                                    Analyze selected articles to detect key entities, sentiment, and patterns.
-                                                </p>
-                                                <button
-                                                    onClick={handleGenerateAnalytics}
-                                                    className="bg-purple-600 hover:bg-purple-500 text-white px-6 py-2.5 rounded-full font-bold shadow-lg shadow-purple-900/20 transition-all hover:scale-105 flex items-center gap-2"
-                                                >
-                                                    <Sparkles className="w-4 h-4" /> Generate Smart Cloud
-                                                </button>
-                                            </div>
-                                        ) : (
-                                            analyticsViewMode === 'cloud' ? (
-                                                <div className="flex flex-wrap gap-3 content-start justify-center py-4">
-                                                    {analyticsKeywords.map((kw: any, i: number) => {
-                                                        const displayWord = (isAnalyticsTranslated && kw.translation) ? kw.translation : kw.word;
-                                                        // Size logic: 1 to 2.5rem based on score (0-100)
-                                                        const scale = 0.8 + ((kw.importance || 50) / 100) * 1.5;
-
-                                                        let bg = "bg-slate-800 border-slate-600 text-slate-300";
-                                                        if (kw.sentiment === 'Positive') bg = "bg-green-950/40 border-green-600/50 text-green-300 shadow-[0_0_10px_rgba(34,197,94,0.1)]";
-                                                        if (kw.sentiment === 'Negative') bg = "bg-red-950/40 border-red-600/50 text-red-300 shadow-[0_0_10px_rgba(239,68,68,0.1)]";
-                                                        if (kw.importance > 85) bg += " ring-1 ring-white/20 font-bold";
-
-                                                        return (
-                                                            <div
-                                                                key={i}
-                                                                className={`relative group cursor-help px-4 py-2 rounded-xl border ${bg} transition-all duration-300 hover:scale-110 hover:shadow-xl hover:z-20`}
-                                                                style={{ fontSize: `${Math.max(0.75, scale)}rem` }}
-                                                                onMouseEnter={(e) => {
-                                                                    if (isTooltipLocked) return;
-                                                                    if (hoverTimeout.current) clearTimeout(hoverTimeout.current);
-                                                                    const rect = e.currentTarget.getBoundingClientRect();
-                                                                    const placement = rect.top < 300 ? 'bottom' : 'top';
-                                                                    setActiveTooltip({ word: kw.word, data: kw, rect, placement });
-                                                                }}
-                                                                onMouseLeave={() => {
-                                                                    if (isTooltipLocked) return;
-                                                                    hoverTimeout.current = setTimeout(() => setActiveTooltip(null), 150);
-                                                                }}
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    if (activeTooltip?.word === kw.word && isTooltipLocked) {
-                                                                        setIsTooltipLocked(false);
-                                                                        setActiveTooltip(null);
-                                                                    } else {
-                                                                        const rect = e.currentTarget.getBoundingClientRect();
-                                                                        const placement = rect.top < 300 ? 'bottom' : 'top';
-                                                                        setActiveTooltip({ word: kw.word, data: kw, rect, placement });
-                                                                        setIsTooltipLocked(true);
-                                                                    }
-                                                                }}
-                                                            >
-                                                                {displayWord}
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </div>
-                                            ) : (
-                                                <div className="grid grid-cols-3 gap-0 h-full border border-slate-700 rounded-xl overflow-hidden bg-slate-900/50 min-h-[500px]">
-                                                    {['Positive', 'Neutral', 'Negative'].map((sent) => {
-                                                        const sentimentKeywords = analyticsKeywords.filter((k: any) => k.sentiment === sent).sort((a: any, b: any) => b.importance - a.importance);
-                                                        const headerColor = sent === 'Positive' ? 'text-green-400 border-green-900/30' : sent === 'Negative' ? 'text-red-400 border-red-900/30' : 'text-slate-400 border-slate-700/30';
-
-                                                        return (
-                                                            <div key={sent} className="flex flex-col border-r border-slate-700/50 last:border-r-0">
-                                                                <div className={`p-4 border-b ${headerColor} bg-slate-900/80 backdrop-blur sticky top-0 z-10 font-bold uppercase tracking-wider text-center text-sm`}>
-                                                                    {sent}
-                                                                </div>
-                                                                <div className="p-4 space-y-3 overflow-y-auto custom-scrollbar flex-1">
-                                                                    {sentimentKeywords.map((kw: any, i: number) => (
-                                                                        <div
-                                                                            key={i}
-                                                                            className={`bg-slate-800/40 p-3 rounded border border-white/5 hover:bg-slate-800 transition-colors group relative cursor-help ${activeTooltip?.word === kw.word && isTooltipLocked ? 'bg-slate-700 border-white/30' : ''}`}
-                                                                            onMouseEnter={(e) => {
-                                                                                if (isTooltipLocked) return;
-                                                                                if (hoverTimeout.current) clearTimeout(hoverTimeout.current);
-                                                                                const rect = e.currentTarget.getBoundingClientRect();
-                                                                                const placement = rect.top < 300 ? 'bottom' : 'top';
-                                                                                setActiveTooltip({ word: kw.word, data: kw, rect, placement });
-                                                                            }}
-                                                                            onMouseLeave={() => {
-                                                                                if (isTooltipLocked) return;
-                                                                                hoverTimeout.current = setTimeout(() => setActiveTooltip(null), 150);
-                                                                            }}
-                                                                            onClick={(e) => {
-                                                                                e.stopPropagation();
-                                                                                if (activeTooltip?.word === kw.word && isTooltipLocked) {
-                                                                                    setIsTooltipLocked(false);
-                                                                                    setActiveTooltip(null);
-                                                                                } else {
-                                                                                    const rect = e.currentTarget.getBoundingClientRect();
-                                                                                    const placement = rect.top < 300 ? 'bottom' : 'top';
-                                                                                    setActiveTooltip({ word: kw.word, data: kw, rect, placement });
-                                                                                    setIsTooltipLocked(true);
-                                                                                }
-                                                                            }}
-                                                                        >
-                                                                            <div className="flex justify-between items-start mb-1">
-                                                                                <div className="font-bold text-slate-200">
-                                                                                    {isAnalyticsTranslated && kw.translation ? kw.translation : kw.word}
-                                                                                </div>
-                                                                                <span className="text-emerald-500/80 text-[10px] font-mono absolute bottom-1 right-2 pointer-events-none opacity-50 z-20">
-                                                                                    v0.120.35 Memory Fix
-                                                                                </span>
-                                                                                <span className="text-xs text-slate-500 font-mono">{kw.importance}</span>
-                                                                            </div>
-                                                                            {isAnalyticsTranslated && kw.translation && kw.translation !== kw.word && (
-                                                                                <div className="text-xs text-slate-500 italic mb-2">{kw.word}</div>
-                                                                            )}
-                                                                            <div className="flex flex-wrap gap-1 mt-2">
-                                                                                {kw.sources?.slice(0, 3).map((src: any, idx: number) => (
-                                                                                    <a key={idx} href={src.url} target="_blank" title={src.title} className="w-1.5 h-1.5 rounded-full bg-slate-600 hover:bg-blue-400 transition-colors block"></a>
-                                                                                ))}
-                                                                            </div>
-                                                                        </div>
-                                                                    ))}
-                                                                </div>
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </div>
-                                            )
-                                        )}
-                                    </div>
-                                )
-                                }
-                            </div>
+                        <div className="bg-black border border-neutral-800 rounded-xl shadow-2xl w-full max-w-7xl h-[95vh] flex flex-col overflow-hidden relative">
+                            <UnifiedDigestViewer
+                                digestData={digestData}
+                                onClose={() => {
+                                    if (!isReportSaved && digestSummary && digestSummary !== digestData.digest) {
+                                        if (!confirm("Close report? Unsaved progress will be lost.")) return;
+                                    }
+                                    setDigestData(null);
+                                    setActiveModalTab('articles');
+                                    setIsTranslateActive(false);
+                                }}
+                                onSave={handleSaveDigest}
+                                onShare={handleShareDigest}
+                                onDownload={handleDownloadDigest}
+                                onDelete={() => handleDeleteDigest(digestData.id)}
+                                onRegenerateSummary={handleGenerateBackendSummary}
+                                onRegenerateAnalytics={handleGenerateBackendAnalytics}
+                                setDigestSummary={setDigestSummary}
+                                selectedArticleUrls={selectedArticleUrls}
+                                onToggleSelection={handleToggleSelection}
+                                analyticsKeywords={analyticsKeywords}
+                                isReadOnly={false}
+                                isSaving={isSaving}
+                                isSharing={isSharing}
+                                isSummarizing={isSummarizing || isGeneratingDigest}
+                                tickerText={analyzingTickerText}
+                                spamUrls={spamUrls}
+                                onReportSpam={handleReportSpam}
+                                onAssessArticle={handleAssessArticle}
+                                onDebugArticle={handleDebugArticle}
+                            />
                         </div>
-                    </div>
+                    </div >
                 )
             }
 
