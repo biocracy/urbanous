@@ -68,10 +68,26 @@ export default function FeedLayout() {
 
                             <div className="order-1 lg:order-2 space-y-6">
                                 <h3 className="text-2xl font-bold text-white">Navigating the Map</h3>
-                                <p className="text-neutral-400 leading-relaxed">
-                                    The map is populated with different markers representing the scale and type of activity.
-                                    <br /><span className="text-sm italic text-neutral-600">(Content coming soon...)</span>
+                                <p className="text-neutral-400 leading-relaxed text-sm">
+                                    The globe is populated with all cities across the world with a population of at least 100k inhabitants. The city icons come in three flavors:
                                 </p>
+                                <ul className="space-y-3 mt-4 text-sm text-neutral-300">
+                                    <li className="flex items-start gap-3">
+                                        <span className="shrink-0 px-2 py-0.5 rounded border border-blue-500/50 bg-blue-500/10 text-blue-400 font-bold font-mono text-xs">S</span>
+                                        <span>represents a <strong className="text-white">City</strong>.</span>
+                                    </li>
+                                    <li className="flex items-start gap-3">
+                                        <span className="shrink-0 px-2 py-0.5 rounded border border-cyan-500/50 bg-cyan-500/10 text-cyan-400 font-bold font-mono text-xs">T</span>
+                                        <span>
+                                            In order to keep the map clutter free, a clustering mechanism has been implemented.
+                                            <strong className="text-white ml-1">City Clusters</strong> represent nearby cities.
+                                        </span>
+                                    </li>
+                                    <li className="flex items-start gap-3">
+                                        <span className="shrink-0 px-2 py-0.5 rounded border border-rose-500/50 bg-rose-500/10 text-rose-400 font-bold font-mono text-xs">B</span>
+                                        <span>represent <strong className="text-white">Capitals</strong>.</span>
+                                    </li>
+                                </ul>
                             </div>
                         </div>
 
