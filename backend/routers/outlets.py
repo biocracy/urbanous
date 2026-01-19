@@ -1823,6 +1823,7 @@ class DigestFeedItem(BaseModel):
     title: str
     category: str
     city: Optional[str] = None
+    timeframe: Optional[str] = None # Added timeframe
     created_at: str
     image_url: Optional[str] = None # Flag or Coat of Arms
     user_name: Optional[str] = None
@@ -1873,6 +1874,7 @@ async def get_public_digests_feed(limit: int = 6, offset: int = 0, db: Session =
             title=digest.title,
             category=digest.category,
             city=digest.city,
+            timeframe=digest.timeframe or "24h",
             created_at=(digest.created_at or datetime.now()).isoformat(),
             image_url=flag_url, 
             user_name=username if is_visible else "Anonymous",

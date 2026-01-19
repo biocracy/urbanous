@@ -11,6 +11,7 @@ interface DigestFeedItem {
     title: string;
     category: string;
     city: string;
+    timeframe?: string;
     created_at: string;
     image_url?: string;
     user_name: string;
@@ -29,6 +30,24 @@ const CITY_IMAGES: Record<string, string> = {
     "Tokyo": "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?auto=format&fit=crop&w=800&q=80",
 };
 const DEFAULT_IMAGE = "https://images.unsplash.com/photo-1495020689067-958852a7765e?auto=format&fit=crop&w=800&q=80"; // Generic News
+
+const formatDateRange = (createdDateStr: string, timeframeStr: string = "24h") => {
+    const createdDate = new Date(createdDateStr);
+    const msToSubtract = timeframeStr === '24h' ? 24 * 60 * 60 * 1000 :
+        timeframeStr === '3days' ? 3 * 24 * 60 * 60 * 1000 :
+            timeframeStr === 'week' ? 7 * 24 * 60 * 60 * 1000 : 0;
+    const startDate = new Date(createdDate.getTime() - msToSubtract);
+
+    // Format: DD.MM - DD.MM.YYYY
+    const d1 = startDate.getDate().toString().padStart(2, '0');
+    const m1 = (startDate.getMonth() + 1).toString().padStart(2, '0');
+    const d2 = createdDate.getDate().toString().padStart(2, '0');
+    const m2 = (createdDate.getMonth() + 1).toString().padStart(2, '0');
+    const y = createdDate.getFullYear();
+
+    return `${d1}.${m1}-${d2}.${m2}.${y}`;
+};
+
 
 interface FeedLayoutProps {
     activeDigest?: any;
@@ -276,7 +295,7 @@ function NewsCard({ item, onClick }: { item: DigestFeedItem, onClick: () => void
                 <div className="flex items-center gap-2 text-xs text-fuchsia-400 mb-2 font-mono uppercase tracking-widest">
                     <span>{item.city || 'Global'}</span>
                     <span className="w-1 h-1 bg-neutral-600 rounded-full" />
-                    <span className="text-neutral-500">{item.user_name}</span>
+                    <span className="text-neutral-500">{formatDateRange(item.created_at, item.timeframe)}</span>
                 </div>
 
                 <h3 className="text-xl font-bold text-white mb-3 leading-tight group-hover:text-fuchsia-300 transition-colors line-clamp-2">
@@ -285,8 +304,8 @@ function NewsCard({ item, onClick }: { item: DigestFeedItem, onClick: () => void
 
                 <p className="text-neutral-400 text-sm leading-relaxed mb-6 line-clamp-3">
                     {item.summary
-                        ? item.summary.replace(/[#*`\[\]]/g, '').replace(/\(citation:\d+\)/g, '')
-                        : `Explore this digest covering the latest events in ${item.city || 'the world'}.`}
+                        ? item.summary.replace(/[#*`\[\]]/g, '').replace(/\(citation:\d+\)/g, '').split(' ').slice(0, 30).join(' ') + '...'
+                        : "Reading report summary..."}
                 </p>
 
                 <div className="mt-auto flex items-center justify-between border-t border-neutral-800 pt-4">
