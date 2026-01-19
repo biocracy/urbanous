@@ -73,6 +73,7 @@ export default function UnifiedDigestViewer({
     const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
     const [isAnalyticsTranslated, setIsAnalyticsTranslated] = useState(false);
     const [internalAnalyticsViewMode, setInternalAnalyticsViewMode] = useState<'cloud' | 'columns'>('cloud');
+    const [selectedKeyword, setSelectedKeyword] = useState<any | null>(null);
 
     // Use prop if available (controlled), else local state
     const viewMode = analyticsViewMode || internalAnalyticsViewMode;
@@ -112,9 +113,9 @@ export default function UnifiedDigestViewer({
         let daysToSubtract = 0;
         const normalizedTime = (timeframeStr || "").toLowerCase().replace(/\s/g, '');
 
-        if (normalizedTime.includes("3day")) daysToSubtract = 2; // 3 - 1
-        else if (normalizedTime.includes("1week") || normalizedTime.includes("7day")) daysToSubtract = 6; // 7 - 1
-        else if (normalizedTime.includes("1month") || normalizedTime.includes("30day")) daysToSubtract = 29; // 30 - 1
+        if (normalizedTime.includes("3day")) daysToSubtract = 3;
+        else if (normalizedTime.includes("1week") || normalizedTime.includes("7day")) daysToSubtract = 7;
+        else if (normalizedTime.includes("1month") || normalizedTime.includes("30day")) daysToSubtract = 30;
 
         const msToSubtract = daysToSubtract * 24 * 60 * 60 * 1000;
         const startDate = new Date(createdDate.getTime() - msToSubtract);
@@ -423,25 +424,43 @@ export default function UnifiedDigestViewer({
 
                         {effectiveKeywords.length > 0 ? (
                             viewMode === 'columns' ? (
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                    {effectiveKeywords.map((kw: any, idx: number) => (
-                                        <div key={idx} className="bg-neutral-900/50 border border-neutral-800 p-4 rounded-lg flex justify-between items-start">
-                                            <div>
-                                                <div className="font-bold text-white text-lg">
-                                                    {isAnalyticsTranslated && kw.translation ? kw.translation : kw.word}
-                                                </div>
-                                                {isAnalyticsTranslated && kw.translation && kw.translation !== kw.word && (
-                                                    <div className="text-xs text-neutral-500 mt-1">{kw.word}</div>
-                                                )}
-                                                <div className="text-xs text-neutral-400 mt-2">
-                                                    {kw.sentiment} • Imp: {kw.importance}
-                                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                    {['Positive', 'Neutral', 'Negative'].map((sentiment) => {
+                                        const sentimentColor = sentiment === 'Positive' ? 'text-green-400 border-green-900/50' :
+                                            sentiment === 'Negative' ? 'text-red-400 border-red-900/50' :
+                                                'text-neutral-400 border-neutral-800';
+
+                                        const items = effectiveKeywords.filter((k: any) => k.sentiment === sentiment);
+
+                                        return (
+                                            <div key={sentiment} className="flex flex-col gap-4">
+                                                <h3 className={`text-sm font-bold uppercase tracking-widest border-b pb-2 ${sentimentColor.split(' ')[0]}`}>
+                                                    {sentiment}
+                                                </h3>
+                                                {items.length === 0 && <div className="text-neutral-600 italic text-xs">No keywords</div>}
+                                                {items.map((kw: any, idx: number) => (
+                                                    <div
+                                                        key={idx}
+                                                        className={`bg-neutral-900/50 border border-neutral-800 p-4 rounded-lg flex justify-between items-start cursor-pointer hover:bg-neutral-800 transition-colors ${selectedKeyword === kw ? 'ring-2 ring-blue-500' : ''}`}
+                                                        onClick={() => setSelectedKeyword(kw)}
+                                                    >
+                                                        <div className="w-full">
+                                                            <div className="font-bold text-white text-lg flex justify-between w-full">
+                                                                <span>{isAnalyticsTranslated && kw.translation ? kw.translation : kw.word}</span>
+                                                                <span className="text-xs font-mono bg-neutral-950 px-2 py-1 rounded text-neutral-500">{kw.sources?.length || 0} src</span>
+                                                            </div>
+                                                            {isAnalyticsTranslated && kw.translation && kw.translation !== kw.word && (
+                                                                <div className="text-xs text-neutral-500 mt-1">{kw.word}</div>
+                                                            )}
+                                                            <div className="text-xs text-neutral-400 mt-2 flex justify-between">
+                                                                <span>Imp: {kw.importance}</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
                                             </div>
-                                            <div className="text-xs font-mono bg-neutral-950 px-2 py-1 rounded text-neutral-500">
-                                                {kw.sources?.length || 0} src
-                                            </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             ) : (
                                 <div className="flex flex-wrap gap-3 justify-center">
@@ -457,19 +476,11 @@ export default function UnifiedDigestViewer({
                                         return (
                                             <div
                                                 key={idx}
-                                                className={`relative group px-4 py-2 rounded-full border ${colorClass} transition-all hover:scale-110 cursor-default`}
+                                                onClick={(e) => { e.stopPropagation(); setSelectedKeyword(kw); }}
+                                                className={`relative group px-4 py-2 rounded-full border ${colorClass} transition-all hover:scale-110 cursor-pointer ${selectedKeyword === kw ? 'ring-2 ring-blue-500 bg-black z-20' : ''}`}
                                                 style={{ fontSize: `${Math.max(0.8, size)}rem` }}
                                             >
                                                 {displayWord}
-                                                {/* Tooltip */}
-                                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-black/90 border border-neutral-700 p-3 rounded-lg text-xs w-48 z-50 shadow-xl pointer-events-none">
-                                                    <div className="font-bold text-white mb-1">{kw.translation || kw.word}</div>
-                                                    {isAnalyticsTranslated && kw.translation !== kw.word && (
-                                                        <div className="text-neutral-500 mb-1 text-[10px] uppercase">Orig: {kw.word}</div>
-                                                    )}
-                                                    <div className="text-neutral-400">Imp: {kw.importance}</div>
-                                                    <div className="text-neutral-500 mt-1">Sources: {kw.sources?.length || 0}</div>
-                                                </div>
                                             </div>
                                         );
                                     })}
@@ -482,6 +493,65 @@ export default function UnifiedDigestViewer({
                         )}
                     </div>
                 </div>
+
+                {/* Selected Keyword Modal/Overlay */}
+                {selectedKeyword && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setSelectedKeyword(null)}>
+                        <div className="bg-neutral-900 border border-neutral-700 rounded-xl shadow-2xl p-6 max-w-md w-full relative" onClick={e => e.stopPropagation()}>
+                            <button
+                                onClick={() => setSelectedKeyword(null)}
+                                className="absolute top-4 right-4 text-neutral-500 hover:text-white"
+                            >
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                            </button>
+
+                            <h3 className="text-2xl font-black text-white mb-1">
+                                {isAnalyticsTranslated && selectedKeyword.translation ? selectedKeyword.translation : selectedKeyword.word}
+                            </h3>
+                            {isAnalyticsTranslated && selectedKeyword.translation !== selectedKeyword.word && (
+                                <div className="text-neutral-500 text-sm font-mono mb-4">{selectedKeyword.word}</div>
+                            )}
+
+                            <div className="flex gap-2 mb-6 mt-2">
+                                <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${selectedKeyword.sentiment === 'Positive' ? 'bg-green-900/30 text-green-400 border border-green-900' :
+                                    selectedKeyword.sentiment === 'Negative' ? 'bg-red-900/30 text-red-400 border border-red-900' :
+                                        'bg-neutral-800 text-neutral-400 border border-neutral-700'
+                                    }`}>
+                                    {selectedKeyword.sentiment}
+                                </span>
+                                <span className="px-2 py-1 rounded text-xs font-bold bg-neutral-800 text-neutral-400 border border-neutral-700">
+                                    Imp: {selectedKeyword.importance}
+                                </span>
+                            </div>
+
+                            <div className="border-t border-neutral-800 pt-4">
+                                <div className="text-xs text-neutral-500 font-bold uppercase tracking-widest mb-3">
+                                    Found in {selectedKeyword.sources?.length || 0} Sources
+                                </div>
+                                <ul className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
+                                    {selectedKeyword.sources?.map((s: string, i: number) => {
+                                        // Match URL in articles list to get title
+                                        const article = digestData?.articles?.find((a: any) => a.url === s);
+                                        const title = article ? article.title : new URL(s).hostname;
+                                        return (
+                                            <li key={i}>
+                                                <a
+                                                    href={s}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="block p-3 rounded-lg bg-neutral-950 border border-neutral-800 hover:border-blue-700 hover:bg-blue-900/10 transition-colors group"
+                                                >
+                                                    <div className="text-sm text-blue-300 font-medium line-clamp-2 group-hover:text-blue-200">{title}</div>
+                                                    <div className="text-xs text-neutral-600 mt-1 truncate">{new URL(s).hostname}</div>
+                                                </a>
+                                            </li>
+                                        );
+                                    })}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
             </div>
         </div >
