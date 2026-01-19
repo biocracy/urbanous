@@ -116,6 +116,12 @@ export default function UnifiedDigestViewer({
         if (normalizedTime.includes("3day")) daysToSubtract = 3;
         else if (normalizedTime.includes("1week") || normalizedTime.includes("7day")) daysToSubtract = 7;
         else if (normalizedTime.includes("1month") || normalizedTime.includes("30day")) daysToSubtract = 30;
+        else if (normalizedTime.includes("24h") || normalizedTime.includes("1day")) daysToSubtract = 1; // Explicitly handle 24h as 1 day range
+
+        // Default to 1 day if 0, so we always show a range if desired? 
+        // User asked for "time-intervals... do not show feed mode (single date)".
+        // If we want interval for 24h (e.g. 16.1-17.1), we need daysToSubtract >= 1.
+        if (daysToSubtract === 0) daysToSubtract = 1;
 
         const msToSubtract = daysToSubtract * 24 * 60 * 60 * 1000;
         const startDate = new Date(createdDate.getTime() - msToSubtract);
@@ -530,9 +536,7 @@ export default function UnifiedDigestViewer({
                                 </div>
                                 <ul className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
                                     {selectedKeyword.sources?.map((s: string, i: number) => {
-                                        // Match URL in articles list to get title
-                                        const article = digestData?.articles?.find((a: any) => a.url === s);
-                                        const title = article ? article.title : new URL(s).hostname;
+                                        // Use Safe Parsing inside the render to avoid crashes
                                         return (
                                             <li key={i}>
                                                 <a
@@ -541,8 +545,18 @@ export default function UnifiedDigestViewer({
                                                     rel="noopener noreferrer"
                                                     className="block p-3 rounded-lg bg-neutral-950 border border-neutral-800 hover:border-blue-700 hover:bg-blue-900/10 transition-colors group"
                                                 >
-                                                    <div className="text-sm text-blue-300 font-medium line-clamp-2 group-hover:text-blue-200">{title}</div>
-                                                    <div className="text-xs text-neutral-600 mt-1 truncate">{new URL(s).hostname}</div>
+                                                    <div className="text-sm text-blue-300 font-medium line-clamp-2 group-hover:text-blue-200">
+                                                        {(() => {
+                                                            const article = digestData?.articles?.find((a: any) => a.url === s);
+                                                            if (article) return article.title;
+                                                            try { return new URL(s).hostname; } catch { return s; }
+                                                        })()}
+                                                    </div>
+                                                    <div className="text-xs text-neutral-600 mt-1 truncate">
+                                                        {(() => {
+                                                            try { return new URL(s).hostname; } catch { return 'Source'; }
+                                                        })()}
+                                                    </div>
                                                 </a>
                                             </li>
                                         );
