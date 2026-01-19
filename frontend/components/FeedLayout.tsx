@@ -14,6 +14,7 @@ interface DigestFeedItem {
     created_at: string;
     image_url?: string;
     user_name: string;
+    summary?: string;
 }
 
 // --- STATIC IMAGES ---
@@ -283,9 +284,9 @@ function NewsCard({ item, onClick }: { item: DigestFeedItem, onClick: () => void
                 </h3>
 
                 <p className="text-neutral-400 text-sm leading-relaxed mb-6 line-clamp-3">
-                    {/* Summary is not in list feed to save bandwidth, using title as main hook or we could add short summary to API */}
-                    {/* For now, just show date or subheading? */}
-                    Explore this digest covering the latest events in {item.city || 'the world'}.
+                    {item.summary
+                        ? item.summary.replace(/[#*`\[\]]/g, '').replace(/\(citation:\d+\)/g, '')
+                        : `Explore this digest covering the latest events in ${item.city || 'the world'}.`}
                 </p>
 
                 <div className="mt-auto flex items-center justify-between border-t border-neutral-800 pt-4">

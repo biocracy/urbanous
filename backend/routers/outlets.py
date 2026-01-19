@@ -1826,18 +1826,19 @@ class DigestFeedItem(BaseModel):
     created_at: str
     image_url: Optional[str] = None # Flag or Coat of Arms
     user_name: Optional[str] = None
+    summary: Optional[str] = None # New field
 
 @router.get("/digests/public", response_model=List[DigestFeedItem])
 async def get_public_digests_feed(limit: int = 6, offset: int = 0, db: Session = Depends(get_db)):
     """
-    Get a paginated feed of public digests.
+    Get a paginated feed of ALL digests (Auto-published).
     """
     # Join Digest -> CityMetadata to get flag
+    # REMOVED: .where(NewsDigest.is_public == True) -> Show ALL
     stmt = (
         select(NewsDigest, CityMetadata.flag_url, User.username, User.is_username_visible)
         .outerjoin(CityMetadata, NewsDigest.city == CityMetadata.name)
         .join(User, NewsDigest.user_id == User.id)
-        .where(NewsDigest.is_public == True)
         .order_by(NewsDigest.created_at.desc())
         .limit(limit)
         .offset(offset)
@@ -1847,12 +1848,25 @@ async def get_public_digests_feed(limit: int = 6, offset: int = 0, db: Session =
     rows = results.all()
     
     feed = []
+    need_commit = False
+
     for row in rows:
         digest = row[0]
         flag_url = row[1]
         username = row[2]
         is_visible = row[3]
         
+        # Auto-Publish Logic (Lazy Migration)
+        if not digest.public_slug or not digest.is_public:
+            if not digest.public_slug:
+                digest.public_slug = generate_slug()
+            digest.is_public = True
+            db.add(digest)
+            need_commit = True
+        
+        # Truncate summary for preview
+        summary_preview = digest.summary_markdown[:200] + "..." if digest.summary_markdown else "No summary available."
+
         feed.append(DigestFeedItem(
             id=digest.id,
             slug=digest.public_slug,
@@ -1860,9 +1874,13 @@ async def get_public_digests_feed(limit: int = 6, offset: int = 0, db: Session =
             category=digest.category,
             city=digest.city,
             created_at=(digest.created_at or datetime.now()).isoformat(),
-            image_url=flag_url, # Return Coat of Arms as "Image"
-            user_name=username if is_visible else "Anonymous"
+            image_url=flag_url, 
+            user_name=username if is_visible else "Anonymous",
+            summary=summary_preview
         ))
+    
+    if need_commit:
+        await db.commit()
         
     return feed
 
