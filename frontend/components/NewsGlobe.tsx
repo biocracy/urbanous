@@ -141,7 +141,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
     }
 
     // Use centralized version constant
-    const APP_VERSION = "0.131";
+    const APP_VERSION = "0.132";
 
     // UI States
     const [isDiscovering, setIsDiscovering] = useState(false);
@@ -3730,7 +3730,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
                                 <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${activeTooltip.data?.sentiment === 'Positive' ? 'bg-green-900/50 text-green-400 border border-green-800' : activeTooltip.data?.sentiment === 'Negative' ? 'bg-red-900/50 text-red-400 border border-red-800' : 'bg-slate-800 text-slate-400 border border-slate-700'}`}>
                                     {activeTooltip.data?.sentiment}
                                 </span>
-                                <span className="text-[10px] text-slate-500 font-mono">Imp: {activeTooltip.data?.importance}</span>
+                                <div className="text-[10px] text-white/30 font-mono">v{APP_VERSION}</div>
                             </div>
                         </div>
 
