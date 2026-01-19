@@ -476,7 +476,7 @@ export default function UnifiedDigestViewer({
                                                 {items.map((kw: any, idx: number) => (
                                                     <div
                                                         key={idx}
-                                                        className={`relative group bg-neutral-900/50 border border-neutral-800 p-4 rounded-lg flex justify-between items-start cursor-pointer hover:bg-neutral-800 transition-colors ${selectedKeyword === kw ? 'ring-2 ring-blue-500' : ''}`}
+                                                        className={`relative group bg-neutral-900/50 border border-neutral-800 p-4 rounded-lg flex justify-between items-start cursor-pointer hover:bg-neutral-800 transition-colors hover:z-[60] ${selectedKeyword === kw ? 'ring-2 ring-blue-500 z-50' : ''}`}
                                                         onClick={(e) => {
                                                             e.stopPropagation();
                                                             console.log("[UnifiedDigestViewer] Clicked Keyword (Column):", kw?.word);
@@ -497,7 +497,7 @@ export default function UnifiedDigestViewer({
                                                         </div>
 
                                                         {/* Hover Tooltip (Column Mode) - Interactive/Scrollable */}
-                                                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-black/95 border border-neutral-700 p-3 rounded-xl text-xs w-64 z-50 shadow-2xl overflow-hidden">
+                                                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-black/95 border border-neutral-700 p-3 rounded-xl text-xs w-64 z-[100] shadow-2xl overflow-hidden text-left cursor-default">
                                                             <div className="font-bold text-white mb-1 text-base">{kw.translation || kw.word}</div>
                                                             {isAnalyticsTranslated && kw.translation !== kw.word && (
                                                                 <div className="text-neutral-500 mb-2 text-[10px] uppercase font-mono">Orig: {kw.word}</div>
@@ -564,12 +564,12 @@ export default function UnifiedDigestViewer({
                                                     console.log("[UnifiedDigestViewer] Clicked Keyword (Cloud):", kw?.word);
                                                     setSelectedKeyword(kw);
                                                 }}
-                                                className={`relative group px-4 py-2 rounded-full border ${colorClass} transition-all hover:scale-110 cursor-pointer ${selectedKeyword === kw ? 'ring-2 ring-blue-500 bg-black z-20' : ''}`}
+                                                className={`relative group px-4 py-2 rounded-full border ${colorClass} transition-all hover:scale-110 cursor-pointer hover:z-[60] ${selectedKeyword === kw ? 'ring-2 ring-blue-500 bg-black z-50' : ''}`}
                                                 style={{ fontSize: `${Math.max(0.8, size)}rem` }}
                                             >
                                                 {displayWord}
                                                 {/* Tooltip on Hover (Cloud Mode) - Interactive/Scrollable */}
-                                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-black/95 border border-neutral-700 p-3 rounded-xl text-xs w-64 z-50 shadow-2xl overflow-hidden cursor-pointer">
+                                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-black/95 border border-neutral-700 p-3 rounded-xl text-xs w-64 z-[100] shadow-2xl overflow-hidden cursor-default text-left">
                                                     <div className="font-bold text-white mb-1 text-base">{kw.translation || kw.word}</div>
                                                     {isAnalyticsTranslated && kw.translation !== kw.word && (
                                                         <div className="text-neutral-500 mb-2 text-[10px] uppercase font-mono">Orig: {kw.word}</div>
