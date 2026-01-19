@@ -45,6 +45,10 @@ const formatDateRange = (createdDateStr: string, timeframeStr: string = "24h") =
     const m2 = (createdDate.getMonth() + 1).toString().padStart(2, '0');
     const y = createdDate.getFullYear();
 
+    // Compact format if months match: DD - DD.MM.YYYY
+    if (m1 === m2) {
+        return `${d1}-${d2}.${m2}.${y}`;
+    }
     return `${d1}.${m1}-${d2}.${m2}.${y}`;
 };
 

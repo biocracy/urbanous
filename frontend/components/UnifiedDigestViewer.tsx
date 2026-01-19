@@ -181,40 +181,23 @@ export default function UnifiedDigestViewer({
         // "Inclusive" subtraction: If 3 days, we want Today + (Today-1) + (Today-2). 
         // So we subtract 2 days from the valid range "start".
 
-        let daysToSubtract = 0;
-        const normalizedTime = (timeframeStr || "").toLowerCase().replace(/\s/g, '');
-
-        if (normalizedTime.includes("3day")) daysToSubtract = 3;
-        else if (normalizedTime.includes("1week") || normalizedTime.includes("7day")) daysToSubtract = 7;
-        else if (normalizedTime.includes("1month") || normalizedTime.includes("30day")) daysToSubtract = 30;
-        else if (normalizedTime.includes("24h") || normalizedTime.includes("1day")) daysToSubtract = 1; // Explicitly handle 24h as 1 day range
-
-        // Default to 1 day if 0, so we always show a range if desired? 
-        // User asked for "time-intervals... do not show feed mode (single date)".
-        // If we want interval for 24h (e.g. 16.1-17.1), we need daysToSubtract >= 1.
-        if (daysToSubtract === 0) daysToSubtract = 1;
-
-        const msToSubtract = daysToSubtract * 24 * 60 * 60 * 1000;
+        const msToSubtract = timeframeStr === '24h' ? 24 * 60 * 60 * 1000 :
+            timeframeStr === '3days' ? 3 * 24 * 60 * 60 * 1000 :
+                timeframeStr === 'week' ? 7 * 24 * 60 * 60 * 1000 : 0;
         const startDate = new Date(createdDate.getTime() - msToSubtract);
 
-        const pad = (n: number) => n.toString().padStart(2, '0');
-        const format = (d: Date) => `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}`;
-        const formatShort = (d: Date) => `${pad(d.getDate())}.${pad(d.getMonth() + 1)}`;
+        // Format: DD.MM - DD.MM.YYYY
+        const d1 = startDate.getDate().toString().padStart(2, '0');
+        const m1 = (startDate.getMonth() + 1).toString().padStart(2, '0');
+        const d2 = createdDate.getDate().toString().padStart(2, '0');
+        const m2 = (createdDate.getMonth() + 1).toString().padStart(2, '0');
+        const y = createdDate.getFullYear();
 
-        // Same Year?
-        if (startDate.getFullYear() === createdDate.getFullYear()) {
-            // Same Month?
-            if (startDate.getMonth() === createdDate.getMonth()) {
-                // Same Day? (Unlikely but possible)
-                if (startDate.getDate() === createdDate.getDate()) return format(createdDate);
-                // DD-DD.MM.YYYY
-                return `${startDate.getDate()}-${format(createdDate)}`;
-            }
-            // DD.MM-DD.MM.YYYY
-            return `${formatShort(startDate)}-${format(createdDate)}`;
+        // Compact format if months match: DD - DD.MM.YYYY
+        if (m1 === m2) {
+            return `${d1}-${d2}.${m2}.${y}`;
         }
-        // Different Year
-        return `${format(startDate)}-${format(createdDate)}`;
+        return `${d1}.${m1}-${d2}.${m2}.${y}`;
     };
 
     return (
