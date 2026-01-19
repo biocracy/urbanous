@@ -91,6 +91,7 @@ export default function UnifiedDigestViewer({
     };
 
     const isEditorActive = !isReadOnly && !!setDigestSummary;
+    const effectiveKeywords = analyticsKeywords.length > 0 ? analyticsKeywords : (digestData?.analysis_source || []);
 
     return (
         <div className="flex flex-col h-full bg-[#0a0a0a] text-white">
@@ -104,7 +105,7 @@ export default function UnifiedDigestViewer({
                             className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'articles' ? 'bg-neutral-800 text-white shadow-sm' : 'text-neutral-400 hover:text-white'}`}
                         >
                             <LayoutGrid className="w-4 h-4" />
-                            Sources
+                            Headlines
                             <span className="bg-neutral-950 px-1.5 py-0.5 rounded text-[10px] text-neutral-500 border border-neutral-800">
                                 {digestData?.articles?.length || 0}
                             </span>
@@ -116,7 +117,7 @@ export default function UnifiedDigestViewer({
                             <FileText className="w-4 h-4" />
                             Report
                         </button>
-                        {(analyticsKeywords?.length > 0 || !isReadOnly) && (
+                        {(effectiveKeywords.length > 0 || !isReadOnly) && (
                             <button
                                 onClick={() => setActiveTab('analytics')}
                                 className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'analytics' ? 'bg-fuchsia-900/30 text-fuchsia-400 shadow-sm border border-fuchsia-900/50' : 'text-neutral-400 hover:text-white'}`}
@@ -237,7 +238,7 @@ export default function UnifiedDigestViewer({
                                 placeholder="# Write your intelligence report here..."
                             />
                         ) : (
-                            <div className="prose prose-invert prose-lg max-w-none prose-headings:font-bold prose-headings:tracking-tight prose-a:text-blue-400 prose-blockquote:border-l-blue-500 prose-blockquote:bg-blue-900/10 prose-blockquote:py-1">
+                            <div className="prose prose-invert prose-lg max-w-none text-justify prose-p:my-4 prose-headings:font-bold prose-headings:tracking-tight prose-headings:text-blue-400 prose-a:text-blue-400 prose-a:underline prose-a:decoration-blue-500/50 prose-a:underline-offset-4 prose-blockquote:border-l-blue-500 prose-blockquote:bg-blue-900/10 prose-blockquote:py-1">
                                 <ReactMarkdown>
                                     {digestData?.digest || digestData?.summary_markdown || "*No public summary available.*"}
                                 </ReactMarkdown>
@@ -289,9 +290,9 @@ export default function UnifiedDigestViewer({
                             </div>
                         )}
 
-                        {analyticsKeywords?.length > 0 ? (
+                        {effectiveKeywords.length > 0 ? (
                             <div className="flex flex-wrap gap-3 justify-center">
-                                {analyticsKeywords.map((kw: any, idx: number) => {
+                                {effectiveKeywords.map((kw: any, idx: number) => {
                                     const size = 1 + ((kw.importance || 50) / 100) * 2;
                                     let colorClass = "border-slate-700 bg-slate-900/50 text-slate-300";
                                     if (kw.sentiment === 'Positive') colorClass = "border-green-900/50 bg-green-900/20 text-green-400";
