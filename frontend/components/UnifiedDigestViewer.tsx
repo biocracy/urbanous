@@ -72,6 +72,14 @@ export default function UnifiedDigestViewer({
     const [activeTab, setActiveTab] = useState<'articles' | 'digest' | 'analytics'>('digest');
     const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
     const [isAnalyticsTranslated, setIsAnalyticsTranslated] = useState(false);
+    const [internalAnalyticsViewMode, setInternalAnalyticsViewMode] = useState<'cloud' | 'columns'>('cloud');
+
+    // Use prop if available (controlled), else local state
+    const viewMode = analyticsViewMode || internalAnalyticsViewMode;
+    const handleSetViewMode = (mode: 'cloud' | 'columns') => {
+        if (setAnalyticsViewMode) setAnalyticsViewMode(mode);
+        else setInternalAnalyticsViewMode(mode);
+    };
 
     // If initial view is empty but we have data, verify tabs
     // Default to 'digest' if summary exists, else 'articles'
@@ -97,12 +105,16 @@ export default function UnifiedDigestViewer({
     // Date Range Helper
     const formatDateRange = (createdDateStr: string, timeframeStr: string = "24h") => {
         const createdDate = new Date(createdDateStr || Date.now());
-        // Handle timeframe parsing (default 24h)
-        let msToSubtract = 24 * 60 * 60 * 1000;
-        if (timeframeStr === "3days") msToSubtract = 3 * 24 * 60 * 60 * 1000;
-        else if (timeframeStr === "1week") msToSubtract = 7 * 24 * 60 * 60 * 1000;
-        else if (timeframeStr === "1month") msToSubtract = 30 * 24 * 60 * 60 * 1000;
 
+        // "Inclusive" subtraction: If 3 days, we want Today + (Today-1) + (Today-2). 
+        // So we subtract 2 days from the valid range "start".
+
+        let daysToSubtract = 0;
+        if (timeframeStr === "3days") daysToSubtract = 2; // 3 - 1
+        else if (timeframeStr === "1week") daysToSubtract = 6; // 7 - 1
+        else if (timeframeStr === "1month") daysToSubtract = 29; // 30 - 1
+
+        const msToSubtract = daysToSubtract * 24 * 60 * 60 * 1000;
         const startDate = new Date(createdDate.getTime() - msToSubtract);
 
         const pad = (n: number) => n.toString().padStart(2, '0');
@@ -256,6 +268,12 @@ export default function UnifiedDigestViewer({
                                 {digestData?.title || `${digestData?.category || 'News'} Report`}
                             </h1>
                             <div className="text-neutral-500 font-mono text-sm uppercase tracking-widest flex items-center justify-center gap-4">
+                                {digestData?.category && (
+                                    <>
+                                        <span className="text-blue-400 font-bold">{digestData.category}</span>
+                                        <span>•</span>
+                                    </>
+                                )}
                                 <span>{digestData?.city || 'Global'}</span>
                                 <span>•</span>
                                 <span>{formatDateRange(digestData?.created_at, digestData?.timeframe)}</span>
@@ -321,6 +339,7 @@ export default function UnifiedDigestViewer({
                                     }}
                                 >
                                     {(digestData?.digest || digestData?.summary_markdown || "")
+                                        .replace(/^#\s+.+$/m, '') // Remove duplicate title (first H1)
                                         .replace(/\[(\d+)\]/g, '[$1](citation:$1)')}
                                 </ReactMarkdown>
                             </div>
@@ -361,24 +380,22 @@ export default function UnifiedDigestViewer({
                         <div className="flex justify-between items-center mb-6">
                             {/* Left: View Controls */}
                             <div className="flex items-center gap-2">
-                                {setAnalyticsViewMode && (
-                                    <div className="flex bg-neutral-900 rounded-lg p-1 border border-neutral-800">
-                                        <button
-                                            onClick={() => setAnalyticsViewMode('cloud')}
-                                            className={`p-2 rounded hover:text-white transition-colors ${analyticsViewMode === 'cloud' ? 'bg-neutral-800 text-white' : 'text-neutral-400'}`}
-                                            title="Word Cloud"
-                                        >
-                                            <LayoutGrid className="w-4 h-4" />
-                                        </button>
-                                        <button
-                                            onClick={() => setAnalyticsViewMode('columns')}
-                                            className={`p-2 rounded hover:text-white transition-colors ${analyticsViewMode === 'columns' ? 'bg-neutral-800 text-white' : 'text-neutral-400'}`}
-                                            title="Columns"
-                                        >
-                                            <FileText className="w-4 h-4" />
-                                        </button>
-                                    </div>
-                                )}
+                                <div className="flex bg-neutral-900 rounded-lg p-1 border border-neutral-800">
+                                    <button
+                                        onClick={() => handleSetViewMode('cloud')}
+                                        className={`p-2 rounded hover:text-white transition-colors ${viewMode === 'cloud' ? 'bg-neutral-800 text-white' : 'text-neutral-400'}`}
+                                        title="Word Cloud"
+                                    >
+                                        <LayoutGrid className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                        onClick={() => handleSetViewMode('columns')}
+                                        className={`p-2 rounded hover:text-white transition-colors ${viewMode === 'columns' ? 'bg-neutral-800 text-white' : 'text-neutral-400'}`}
+                                        title="Columns"
+                                    >
+                                        <FileText className="w-4 h-4" />
+                                    </button>
+                                </div>
 
                                 <button
                                     onClick={() => setIsAnalyticsTranslated(!isAnalyticsTranslated)}
@@ -403,7 +420,7 @@ export default function UnifiedDigestViewer({
                         </div>
 
                         {effectiveKeywords.length > 0 ? (
-                            analyticsViewMode === 'columns' ? (
+                            viewMode === 'columns' ? (
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                     {effectiveKeywords.map((kw: any, idx: number) => (
                                         <div key={idx} className="bg-neutral-900/50 border border-neutral-800 p-4 rounded-lg flex justify-between items-start">
