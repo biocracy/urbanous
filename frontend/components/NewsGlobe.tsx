@@ -142,7 +142,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
     }
 
     // Use centralized version constant
-    const APP_VERSION = "0.152";
+    const APP_VERSION = "0.153";
 
     // UI States
     const [isDiscovering, setIsDiscovering] = useState(false);
@@ -2675,7 +2675,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
                                 onDownload={handleDownloadDigest}
                                 onDelete={() => handleDeleteDigest(digestData.id)}
                                 onRegenerateSummary={handleGenerateBackendSummary}
-                                onRegenerateAnalytics={handleGenerateBackendAnalytics}
+                                onRegenerateAnalytics={handleGenerateAnalytics}
                                 setDigestSummary={setDigestSummary}
                                 selectedArticleUrls={selectedArticleUrls}
                                 onToggleSelection={handleToggleSelection}

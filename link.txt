@@ -1,37 +1,38 @@
-[NewsGlobe] Render Cycle
-VM221:63 NewsGlobe Mounted. Fetching initial data...
-VM221:63 Loading clusters for radius: 0.7 (requested: 0.7)
-VM221:63 [NewsGlobe] MOUNTED
-VM221:63 [NewsGlobe] Render Cycle
-VM221:63 Loaded 2482 clusters.
-2VM221:63 [NewsGlobe] Render Cycle
-9c73c0db5006053d.js:351 [Violation] 'requestAnimationFrame' handler took 213ms
-9c73c0db5006053d.js:351 [Violation] 'setTimeout' handler took 117ms
-9c73c0db5006053d.js:351 [Violation] 'setTimeout' handler took 136ms
-9c73c0db5006053d.js:351 [Violation] 'requestAnimationFrame' handler took 65ms
-VM221:63 Discovered Cities Loaded: 53
-VM221:63 [NewsGlobe] Render Cycle
-VM221:63 [NewsGlobe] Render Cycle
-4c631c12e6a90c7e.js:1 Uncaught Error: Minified React error #31; visit https://react.dev/errors/31?args[]=object%20with%20keys%20%7Btitle%2C%20url%2C%20source%7D for the full message or use the non-minified dev environment for full errors and additional helpful warnings.
-    at lD (4c631c12e6a90c7e.js:1:53325)
-    at i (4c631c12e6a90c7e.js:1:58674)
-    at 4c631c12e6a90c7e.js:1:58872
-    at oB (4c631c12e6a90c7e.js:1:81128)
-    at io (4c631c12e6a90c7e.js:1:97735)
-    at sc (4c631c12e6a90c7e.js:1:137998)
-    at 4c631c12e6a90c7e.js:1:137843
-    at ss (4c631c12e6a90c7e.js:1:137851)
-    at u9 (4c631c12e6a90c7e.js:1:133776)
-    at sV (4c631c12e6a90c7e.js:1:159371)
-lD @ 4c631c12e6a90c7e.js:1
-i @ 4c631c12e6a90c7e.js:1
-(anonymous) @ 4c631c12e6a90c7e.js:1
-oB @ 4c631c12e6a90c7e.js:1
-io @ 4c631c12e6a90c7e.js:1
-sc @ 4c631c12e6a90c7e.js:1
-(anonymous) @ 4c631c12e6a90c7e.js:1
-ss @ 4c631c12e6a90c7e.js:1
-u9 @ 4c631c12e6a90c7e.js:1
-sV @ 4c631c12e6a90c7e.js:1
-O @ 4c631c12e6a90c7e.js:1Understand this error
-VM221:63 [NewsGlobe] UNMOUNTED
+01:28:22.644 Running build in Washington, D.C., USA (East) – iad1
+01:28:22.645 Build machine configuration: 2 cores, 8 GB
+01:28:22.787 Cloning github.com/biocracy/urbanous (Branch: main, Commit: 1814455)
+01:28:23.345 Cloning completed: 558.000ms
+01:28:24.738 Restored build cache from previous deployment (EvRhKPdSKxFKVh44rnFTEuqHTAZi)
+01:28:25.027 Running "vercel build"
+01:28:26.019 Vercel CLI 50.4.5
+01:28:27.601 Installing dependencies...
+01:28:29.312 
+01:28:29.314 up to date in 1s
+01:28:29.315 
+01:28:29.315 328 packages are looking for funding
+01:28:29.315   run `npm fund` for details
+01:28:29.340 Detected Next.js version: 16.1.1
+01:28:29.345 Running "npm run build"
+01:28:29.473 
+01:28:29.473 > frontend@0.1.1 build
+01:28:29.473 > next build
+01:28:29.473 
+01:28:30.566 ▲ Next.js 16.1.1 (Turbopack)
+01:28:30.567 
+01:28:30.603   Creating an optimized production build ...
+01:28:43.115 ✓ Compiled successfully in 12.0s
+01:28:43.120   Running TypeScript ...
+01:28:49.394 Failed to compile.
+01:28:49.394 
+01:28:49.395 ./components/NewsGlobe.tsx:2678:56
+01:28:49.395 Type error: Cannot find name 'handleGenerateBackendAnalytics'. Did you mean 'handleGenerateAnalytics'?
+01:28:49.395 
+01:28:49.395 [0m [90m 2676 |[39m                                 onDelete[33m=[39m{() [33m=>[39m handleDeleteDigest(digestData[33m.[39mid)}
+01:28:49.396  [90m 2677 |[39m                                 onRegenerateSummary[33m=[39m{handleGenerateBackendSummary}
+01:28:49.396 [31m[1m>[22m[39m[90m 2678 |[39m                                 onRegenerateAnalytics[33m=[39m{handleGenerateBackendAnalytics}
+01:28:49.396  [90m      |[39m                                                        [31m[1m^[22m[39m
+01:28:49.396  [90m 2679 |[39m                                 setDigestSummary[33m=[39m{setDigestSummary}
+01:28:49.396  [90m 2680 |[39m                                 selectedArticleUrls[33m=[39m{selectedArticleUrls}
+01:28:49.396  [90m 2681 |[39m                                 onToggleSelection[33m=[39m{handleToggleSelection}[0m
+01:28:49.433 Next.js build worker exited with code: 1 and signal: null
+01:28:49.470 Error: Command "npm run build" exited with 1
