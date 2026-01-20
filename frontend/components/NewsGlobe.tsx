@@ -142,7 +142,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
     }
 
     // Use centralized version constant
-    const APP_VERSION = "0.176";
+    const APP_VERSION = "0.177";
 
     // UI States
     const [isDiscovering, setIsDiscovering] = useState(false);
@@ -190,7 +190,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
     const [isGlobalSidebarOpen, setIsGlobalSidebarOpen] = useState(false);
 
     // Global Stream Filters
-    const [globalStreamTab, setGlobalStreamTab] = useState<'stream' | 'my'>('stream');
+
 
     // Auth & User State
     const [currentUser, setCurrentUser] = useState<any>(null); // Load from /users/me
@@ -3205,36 +3205,18 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
                     <div className="p-4 border-b border-slate-700 bg-slate-900 sticky top-0 z-10">
                         <h3 className="font-bold text-white text-lg flex items-center gap-2 mb-2">
                             <List size={18} className="text-blue-400" />
-                            Global Stream
+                            My Digests
                         </h3>
-
-                        <div className="flex bg-slate-800 rounded p-1">
-                            <button
-                                onClick={() => setGlobalStreamTab('stream')}
-                                className={`flex-1 text-xs font-bold py-1.5 rounded transition-all ${globalStreamTab === 'stream' ? 'bg-slate-700 text-blue-400 shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
-                            >
-                                Stream
-                            </button>
-                            <button
-                                onClick={() => setGlobalStreamTab('my')}
-                                className={`flex-1 text-xs font-bold py-1.5 rounded transition-all ${globalStreamTab === 'my' ? 'bg-slate-700 text-blue-400 shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
-                            >
-                                My Digests
-                            </button>
-                        </div>
                     </div>
 
                     <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
                         {(savedDigests || [])
                             .filter((d: any) => {
-                                if (globalStreamTab === 'my') {
-                                    return currentUser && d.owner_id === currentUser.id;
-                                }
-                                return true; // Show all
+                                return currentUser && d.owner_id === currentUser.id;
                             })
                             .length === 0 ? (
                             <div className="text-center text-slate-500 py-8 text-sm">
-                                {globalStreamTab === 'my' ? "You haven't saved any digests." : "No digests found."}
+                                You haven't saved any digests.
                             </div>
                         ) : (
                             (savedDigests || []).map((digest: any) => {
