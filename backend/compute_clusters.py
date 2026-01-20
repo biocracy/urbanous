@@ -11,7 +11,8 @@ import time
 DATABASE_URL = "sqlite:///backend/urbanous.db"
 OUTPUT_DIR = "backend/static/clusters"
 RADII = [0.1, 0.3, 0.5, 0.7, 1.0]
-CITIES_URL = 'https://raw.githubusercontent.com/lmfmaier/cities-json/master/cities500.json'
+# CITIES_URL = 'https://raw.githubusercontent.com/lmfmaier/cities-json/master/cities500.json' 
+LOCAL_CITIES_PATH = "backend/data/cities500.json" # Local path
 
 # --- Database Setup ---
 engine = create_engine(DATABASE_URL)
@@ -116,10 +117,15 @@ def main():
         # 2. Setup Dirs
         os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-        # 3. Download Cities
-        print(f"Downloading Cities from {CITIES_URL}...")
-        resp = requests.get(CITIES_URL)
-        cities_data = resp.json()
+        # 3. Load Cities from Local File
+        if os.path.exists(LOCAL_CITIES_PATH):
+            print(f"Loading Cities from local file: {LOCAL_CITIES_PATH}...")
+            with open(LOCAL_CITIES_PATH, 'r', encoding='utf-8') as f:
+                cities_data = json.load(f)
+        else:
+             print(f"ERROR: Local cities file not found at {LOCAL_CITIES_PATH}. Please download it.")
+             return
+
         cities_data = [c for c in cities_data if int(c.get('pop', 0) or 0) > 100000] # Major only
         
         # INJECT MANUAL OVERRIDES (Fix missing cities)
@@ -129,6 +135,15 @@ def main():
             "lon": "89.6339",
             "country": "BT",
             "pop": "500000"
+        })
+        
+        # Add Nuuk, Greenland
+        cities_data.append({
+            "name": "Nuuk",
+            "lat": "64.1814",
+            "lon": "-51.6941",
+            "country": "GL",
+            "pop": "19000"
         })
         
         print(f"Loaded {len(cities_data)} major cities.")

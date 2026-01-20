@@ -142,7 +142,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
     }
 
     // Use centralized version constant
-    const APP_VERSION = "0.156";
+    const APP_VERSION = "0.157";
 
     // UI States
     const [isDiscovering, setIsDiscovering] = useState(false);
@@ -1115,7 +1115,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
     useEffect(() => {
         console.log("NewsGlobe Mounted. Fetching initial data...");
         // Load countries polygons
-        fetch('https://raw.githubusercontent.com/vasturiano/react-globe.gl/master/example/datasets/ne_110m_admin_0_countries.geojson')
+        fetch('/datasets/ne_110m_admin_0_countries.geojson')
             .then(res => res.json())
             .then(data => {
                 setCountries(data);
