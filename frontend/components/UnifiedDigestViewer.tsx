@@ -156,14 +156,21 @@ export default function UnifiedDigestViewer({
 
     // If initial view is empty but we have data, verify tabs
     // Default to 'digest' if summary exists but empty articles? No, stay on articles if articles exist.
+    // If initial view is empty but we have data, verify tabs
+    // Default to 'digest' if summary exists but empty articles? No, stay on articles if articles exist.
     useEffect(() => {
+        if (initialTab) {
+            setActiveTab(initialTab);
+            return;
+        }
+
         if (!digestData?.digest && digestData?.articles?.length > 0) {
             setActiveTab('articles');
         } else if (digestData?.digest && digestData?.articles?.length === 0) {
             // Only if NO articles but we have a digest (rare?)
             setActiveTab('digest');
         }
-    }, [digestData?.id]); // Only on new digest load
+    }, [digestData?.id, initialTab]); // Only on new digest load
 
     const handleCopyLink = () => {
         if (!digestData?.public_slug) return;
