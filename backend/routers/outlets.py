@@ -2287,20 +2287,25 @@ async def generate_analytics(req: AnalyticsRequest, current_user: User = Depends
             
             data = json.loads(text)
             print(f"Analytics Batch {batch_idx}: Parsed {len(data)} items.")
-            return data
+            return {"status": "success", "data": data}
         except Exception as e:
             print(f"Batch {batch_idx} failed: {e}")
             import traceback
             traceback.print_exc()
-            return []
+            return {"status": "error", "error": str(e), "raw": text[:200] if 'text' in locals() else "No text"}
 
     # Run Batches in Parallel
     tasks = [process_batch(i, b) for i, b in enumerate(batches)]
     results = await asyncio.gather(*tasks)
 
     # REDUCE / COMBINE
+    debug_errors = []
     for batch_res in results:
-        for kw in batch_res:
+        if batch_res.get("status") == "error":
+             debug_errors.append(batch_res)
+             continue
+        
+        for kw in batch_res.get("data", []):
             w = kw.get('word', '').strip()
             if not w: continue
             k = w.lower()
@@ -2368,7 +2373,8 @@ async def generate_analytics(req: AnalyticsRequest, current_user: User = Depends
         "keywords": final_keywords,
         "debug_count": len(final_keywords),
         "debug_batches": len(batches),
-        "debug_message": f"Processed {len(req.articles)} articles."
+        "debug_message": f"Processed {len(req.articles)} articles.",
+        "debug_errors": debug_errors
     }
 
 @router.post("/outlets/digest/stream")

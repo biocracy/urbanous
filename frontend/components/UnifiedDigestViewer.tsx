@@ -475,7 +475,7 @@ export default function UnifiedDigestViewer({
                                                 // HTML Elements Pass-through (Important for rehype-raw)
                                                 div: ({ className, children, ...props }) => <div className={className} {...props}>{children}</div>,
                                                 span: ({ className, children, ...props }) => <span className={className} {...props}>{children}</span>,
-                                                table: ({ children, ...props }) => <div className="overflow-x-auto mb-8 rounded-lg border border-neutral-800 shadow-lg"><table className="w-full text-left bg-neutral-900/50 border-collapse" {...props}>{children}</table></div>,
+                                                table: ({ children, ...props }) => <div className="overflow-x-auto mb-8"><table className="w-full text-left border-collapse" {...props}>{children}</table></div>,
                                                 thead: ({ children, ...props }) => <thead className="bg-neutral-900 text-neutral-200 uppercase text-xs font-bold tracking-wider" {...props}>{children}</thead>,
                                                 tbody: ({ children, ...props }) => <tbody className="divide-y divide-neutral-800" {...props}>{children}</tbody>,
                                                 tr: ({ children, ...props }) => <tr className="hover:bg-neutral-800/50 transition-colors" {...props}>{children}</tr>,

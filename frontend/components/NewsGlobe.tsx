@@ -142,7 +142,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
     }
 
     // Use centralized version constant
-    const APP_VERSION = "0.164";
+    const APP_VERSION = "0.165";
 
     // UI States
     const [isDiscovering, setIsDiscovering] = useState(false);
@@ -428,6 +428,9 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
             if (res.data.keywords) {
                 console.log(`ANALYTICS DEBUG: Setting ${res.data.keywords.length} keywords.`);
                 console.log(`ANALYTICS DEBUG: Backend Info: ${res.data.debug_message} (Batches: ${res.data.debug_batches})`);
+                if (res.data.debug_errors?.length > 0) {
+                    console.error("ANALYTICS DEBUG: Backend Errors:", res.data.debug_errors);
+                }
                 setAnalyticsKeywords(res.data.keywords);
             } else {
                 console.warn("ANALYTICS DEBUG: No keywords in response!");
