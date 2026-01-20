@@ -93,7 +93,12 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
     const [isMetaPressed, setIsMetaPressed] = useState(false); // Track Cmd/Ctrl key
     const [isMobile, setIsMobile] = useState(false);
     const [debugGesture, setDebugGesture] = useState<string>(""); // Debugging content
+    const [isMobile, setIsMobile] = useState(false);
+    const [debugGesture, setDebugGesture] = useState<string>(""); // Debugging content
 
+    // Touch Tracking Refs for Manual Scroll
+    const lastTouchY = useRef<number | null>(null);
+    const lastTouchDist = useRef<number | null>(null);
     // Detect Mobile
     useEffect(() => {
         setIsMobile(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent));
