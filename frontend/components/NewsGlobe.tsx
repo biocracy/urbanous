@@ -92,6 +92,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
     const [isReportSaved, setIsReportSaved] = useState(false); // Track unsaved changes
     const [isMetaPressed, setIsMetaPressed] = useState(false); // Track Cmd/Ctrl key
     const [isMobile, setIsMobile] = useState(false);
+    const [debugGesture, setDebugGesture] = useState<string>(""); // Debugging content
 
     // Detect Mobile
     useEffect(() => {
@@ -2599,7 +2600,31 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
 
     return (
 
-        <div className={`relative w-full h-full bg-slate-950 transition-cursor ${(isAtTop && !isMetaPressed) ? 'cursor-move' : 'cursor-default'} ${isMobile ? 'touch-pan-y' : ''}`}>
+        <div
+            className={`relative w-full h-full bg-slate-950 transition-cursor ${(isAtTop && !isMetaPressed) ? 'cursor-move' : 'cursor-default'} ${isMobile ? 'touch-pan-y' : ''}`}
+            onTouchMove={(e) => {
+                if (isMobile) {
+                    if (e.touches.length === 2) {
+                        setDebugGesture("Two Fingers Detected: Trying to Scroll?");
+                        // Try to stop propagation to prevent Globe from stealing perfectly vertical scrolls?
+                        // e.stopPropagation(); 
+                    } else if (e.touches.length === 1) {
+                        setDebugGesture("One Finger: Rotating");
+                    } else {
+                        setDebugGesture(`Touches: ${e.touches.length}`);
+                    }
+                }
+            }}
+            onTouchEnd={() => setDebugGesture("")}
+        >
+            {/* Gesture Debugger */}
+            {isMobile && debugGesture && (
+                <div className="absolute top-20 left-0 right-0 z-50 flex justify-center pointer-events-none">
+                    <div className="bg-red-500/80 text-white px-4 py-2 rounded-full font-bold shadow-xl backdrop-blur animate-in fade-in slide-in-from-top-2">
+                        {debugGesture}
+                    </div>
+                </div>
+            )}
             {/* Visual Controls Toggle & Overlay */}
             <div className="absolute bottom-4 left-4 z-20 flex flex-col items-start gap-2">
 
