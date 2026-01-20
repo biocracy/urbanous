@@ -1,27 +1,38 @@
-[UnifiedDigestViewer] Raw Digest Content: # Trump's Greenland Gambit Fuels Arctic Military Buildup, Sparks Global Outcry & EU Retaliation Threats
-
-Nuuk finds itself at the epicenter of escalating geopolitical tensions, driven primarily by for
-341783987e1f39f2.js:5 [NewsGlobe] Render Cycle
-39dcd085b42375e9.js:1 [UnifiedDigestViewer] formatDateRange Input: {createdDateStr: '2026-01-20T09:26:55.120294Z', timeframeStr: '1week'}
-39dcd085b42375e9.js:1 [UnifiedDigestViewer] formatDateRange Input: {createdDateStr: '2026-01-20T09:26:55.120294Z', timeframeStr: '1week'}
-39dcd085b42375e9.js:4 [UnifiedDigestViewer] Raw Digest Content: # Trump's Greenland Gambit Fuels Arctic Military Buildup, Sparks Global Outcry & EU Retaliation Threats
-
-Nuuk finds itself at the epicenter of escalating geopolitical tensions, driven primarily by for
-341783987e1f39f2.js:5 ANALYTICS DEBUG: Response Data: {keywords: Array(0), debug_count: 0, debug_batches: 1, debug_message: 'Processed 44 articles.', debug_errors: Array(1)}
-341783987e1f39f2.js:5 ANALYTICS DEBUG: Setting 0 keywords.
-341783987e1f39f2.js:5 ANALYTICS DEBUG: Backend Info: Processed 44 articles. (Batches: 1)
-341783987e1f39f2.js:5 ANALYTICS DEBUG: Backend Errors: [{…}]0: {status: 'error', error: '404 models/gemini-pro is not found for API version… of available models and their supported methods.', raw: 'No text'}length: 1[[Prototype]]: Array(0)at: ƒ at()concat: ƒ concat()constructor: ƒ Array()copyWithin: ƒ copyWithin()entries: ƒ entries()every: ƒ every()fill: ƒ fill()filter: ƒ filter()find: ƒ find()findIndex: ƒ findIndex()findLast: ƒ findLast()findLastIndex: ƒ findLastIndex()flat: ƒ flat()flatMap: ƒ flatMap()forEach: ƒ forEach()includes: ƒ includes()indexOf: ƒ indexOf()join: ƒ join()keys: ƒ keys()lastIndexOf: ƒ lastIndexOf()length: 0map: ƒ map()pop: ƒ pop()push: ƒ push()reduce: ƒ reduce()reduceRight: ƒ reduceRight()reverse: ƒ reverse()shift: ƒ shift()slice: ƒ slice()some: ƒ some()sort: ƒ sort()splice: ƒ splice()toLocaleString: ƒ toLocaleString()toReversed: ƒ toReversed()toSorted: ƒ toSorted()toSpliced: ƒ toSpliced()toString: ƒ toString()unshift: ƒ unshift()values: ƒ values()with: ƒ with()Symbol(Symbol.iterator): ƒ values()Symbol(Symbol.unscopables): {at: true, copyWithin: true, entries: true, fill: true, find: true, …}[[Prototype]]: Object
-t2 @ 341783987e1f39f2.js:5
-await in t2
-sY @ 4c631c12e6a90c7e.js:1
-(anonymous) @ 4c631c12e6a90c7e.js:1
-tD @ 4c631c12e6a90c7e.js:1
-s3 @ 4c631c12e6a90c7e.js:1
-fC @ 4c631c12e6a90c7e.js:1
-fP @ 4c631c12e6a90c7e.js:1Understand this error
-341783987e1f39f2.js:5 [NewsGlobe] Render Cycle
-39dcd085b42375e9.js:1 [UnifiedDigestViewer] formatDateRange Input: {createdDateStr: '2026-01-20T09:26:55.120294Z', timeframeStr: '1week'}
-39dcd085b42375e9.js:1 [UnifiedDigestViewer] formatDateRange Input: {createdDateStr: '2026-01-20T09:26:55.120294Z', timeframeStr: '1week'}
-39dcd085b42375e9.js:4 [UnifiedDigestViewer] Raw Digest Content: # Trump's Greenland Gambit Fuels Arctic Military Buildup, Sparks Global Outcry & EU Retaliation Threats
-
-Nuuk finds itself at the epicenter of escalating geopolitical tensions, driven primarily by for
+22:21:01.377 Running build in Washington, D.C., USA (East) – iad1
+22:21:01.377 Build machine configuration: 2 cores, 8 GB
+22:21:01.520 Cloning github.com/biocracy/urbanous (Branch: main, Commit: 23d435f)
+22:21:02.882 Cloning completed: 1.362s
+22:21:04.362 Restored build cache from previous deployment (3pkJb43mMPXUBh3dwtG7TR7vDKAE)
+22:21:04.656 Running "vercel build"
+22:21:05.728 Vercel CLI 50.4.6
+22:21:06.146 Installing dependencies...
+22:21:07.729 
+22:21:07.730 up to date in 1s
+22:21:07.731 
+22:21:07.731 339 packages are looking for funding
+22:21:07.731   run `npm fund` for details
+22:21:07.759 Detected Next.js version: 16.1.1
+22:21:07.765 Running "npm run build"
+22:21:07.902 
+22:21:07.903 > frontend@0.1.1 build
+22:21:07.904 > next build
+22:21:07.904 
+22:21:08.911 ▲ Next.js 16.1.1 (Turbopack)
+22:21:08.912 
+22:21:08.954   Creating an optimized production build ...
+22:21:22.745 ✓ Compiled successfully in 13.2s
+22:21:22.745   Running TypeScript ...
+22:21:29.432 Failed to compile.
+22:21:29.433 
+22:21:29.433 ./components/UnifiedDigestViewer.tsx:510:78
+22:21:29.433 Type error: Parameter 'match' implicitly has an 'any' type.
+22:21:29.433 
+22:21:29.433 [0m [90m 508 |[39m                                                 [33m.[39mreplace([35m/```(?:html|markdown)?\s*([\s\S]*?)\s*```/yi[39m[33m,[39m [32m'$1'[39m) [90m// Greedy strip of outer code blocks[39m
+22:21:29.433  [90m 509 |[39m                                                 [33m.[39mreplace([35m/^#\s+.+$/m[39m[33m,[39m [32m''[39m)  [90m// Remove duplicate top-level title[39m
+22:21:29.433 [31m[1m>[22m[39m[90m 510 |[39m                                                 [33m.[39mreplace([35m/\[([\d,\s]+)\]/g[39m[33m,[39m (match[33m,[39m group) [33m=>[39m {
+22:21:29.433  [90m     |[39m                                                                              [31m[1m^[22m[39m
+22:21:29.434  [90m 511 |[39m                                                     [90m// Handle multiple citations like [1, 5, 28] by splitting and reformatting[39m
+22:21:29.434  [90m 512 |[39m                                                     [36mreturn[39m group[33m.[39msplit([32m','[39m)
+22:21:29.434  [90m 513 |[39m                                                         [33m.[39mmap((n[33m:[39m string) [33m=>[39m {[0m
+22:21:29.473 Next.js build worker exited with code: 1 and signal: null
+22:21:29.512 Error: Command "npm run build" exited with 1

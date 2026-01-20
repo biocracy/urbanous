@@ -507,7 +507,7 @@ export default function UnifiedDigestViewer({
                                             {(digestData?.digest || digestData?.summary_markdown || "")
                                                 .replace(/```(?:html|markdown)?\s*([\s\S]*?)\s*```/yi, '$1') // Greedy strip of outer code blocks
                                                 .replace(/^#\s+.+$/m, '')  // Remove duplicate top-level title
-                                                .replace(/\[([\d,\s]+)\]/g, (match, group) => {
+                                                .replace(/\[([\d,\s]+)\]/g, (match: string, group: string) => {
                                                     // Handle multiple citations like [1, 5, 28] by splitting and reformatting
                                                     return group.split(',')
                                                         .map((n: string) => {
