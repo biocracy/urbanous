@@ -2577,7 +2577,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
             // CONTROLS: Enable Zoom only when Meta/Ctrl is pressed (if disableScrollZoom is true)
             // If disableScrollZoom is false (default), zoom is always enabled
             // CONTROLS: Default = Zoom Enabled (Scroll Trap) ONLY if At Top.
-            enableZoom={isAtTop && !isMetaPressed}
+            enableZoom={!isMobile && isAtTop && !isMetaPressed}
         />
 
     );
@@ -2605,13 +2605,59 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
 
 
                 {!showControls && (
-                    <button
-                        onClick={() => setShowControls(true)}
-                        className="p-2 rounded-lg border border-slate-700 text-white transition-colors shadow-lg bg-slate-900/80 backdrop-blur hover:bg-slate-800"
-                        title="Open Visualization Controls"
-                    >
-                        <Sliders size={20} />
-                    </button>
+                    <div className="flex flex-col gap-2">
+                        {/* Mobile Zoom Buttons */}
+                        {isMobile && (
+                            <div className="flex flex-col gap-1 bg-slate-900/80 backdrop-blur rounded-lg border border-slate-700 overflow-hidden shadow-lg">
+                                <button
+                                    onClick={() => {
+                                        if (globeEl.current) {
+                                            const controls = globeEl.current.controls();
+                                            // Zoom In (move camera closer)
+                                            // Current distance? We can nudge it.
+                                            // OrbitControls usually works by dollyIn/dollyOut but those methods might be protected.
+                                            // simpler: adjust distance? 
+                                            // actually, better to let user pinch if they want zoom? NO, that breaks scroll.
+                                            // We can check if controls has zoom functions exposed or manually tween position.
+                                            // Let's use simple logic:
+                                            const cam = globeEl.current.camera();
+                                            const newPos = cam.position.clone().multiplyScalar(0.8); // Zoom In
+                                            // Safety check for min distance? Globe handles collisions usually.
+                                            globeEl.current.pointOfView({ lat: cam.position.lat, lng: cam.position.lng, altitude: newPos.length() / 100 }, 200); // Wait, PointOfView uses altitude.
+
+                                            // Easier way with react-globe.gl:
+                                            const currentPOV = globeEl.current.pointOfView();
+                                            globeEl.current.pointOfView({ ...currentPOV, altitude: Math.max(0.2, currentPOV.altitude * 0.7) }, 300);
+                                        }
+                                    }}
+                                    className="p-2 text-white hover:bg-slate-800 border-b border-slate-700"
+                                    title="Zoom In"
+                                >
+                                    <Plus size={20} />
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        if (globeEl.current) {
+                                            const currentPOV = globeEl.current.pointOfView();
+                                            globeEl.current.pointOfView({ ...currentPOV, altitude: Math.min(2.5, currentPOV.altitude * 1.4) }, 300);
+                                        }
+                                    }}
+                                    className="p-2 text-white hover:bg-slate-800"
+                                    title="Zoom Out"
+                                >
+                                    <Minus size={20} />
+                                </button>
+                            </div>
+                        )}
+
+                        <button
+                            onClick={() => setShowControls(true)}
+                            className="p-2 rounded-lg border border-slate-700 text-white transition-colors shadow-lg bg-slate-900/80 backdrop-blur hover:bg-slate-800"
+                            title="Open Visualization Controls"
+                        >
+                            <Sliders size={20} />
+                        </button>
+                    </div>
                 )}
 
 
