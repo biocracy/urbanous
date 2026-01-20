@@ -1,38 +1,38 @@
-23:03:50.247 Running build in Washington, D.C., USA (East) – iad1
-23:03:50.253 Build machine configuration: 2 cores, 8 GB
-23:03:50.615 Cloning github.com/biocracy/urbanous (Branch: main, Commit: bc44549)
-23:03:57.899 Cloning completed: 7.281s
-23:03:58.986 Restored build cache from previous deployment (6aYuJNm35Wjpnn3cPSRfKYDxjjsf)
-23:03:59.319 Running "vercel build"
-23:04:00.554 Vercel CLI 50.4.6
-23:04:00.839 Installing dependencies...
-23:04:02.320 
-23:04:02.321 up to date in 1s
-23:04:02.322 
-23:04:02.322 339 packages are looking for funding
-23:04:02.322   run `npm fund` for details
-23:04:02.350 Detected Next.js version: 16.1.1
-23:04:02.355 Running "npm run build"
-23:04:02.463 
-23:04:02.464 > frontend@0.1.1 build
-23:04:02.464 > next build
-23:04:02.465 
-23:04:03.466 ▲ Next.js 16.1.1 (Turbopack)
-23:04:03.467 
-23:04:03.507   Creating an optimized production build ...
-23:04:16.924 ✓ Compiled successfully in 12.9s
-23:04:16.924   Running TypeScript ...
-23:04:23.419 Failed to compile.
-23:04:23.420 
-23:04:23.421 ./components/NewsGlobe.tsx:544:37
-23:04:23.421 Type error: 'prev' is possibly 'null'.
-23:04:23.421 
-23:04:23.422 [0m [90m 542 |[39m
-23:04:23.422  [90m 543 |[39m             setDigestData((prev[33m:[39m any) [33m=>[39m ({ [33m...[39mprev[33m,[39m is_public[33m:[39m [36mtrue[39m[33m,[39m public_slug[33m:[39m slug }))[33m;[39m
-23:04:23.422 [31m[1m>[22m[39m[90m 544 |[39m             setSavedDigests(prev [33m=>[39m prev[33m.[39mmap(d [33m=>[39m d[33m.[39mid [33m===[39m digestData[33m.[39mid [33m?[39m { [33m...[39md[33m,[39m is_public[33m:[39m [36mtrue[39m[33m,[39m public_slug[33m:[39m slug } [33m:[39m d))[33m;[39m
-23:04:23.422  [90m     |[39m                                     [31m[1m^[22m[39m
-23:04:23.423  [90m 545 |[39m         } [36mcatch[39m (err[33m:[39m any) {
-23:04:23.423  [90m 546 |[39m             alert([32m`Sharing failed: ${err.message}`[39m)[33m;[39m
-23:04:23.423  [90m 547 |[39m         } [36mfinally[39m {[0m
-23:04:23.458 Next.js build worker exited with code: 1 and signal: null
-23:04:23.492 Error: Command "npm run build" exited with 1
+23:11:28.304 Running build in Washington, D.C., USA (East) – iad1
+23:11:28.305 Build machine configuration: 2 cores, 8 GB
+23:11:28.450 Cloning github.com/biocracy/urbanous (Branch: main, Commit: 5717e9f)
+23:11:30.350 Cloning completed: 1.900s
+23:11:30.777 Restored build cache from previous deployment (6aYuJNm35Wjpnn3cPSRfKYDxjjsf)
+23:11:31.073 Running "vercel build"
+23:11:32.039 Vercel CLI 50.4.6
+23:11:32.310 Installing dependencies...
+23:11:33.809 
+23:11:33.810 up to date in 1s
+23:11:33.811 
+23:11:33.811 339 packages are looking for funding
+23:11:33.811   run `npm fund` for details
+23:11:33.837 Detected Next.js version: 16.1.1
+23:11:33.843 Running "npm run build"
+23:11:33.947 
+23:11:33.947 > frontend@0.1.1 build
+23:11:33.948 > next build
+23:11:33.948 
+23:11:34.940 ▲ Next.js 16.1.1 (Turbopack)
+23:11:34.940 
+23:11:34.979   Creating an optimized production build ...
+23:11:48.081 ✓ Compiled successfully in 12.6s
+23:11:48.083   Running TypeScript ...
+23:11:54.446 Failed to compile.
+23:11:54.447 
+23:11:54.447 ./components/NewsGlobe.tsx:3080:38
+23:11:54.447 Type error: 'savedDigests' is possibly 'null'.
+23:11:54.447 
+23:11:54.447 [0m [90m 3078 |[39m                             ) [33m:[39m (
+23:11:54.447  [90m 3079 |[39m                                 [33m<[39m[33mdiv[39m className[33m=[39m[32m"space-y-2"[39m[33m>[39m
+23:11:54.447 [31m[1m>[22m[39m[90m 3080 |[39m                                     {savedDigests[33m.[39mlength [33m===[39m [35m0[39m [33m?[39m (
+23:11:54.448  [90m      |[39m                                      [31m[1m^[22m[39m
+23:11:54.448  [90m 3081 |[39m                                         [33m<[39m[33mdiv[39m className[33m=[39m[32m"text-center text-slate-500 py-6 px-2 flex flex-col gap-3"[39m[33m>[39m
+23:11:54.448  [90m 3082 |[39m                                             [33m<[39m[33mdiv[39m[33m>[39m[33mNo[39m saved digests found [36mfor[39m [36mthis[39m city[33m.[39m[33m<[39m[33m/[39m[33mdiv[39m[33m>[39m
+23:11:54.448  [90m 3083 |[39m[0m
+23:11:54.485 Next.js build worker exited with code: 1 and signal: null
+23:11:54.520 Error: Command "npm run build" exited with 1

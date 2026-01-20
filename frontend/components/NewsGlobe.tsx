@@ -3077,7 +3077,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
                                 </>
                             ) : (
                                 <div className="space-y-2">
-                                    {savedDigests.length === 0 ? (
+                                    {(savedDigests || []).length === 0 ? (
                                         <div className="text-center text-slate-500 py-6 px-2 flex flex-col gap-3">
                                             <div>No saved digests found for this city.</div>
 
