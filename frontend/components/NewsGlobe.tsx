@@ -142,7 +142,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
     }
 
     // Use centralized version constant
-    const APP_VERSION = "0.161";
+    const APP_VERSION = "0.162";
 
     // UI States
     const [isDiscovering, setIsDiscovering] = useState(false);
@@ -424,7 +424,13 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
                 category: selectedCategory,
                 city: selectedCityName || "Global"
             });
-            setAnalyticsKeywords(res.data.keywords);
+            console.log("ANALYTICS DEBUG: Response Data:", res.data);
+            if (res.data.keywords) {
+                console.log(`ANALYTICS DEBUG: Setting ${res.data.keywords.length} keywords.`);
+                setAnalyticsKeywords(res.data.keywords);
+            } else {
+                console.warn("ANALYTICS DEBUG: No keywords in response!");
+            }
         } catch (e) {
             console.error("Analytics failed", e);
             alert("Failed to generate analytics");

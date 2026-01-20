@@ -482,10 +482,12 @@ export default function UnifiedDigestViewer({
                                     }}
                                 >
                                     {(digestData?.digest || digestData?.summary_markdown || "")
-                                        .replace(/^```(?:markdown|html)?\s*/i, '') // Remove leading code block
-                                        .replace(/\s*```$/i, '')          // Remove trailing code block
-                                        .replace(/^#\s+.+$/m, '')         // Remove duplicate top-level title
-                                        .replace(/\[(\d+)\]/g, '[$1](citation:$1)')}
+                                        .replace(/```(?:html|markdown)?\s*([\s\S]*?)\s*```/yi, '$1') // Greedy strip of outer code blocks
+                                        .replace(/^#\s+.+$/m, '')  // Remove duplicate top-level title
+                                        .replace(/\[(\d+)\]/g, '[$1](citation:$1)')
+                                        // Strip 4+ spaces indentation (which triggers code blocks) but preserve structure
+                                        .replace(/^[ \t]{4,}/gm, '')
+                                        .trim()}
                                 </ReactMarkdown>
                             </div>
                         )}
