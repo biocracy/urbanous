@@ -1126,6 +1126,7 @@ class DigestRequest(BaseModel):
     outlet_ids: List[int]
     category: str
     timeframe: Optional[str] = "24h" # 24h, 3days, 1week
+    city: Optional[str] = None
 
 async def robust_fetch(client, url):
     try:

@@ -142,7 +142,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
     }
 
     // Use centralized version constant
-    const APP_VERSION = "0.159";
+    const APP_VERSION = "0.160";
 
     // UI States
     const [isDiscovering, setIsDiscovering] = useState(false);
@@ -848,7 +848,15 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
 
         setIsGeneratingDigest(true);
         setErrorMessage(null);
-        setDigestData(null);
+        // Initialize with context so UI renders immediately
+        setDigestData({
+            city: selectedCityName || "Global",
+            category: selectedCategory,
+            timeframe: selectedTimeframe,
+            articles: [],
+            digest: '',
+            analysis_source: []
+        });
         setSelectedArticleUrls(new Set());
         const localSelectedIds = new Set<string>(); // Accumulate auto-selections locally
         setDigestSummary("");
@@ -871,7 +879,8 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
                 body: JSON.stringify({
                     outlet_ids: selectedOutletIds,
                     category: selectedCategory,
-                    timeframe: selectedTimeframe
+                    timeframe: selectedTimeframe,
+                    city: selectedCityName || "Global"
                 }),
                 signal: abortControllerRef.current.signal
             });
@@ -890,7 +899,14 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
             let lastLogUpdate = 0;
             let lastDataUpdate = 0;
             // Accumulator for throttled updates
-            let currentDigestState: any = { articles: [], digest: '', analysis_source: [] };
+            let currentDigestState: any = {
+                articles: [],
+                digest: '',
+                analysis_source: [],
+                city: selectedCityName || "Global",
+                category: selectedCategory,
+                timeframe: selectedTimeframe
+            };
 
             console.log("DIGEST_DEBUG: Starting stream reader loop");
 

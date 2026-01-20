@@ -140,7 +140,7 @@ export default function UnifiedDigestViewer({
     onClose
 }: UnifiedDigestViewerProps) {
 
-    const [activeTab, setActiveTab] = useState<'articles' | 'digest' | 'analytics'>('digest');
+    const [activeTab, setActiveTab] = useState<'articles' | 'digest' | 'analytics'>('articles');
     const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
     const [isAnalyticsTranslated, setIsAnalyticsTranslated] = useState(false);
     const [isHeadlineTranslated, setIsHeadlineTranslated] = useState(false); // New State
@@ -158,11 +158,12 @@ export default function UnifiedDigestViewer({
     };
 
     // If initial view is empty but we have data, verify tabs
-    // Default to 'digest' if summary exists, else 'articles'
+    // Default to 'digest' if summary exists but empty articles? No, stay on articles if articles exist.
     useEffect(() => {
         if (!digestData?.digest && digestData?.articles?.length > 0) {
             setActiveTab('articles');
-        } else if (digestData?.digest) {
+        } else if (digestData?.digest && digestData?.articles?.length === 0) {
+            // Only if NO articles but we have a digest (rare?)
             setActiveTab('digest');
         }
     }, [digestData?.id]); // Only on new digest load
@@ -188,7 +189,7 @@ export default function UnifiedDigestViewer({
 
         const msToSubtract = timeframeStr === '24h' ? 24 * 60 * 60 * 1000 :
             timeframeStr === '3days' ? 3 * 24 * 60 * 60 * 1000 :
-                timeframeStr === 'week' ? 7 * 24 * 60 * 60 * 1000 : 0;
+                (timeframeStr === 'week' || timeframeStr === '1week') ? 7 * 24 * 60 * 60 * 1000 : 0;
         const startDate = new Date(createdDate.getTime() - msToSubtract);
 
         // Format: DD.MM - DD.MM.YYYY
@@ -341,13 +342,41 @@ export default function UnifiedDigestViewer({
                             </p>
                         </div>
 
-                        <button
-                            onClick={() => setIsHeadlineTranslated(!isHeadlineTranslated)}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all border shadow-lg ${isHeadlineTranslated ? 'bg-indigo-900/40 text-indigo-300 border-indigo-500/50 shadow-indigo-900/20' : 'bg-neutral-900/80 text-neutral-400 border-neutral-700 hover:text-white hover:border-neutral-500'}`}
-                        >
-                            <Languages className="w-3.5 h-3.5" />
-                            {isHeadlineTranslated ? 'Translated' : 'Translate Titles'}
-                        </button>
+                        <div className="flex items-center gap-2">
+                            {/* NEW: Summarize Button in Headlines Tab */}
+                            {!isReadOnly && onRegenerateSummary && (
+                                <button
+                                    onClick={() => { setActiveTab('digest'); onRegenerateSummary(); }}
+                                    disabled={isSummarizing || selectedArticleUrls.size === 0}
+                                    className={`
+                                        flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all border shadow-lg
+                                        ${isSummarizing || selectedArticleUrls.size === 0
+                                            ? 'bg-neutral-800 text-neutral-500 border-neutral-700 cursor-not-allowed'
+                                            : 'bg-blue-600 hover:bg-blue-500 text-white border-blue-400 shadow-blue-900/20'}
+                                    `}
+                                >
+                                    {isSummarizing ? (
+                                        <>
+                                            <RotateCcw className="w-3.5 h-3.5 animate-spin" />
+                                            Thinking...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Sparkles className="w-3.5 h-3.5" />
+                                            Summarize ({selectedArticleUrls.size})
+                                        </>
+                                    )}
+                                </button>
+                            )}
+
+                            <button
+                                onClick={() => setIsHeadlineTranslated(!isHeadlineTranslated)}
+                                className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all border shadow-lg ${isHeadlineTranslated ? 'bg-indigo-900/40 text-indigo-300 border-indigo-500/50 shadow-indigo-900/20' : 'bg-neutral-900/80 text-neutral-400 border-neutral-700 hover:text-white hover:border-neutral-500'}`}
+                            >
+                                <Languages className="w-3.5 h-3.5" />
+                                {isHeadlineTranslated ? 'Translated' : 'Translate Titles'}
+                            </button>
+                        </div>
                     </div>
 
                     <div className="w-full">
