@@ -152,7 +152,8 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
     }
 
     // Use centralized version constant
-    const APP_VERSION = "0.181";
+    // Use centralized version constant
+    const APP_VERSION = "0.182";
 
     // UI States
     const [isDiscovering, setIsDiscovering] = useState(false);
@@ -2633,8 +2634,13 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
                             } else {
                                 // Vertical movement is dominant -> SCROLL
                                 setDebugGesture(`Gesture: Scrolling (Manual) ${Math.round(deltaY)}px`);
-                                // MANUAL WINDOW SCROLL
-                                window.scrollBy(0, deltaY);
+                                // MANUAL WINDOW SCROLL - Target the MAIN element which holds the overflow
+                                const mainEl = document.querySelector('main');
+                                if (mainEl) {
+                                    mainEl.scrollBy(0, deltaY);
+                                } else {
+                                    window.scrollBy(0, deltaY); // Fallback
+                                }
                             }
 
                             // Update refs
