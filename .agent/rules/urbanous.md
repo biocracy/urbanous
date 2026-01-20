@@ -13,3 +13,6 @@ description: "Project-specific rules for Urbanous"
 
 
 2. Upload to Github at most once per prompt, when the thought process and debugging has finished. Do not upload and then start thinking again!
+
+
+3. whenever a propmpt start with the word "question", don't change any code, just answer the what was asked in that prompt.

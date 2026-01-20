@@ -23,6 +23,11 @@ function HomeContent() {
   // SCROLL STATE: Track if we are at the top (Hero View)
   const [activeDigest, setActiveDigest] = useState<any>(null);
   const [isAtTop, setIsAtTop] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    setIsMobile(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent));
+  }, []);
 
   // Handle URL Params for Digest View
   useEffect(() => {
@@ -116,7 +121,7 @@ function HomeContent() {
 
         {/* Scroll Hint */}
         <div className={`absolute bottom-8 left-1/2 -translate-x-1/2 text-white/50 text-sm animate-bounce pointer-events-none transition-opacity duration-300 ${isAtTop ? 'opacity-100' : 'opacity-0'}`}>
-          Cmd + Scroll for News ▼
+          {isMobile ? "Two Fingers to Scroll ▼" : "Cmd + Scroll for News ▼"}
         </div>
       </div>
 
