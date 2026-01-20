@@ -152,8 +152,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
     }
 
     // Use centralized version constant
-    // Use centralized version constant
-    const APP_VERSION = "0.180";
+    const APP_VERSION = "0.181";
 
     // UI States
     const [isDiscovering, setIsDiscovering] = useState(false);
@@ -2626,13 +2625,13 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
                             const deltaY = lastTouchY.current - currentY;
                             const distChange = Math.abs(currentDist - lastTouchDist.current);
 
-                            // Thresholds to distinguish Pinch vs Scroll
-                            // If distance changed significantly, it's a ZOOM
-                            if (distChange > 10) { // 10px buffer
-                                setDebugGesture("Gesture: Zooming (Pinch)");
+                            // Dominant Motion Check:
+                            // Is the user Pinching (Radial change) or Dragging (Vertical change)?
+                            if (distChange > Math.abs(deltaY)) {
+                                setDebugGesture(`Gesture: Zooming (Pinch)`);
                                 // Do nothing, let OrbitControls handle zoom
                             } else {
-                                // Distance stable, it's a SCROLL
+                                // Vertical movement is dominant -> SCROLL
                                 setDebugGesture(`Gesture: Scrolling (Manual) ${Math.round(deltaY)}px`);
                                 // MANUAL WINDOW SCROLL
                                 window.scrollBy(0, deltaY);
