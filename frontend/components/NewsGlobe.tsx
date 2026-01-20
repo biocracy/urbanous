@@ -142,7 +142,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
     }
 
     // Use centralized version constant
-    const APP_VERSION = "0.157";
+    const APP_VERSION = "0.158";
 
     // UI States
     const [isDiscovering, setIsDiscovering] = useState(false);
@@ -1391,7 +1391,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
         );
 
         console.log(`Loading clusters for radius: ${radius} (requested: ${clusterThreshold})`);
-        const url = `/static/clusters/cities_${radius.toFixed(1)}.json?v=120.72`; // e.g. cities_0.7.json
+        const url = `/static/clusters/cities_${radius.toFixed(1)}.json?v=120.73`; // e.g. cities_0.7.json
 
         // Use api (axios) or fetch. Since it's valid static file, fetch is fine/faster? 
         // Using api to keep baseURL consistent if set.
