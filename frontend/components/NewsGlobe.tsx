@@ -142,7 +142,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
     }
 
     // Use centralized version constant
-    const APP_VERSION = "0.177";
+    const APP_VERSION = "0.178";
 
     // UI States
     const [isDiscovering, setIsDiscovering] = useState(false);
@@ -184,7 +184,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
     const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
     // Progress Tracking
     const [progress, setProgress] = useState({ current: 0, total: 0 });
-    const [savedDigests, setSavedDigests] = useState<any[]>([]);
+    const [savedDigests, setSavedDigests] = useState<any[] | null>(null);
     const [activeSideTab, setActiveSideTab] = useState<'sources' | 'digests'>('sources');
     const [activeModalTab, setActiveModalTab] = useState<'articles' | 'digest' | 'analytics'>('articles');
     const [isGlobalSidebarOpen, setIsGlobalSidebarOpen] = useState(false);
@@ -3210,7 +3210,12 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
                     </div>
 
                     <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-                        {(savedDigests || [])
+                        {savedDigests === null ? (
+                            <div className="flex flex-col items-center justify-center h-40 text-slate-500 space-y-3">
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                                <span className="text-xs animate-pulse">Loading collection...</span>
+                            </div>
+                        ) : (savedDigests || [])
                             .filter((d: any) => {
                                 return currentUser && d.owner_id === currentUser.id;
                             })
@@ -3231,8 +3236,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
                                 const y = (d: Date) => d.getFullYear();
                                 const dateRange = `${f(start)} - ${f(end)}.${y(end)}`;
                                 const title = digest.title || "";
-                                const cat = digest.category || "";
-                                const showCategory = cat && !title.toLowerCase().includes(cat.toLowerCase());
+                                const cat = digest.category || "General";
 
                                 // Marquee Logic
                                 const isLongTitle = title.length > 28;
@@ -3270,13 +3274,8 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
                                             </button>
                                             <div className="flex flex-col gap-0.5 text-[10px] text-slate-500 font-medium mt-1">
                                                 <div className="flex items-center gap-2 uppercase font-bold flex-wrap">
-                                                    {digest.city && <span className="text-blue-400 bg-blue-900/20 px-1 rounded">{digest.city}</span>}
-                                                    {showCategory && <span className="text-slate-400">• {cat}</span>}
-                                                    {digest.is_public && (
-                                                        <span className="flex items-center gap-0.5 text-emerald-400 bg-emerald-900/30 px-1 rounded border border-emerald-800/50 text-[9px] transform scale-90" title="Public Link Active">
-                                                            <GlobeIcon size={8} /> Public
-                                                        </span>
-                                                    )}
+                                                    {digest.city && <span className="text-fuchsia-400 bg-fuchsia-900/20 px-1 rounded">{digest.city}</span>}
+                                                    <span className="text-slate-400">• {cat}</span>
                                                 </div>
                                                 <div className="text-slate-600 font-mono mt-0.5">
                                                     {dateRange}
