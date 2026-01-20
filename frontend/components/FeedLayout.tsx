@@ -47,6 +47,9 @@ const formatDateRange = (createdDateStr: string, timeframeStr: string = "24h") =
 
     // Compact format if months match: DD - DD.MM.YYYY
     if (m1 === m2) {
+        if (d1 === d2) {
+            return `${d2}.${m2}.${y}`;
+        }
         return `${d1}-${d2}.${m2}.${y}`;
     }
     return `${d1}.${m1}-${d2}.${m2}.${y}`;
