@@ -2597,7 +2597,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
     }, [isMetaPressed, isAtTop]);
 
     return (
-        <div className={`relative w-full h-full bg-slate-950 transition-cursor ${(isAtTop && !isMetaPressed) ? 'cursor-move' : 'cursor-default'}`}>
+        <div className={`relative w-full h-full bg-slate-950 transition-cursor ${(isAtTop && !isMetaPressed) ? 'cursor-move' : 'cursor-default'} ${isMobile ? 'touch-pan-y' : ''}`}>
             {/* Visual Controls Toggle & Overlay */}
             <div className="absolute bottom-4 left-4 z-20 flex flex-col items-start gap-2">
                 {!showControls && (
