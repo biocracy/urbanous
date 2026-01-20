@@ -1,46 +1,46 @@
-23:47:04.075 Running build in Washington, D.C., USA (East) – iad1
-23:47:04.076 Build machine configuration: 2 cores, 8 GB
-23:47:04.411 Cloning github.com/biocracy/urbanous (Branch: main, Commit: be1a842)
-23:47:06.161 Cloning completed: 1.750s
-23:47:06.266 Restored build cache from previous deployment (J9VBf12413PBHmgV5TLwxeVoFnxC)
-23:47:06.563 Running "vercel build"
-23:47:07.572 Vercel CLI 50.4.8
-23:47:07.838 Installing dependencies...
-23:47:09.273 
-23:47:09.274 up to date in 1s
-23:47:09.275 
-23:47:09.275 339 packages are looking for funding
-23:47:09.275   run `npm fund` for details
-23:47:09.300 Detected Next.js version: 16.1.1
-23:47:09.305 Running "npm run build"
-23:47:09.751 
-23:47:09.752 > frontend@0.1.1 build
-23:47:09.752 > next build
-23:47:09.752 
-23:47:10.741 ▲ Next.js 16.1.1 (Turbopack)
-23:47:10.742 
-23:47:10.783   Creating an optimized production build ...
-23:47:20.968 
-23:47:20.969 > Build error occurred
-23:47:20.971 Error: Turbopack build failed with 1 errors:
-23:47:20.972 ./frontend/components/NewsGlobe.tsx:2580:86
-23:47:20.972 Parsing ecmascript source code failed
-23:47:20.972 [0m [90m 2578 |[39m             [90m// If disableScrollZoom is false (default), zoom is always enabled[39m
-23:47:20.972  [90m 2579 |[39m             [90m// CONTROLS: Default = Zoom Enabled (Scroll Trap) ONLY if At Top.[39m
-23:47:20.972 [31m[1m>[22m[39m[90m 2580 |[39m             {[90m/* Mobile Interaction Fix: Overlay to allow scrolling over the canvas */[39m}
-23:47:20.972  [90m      |[39m                                                                                      [31m[1m^[22m[39m
-23:47:20.972  [90m 2581 |[39m             {isMobile [33m&&[39m (
-23:47:20.972  [90m 2582 |[39m                 [33m<[39m[33mdiv[39m
-23:47:20.973  [90m 2583 |[39m                     className[33m=[39m[32m"absolute inset-0 z-10 touch-pan-y"[39m[0m
-23:47:20.973 
-23:47:20.973 Expected '...', got '}'
-23:47:20.973 
-23:47:20.973 Import trace:
-23:47:20.973   Client Component Browser:
-23:47:20.973     ./frontend/components/NewsGlobe.tsx [Client Component Browser]
-23:47:20.973     ./frontend/app/page.tsx [Client Component Browser]
-23:47:20.973     ./frontend/app/page.tsx [Server Component]
-23:47:20.973 
-23:47:20.973 
-23:47:20.973     at <unknown> (./frontend/components/NewsGlobe.tsx:2580:86)
-23:47:21.028 Error: Command "npm run build" exited with 1
+23:49:08.607 Running build in Washington, D.C., USA (East) – iad1
+23:49:08.607 Build machine configuration: 2 cores, 8 GB
+23:49:08.753 Cloning github.com/biocracy/urbanous (Branch: main, Commit: 0cb2ac1)
+23:49:10.498 Cloning completed: 1.745s
+23:49:10.593 Restored build cache from previous deployment (J9VBf12413PBHmgV5TLwxeVoFnxC)
+23:49:10.912 Running "vercel build"
+23:49:11.957 Vercel CLI 50.4.8
+23:49:12.205 Installing dependencies...
+23:49:13.686 
+23:49:13.687 up to date in 1s
+23:49:13.687 
+23:49:13.687 339 packages are looking for funding
+23:49:13.688   run `npm fund` for details
+23:49:13.713 Detected Next.js version: 16.1.1
+23:49:13.719 Running "npm run build"
+23:49:13.818 
+23:49:13.818 > frontend@0.1.1 build
+23:49:13.819 > next build
+23:49:13.819 
+23:49:14.911 ▲ Next.js 16.1.1 (Turbopack)
+23:49:14.911 
+23:49:14.950   Creating an optimized production build ...
+23:49:25.184 
+23:49:25.184 > Build error occurred
+23:49:25.188 Error: Turbopack build failed with 1 errors:
+23:49:25.188 ./frontend/components/NewsGlobe.tsx:2582:9
+23:49:25.188 Parsing ecmascript source code failed
+23:49:25.188 [0m [90m 2580 |[39m             enableZoom[33m=[39m{[33m![39misMobile [33m&&[39m isAtTop [33m&&[39m [33m![39misMetaPressed}
+23:49:25.188  [90m 2581 |[39m         [33m/[39m[33m>[39m
+23:49:25.188 [31m[1m>[22m[39m[90m 2582 |[39m         {[90m/* Mobile Interaction Fix: Overlay to allow scrolling over the canvas */[39m }
+23:49:25.188  [90m      |[39m         [31m[1m^[22m[39m
+23:49:25.189  [90m 2583 |[39m     {
+23:49:25.189  [90m 2584 |[39m         isMobile [33m&&[39m (
+23:49:25.189  [90m 2585 |[39m             [33m<[39m[33mdiv[39m[0m
+23:49:25.189 
+23:49:25.189 Expected ',', got '{'
+23:49:25.189 
+23:49:25.189 Import trace:
+23:49:25.189   Client Component Browser:
+23:49:25.189     ./frontend/components/NewsGlobe.tsx [Client Component Browser]
+23:49:25.189     ./frontend/app/page.tsx [Client Component Browser]
+23:49:25.189     ./frontend/app/page.tsx [Server Component]
+23:49:25.189 
+23:49:25.189 
+23:49:25.189     at <unknown> (./frontend/components/NewsGlobe.tsx:2582:9)
+23:49:25.244 Error: Command "npm run build" exited with 1
