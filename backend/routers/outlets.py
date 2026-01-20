@@ -2221,7 +2221,7 @@ async def generate_analytics(req: AnalyticsRequest, current_user: User = Depends
         
     genai.configure(api_key=api_key)
     # Use standard stable model
-    model = genai.GenerativeModel('gemini-1.5-flash', generation_config={"response_mime_type": "application/json"})
+    model = genai.GenerativeModel('gemini-1.5-flash-001', generation_config={"response_mime_type": "application/json"})
     
     # Remove Article Cap; Use MapReduce
     BATCH_SIZE = 50 
