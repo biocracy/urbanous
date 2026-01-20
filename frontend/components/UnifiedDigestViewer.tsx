@@ -651,6 +651,16 @@ export default function UnifiedDigestViewer({
                                     })}
                                 </div>
                             )
+                        ) : isAnalyzing ? (
+                            <div className="flex flex-col items-center justify-center py-20 text-neutral-400">
+                                <div className="relative w-16 h-16 mb-6">
+                                    <div className="absolute inset-0 border-4 border-blue-500/30 rounded-full animate-ping"></div>
+                                    <div className="absolute inset-0 border-4 border-t-blue-500 rounded-full animate-spin"></div>
+                                    <Sparkles className="absolute inset-0 m-auto text-blue-400 w-6 h-6 animate-pulse" />
+                                </div>
+                                <div className="text-lg font-bold text-blue-300 mb-2">Analyzing Intelligence</div>
+                                <div className="text-sm text-neutral-500 animate-pulse">Extracting entities & sentiments...</div>
+                            </div>
                         ) : (
                             <div className="text-center py-20 text-neutral-500 italic">
                                 No analytics generated yet.
