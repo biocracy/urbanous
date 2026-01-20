@@ -2221,10 +2221,10 @@ async def generate_analytics(req: AnalyticsRequest, current_user: User = Depends
         
     genai.configure(api_key=api_key)
     # Use standard stable model
-    # Primary Model (Best Quality/Speed)
-    model_primary = genai.GenerativeModel('gemini-1.5-flash', generation_config={"response_mime_type": "application/json"})
-    # Fallback Model
-    model_fallback = genai.GenerativeModel('gemini-1.5-pro-latest', generation_config={"response_mime_type": "application/json"})
+    # Primary Model (Legacy Alias - Known Working)
+    model_primary = genai.GenerativeModel('gemini-flash-latest', generation_config={"response_mime_type": "application/json"})
+    # Fallback Model (Standard)
+    model_fallback = genai.GenerativeModel('gemini-1.5-flash', generation_config={"response_mime_type": "application/json"})
     
     # Remove Article Cap; Use MapReduce
     BATCH_SIZE = 50 
