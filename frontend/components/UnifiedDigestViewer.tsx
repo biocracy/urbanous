@@ -307,15 +307,7 @@ export default function UnifiedDigestViewer({
                         </>
                     )}
 
-                    {!isReadOnly && onDelete && digestData?.id && (
-                        <button
-                            onClick={onDelete}
-                            className="p-2 hover:bg-red-900/30 rounded-full text-neutral-400 hover:text-red-400 transition-colors ml-2"
-                            title="Delete Digest"
-                        >
-                            <Trash2 className="w-5 h-5" />
-                        </button>
-                    )}
+
                 </div>
             </div>
 
