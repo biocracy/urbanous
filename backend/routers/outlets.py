@@ -2364,8 +2364,12 @@ async def generate_analytics(req: AnalyticsRequest, current_user: User = Depends
     # Sort by importance
     final_keywords.sort(key=lambda x: x['importance'], reverse=True)
     
-
-    return {"keywords": final_keywords}
+    return {
+        "keywords": final_keywords,
+        "debug_count": len(final_keywords),
+        "debug_batches": len(batches),
+        "debug_message": f"Processed {len(req.articles)} articles."
+    }
 
 @router.post("/outlets/digest/stream")
 async def generate_digest_stream(req: DigestRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
