@@ -2628,13 +2628,12 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
                             // Dominant Motion Check:
                             // Is the user Pinching (Radial change) or Dragging (Vertical change)?
                             if (distChange > Math.abs(deltaY)) {
-                                setDebugGesture(`Gesture: Zooming (Pinch)`);
+                                // Pinching -> Zooming
                                 // Do nothing, let OrbitControls handle zoom
                             } else {
                                 // Vertical movement is dominant -> SCROLL
-                                // Amplify scroll speed by 3x to match user expectation (1px drag -> 3px scroll)
-                                const scrollAmount = deltaY * 3;
-                                setDebugGesture(`Gesture: Scrolling (Manual) ${Math.round(scrollAmount)}px`);
+                                // Amplify scroll speed by 9x (User request: 3x previously was too slow, added another 3x = 9x total)
+                                const scrollAmount = deltaY * 9;
 
                                 // MANUAL WINDOW SCROLL - Target the MAIN element which holds the overflow
                                 const mainEl = document.querySelector('main');
@@ -2650,79 +2649,24 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
                             lastTouchDist.current = currentDist;
                         }
                     } else if (e.touches.length === 1) {
-                        setDebugGesture("One Finger: Rotating");
+                        // One finger -> Rotating
                         // Reset refs
                         lastTouchY.current = null;
                         lastTouchDist.current = null;
-                    } else {
-                        setDebugGesture(`Touches: ${e.touches.length}`);
                     }
                 }
             }}
             onTouchEnd={() => {
-                setDebugGesture("");
                 lastTouchY.current = null;
                 lastTouchDist.current = null;
             }}
         >
-            {/* Gesture Debugger */}
-            {isMobile && debugGesture && (
-                <div className="absolute top-20 left-0 right-0 z-50 flex justify-center pointer-events-none">
-                    <div className="bg-red-500/80 text-white px-4 py-2 rounded-full font-bold shadow-xl backdrop-blur animate-in fade-in slide-in-from-top-2">
-                        {debugGesture}
-                    </div>
-                </div>
-            )}
             {/* Visual Controls Toggle & Overlay */}
             <div className="absolute bottom-4 left-4 z-20 flex flex-col items-start gap-2">
 
 
                 {!showControls && (
                     <div className="flex flex-col gap-2">
-                        {/* Mobile Zoom Buttons */}
-                        {isMobile && (
-                            <div className="flex flex-col gap-1 bg-slate-900/80 backdrop-blur rounded-lg border border-slate-700 overflow-hidden shadow-lg">
-                                <button
-                                    onClick={() => {
-                                        if (globeEl.current) {
-                                            const controls = globeEl.current.controls();
-                                            // Zoom In (move camera closer)
-                                            // Current distance? We can nudge it.
-                                            // OrbitControls usually works by dollyIn/dollyOut but those methods might be protected.
-                                            // simpler: adjust distance? 
-                                            // actually, better to let user pinch if they want zoom? NO, that breaks scroll.
-                                            // We can check if controls has zoom functions exposed or manually tween position.
-                                            // Let's use simple logic:
-                                            const cam = globeEl.current.camera();
-                                            const newPos = cam.position.clone().multiplyScalar(0.8); // Zoom In
-                                            // Safety check for min distance? Globe handles collisions usually.
-                                            globeEl.current.pointOfView({ lat: cam.position.lat, lng: cam.position.lng, altitude: newPos.length() / 100 }, 200); // Wait, PointOfView uses altitude.
-
-                                            // Easier way with react-globe.gl:
-                                            const currentPOV = globeEl.current.pointOfView();
-                                            globeEl.current.pointOfView({ ...currentPOV, altitude: Math.max(0.2, currentPOV.altitude * 0.7) }, 300);
-                                        }
-                                    }}
-                                    className="p-2 text-white hover:bg-slate-800 border-b border-slate-700"
-                                    title="Zoom In"
-                                >
-                                    <Plus size={20} />
-                                </button>
-                                <button
-                                    onClick={() => {
-                                        if (globeEl.current) {
-                                            const currentPOV = globeEl.current.pointOfView();
-                                            globeEl.current.pointOfView({ ...currentPOV, altitude: Math.min(2.5, currentPOV.altitude * 1.4) }, 300);
-                                        }
-                                    }}
-                                    className="p-2 text-white hover:bg-slate-800"
-                                    title="Zoom Out"
-                                >
-                                    <Minus size={20} />
-                                </button>
-                            </div>
-                        )}
-
                         <button
                             onClick={() => setShowControls(true)}
                             className="p-2 rounded-lg border border-slate-700 text-white transition-colors shadow-lg bg-slate-900/80 backdrop-blur hover:bg-slate-800"
