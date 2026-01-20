@@ -152,7 +152,8 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
     }
 
     // Use centralized version constant
-    const APP_VERSION = "0.179";
+    // Use centralized version constant
+    const APP_VERSION = "0.180";
 
     // UI States
     const [isDiscovering, setIsDiscovering] = useState(false);
@@ -2605,20 +2606,57 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
 
         <div
             className={`relative w-full h-full bg-slate-950 transition-cursor ${(isAtTop && !isMetaPressed) ? 'cursor-move' : 'cursor-default'} ${isMobile ? 'touch-pan-y' : ''}`}
+            onTouchStart={(e) => {
+                if (isMobile && e.touches.length === 2) {
+                    const t1 = e.touches[0];
+                    const t2 = e.touches[1];
+                    lastTouchY.current = (t1.clientY + t2.clientY) / 2;
+                    lastTouchDist.current = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+                }
+            }}
             onTouchMove={(e) => {
                 if (isMobile) {
                     if (e.touches.length === 2) {
-                        setDebugGesture("Two Fingers Detected: Trying to Scroll?");
-                        // Try to stop propagation to prevent Globe from stealing perfectly vertical scrolls?
-                        // e.stopPropagation(); 
+                        const t1 = e.touches[0];
+                        const t2 = e.touches[1];
+                        const currentY = (t1.clientY + t2.clientY) / 2;
+                        const currentDist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+
+                        if (lastTouchY.current !== null && lastTouchDist.current !== null) {
+                            const deltaY = lastTouchY.current - currentY;
+                            const distChange = Math.abs(currentDist - lastTouchDist.current);
+
+                            // Thresholds to distinguish Pinch vs Scroll
+                            // If distance changed significantly, it's a ZOOM
+                            if (distChange > 10) { // 10px buffer
+                                setDebugGesture("Gesture: Zooming (Pinch)");
+                                // Do nothing, let OrbitControls handle zoom
+                            } else {
+                                // Distance stable, it's a SCROLL
+                                setDebugGesture(`Gesture: Scrolling (Manual) ${Math.round(deltaY)}px`);
+                                // MANUAL WINDOW SCROLL
+                                window.scrollBy(0, deltaY);
+                            }
+
+                            // Update refs
+                            lastTouchY.current = currentY;
+                            lastTouchDist.current = currentDist;
+                        }
                     } else if (e.touches.length === 1) {
                         setDebugGesture("One Finger: Rotating");
+                        // Reset refs
+                        lastTouchY.current = null;
+                        lastTouchDist.current = null;
                     } else {
                         setDebugGesture(`Touches: ${e.touches.length}`);
                     }
                 }
             }}
-            onTouchEnd={() => setDebugGesture("")}
+            onTouchEnd={() => {
+                setDebugGesture("");
+                lastTouchY.current = null;
+                lastTouchDist.current = null;
+            }}
         >
             {/* Gesture Debugger */}
             {isMobile && debugGesture && (
