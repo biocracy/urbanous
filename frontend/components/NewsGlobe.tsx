@@ -2577,7 +2577,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
             // CONTROLS: Enable Zoom only when Meta/Ctrl is pressed (if disableScrollZoom is true)
             // If disableScrollZoom is false (default), zoom is always enabled
             // CONTROLS: Default = Zoom Enabled (Scroll Trap) ONLY if At Top.
-            enableZoom={!isMobile && isAtTop && !isMetaPressed}
+            enableZoom={isAtTop && !isMetaPressed}
         />
 
     );
@@ -2588,10 +2588,10 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
             const controls = globeEl.current.controls();
             if (controls) {
                 // Logic: Zoom enabled ONLY if At Top AND Meta not pressed.
-                // Mobile: Disable Zoom and Pan to allow 2-finger page scroll.
-                const shouldEnableZoom = !isMobile && isAtTop && !isMetaPressed;
+                // Mobile: Enable Zoom, but Disable Pan to allow 2-finger page scroll.
+                const shouldEnableZoom = isAtTop && !isMetaPressed;
                 controls.enableZoom = shouldEnableZoom;
-                controls.enablePan = !isMobile; // Disable Pan on mobile to prevent 2-finger capture
+                controls.enablePan = !isMobile; // Disable Pan on mobile
                 controls.update?.();
             }
         }
@@ -2600,16 +2600,6 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
     return (
 
         <div className={`relative w-full h-full bg-slate-950 transition-cursor ${(isAtTop && !isMetaPressed) ? 'cursor-move' : 'cursor-default'} ${isMobile ? 'touch-pan-y' : ''}`}>
-            {/* Mobile Interaction Fix: Overlay to allow scrolling over the canvas */}
-            {isMobile && !isMobileInteract && (
-                <div
-                    className="absolute inset-0 z-10 touch-pan-y"
-                    style={{ background: 'transparent' }}
-                    onClick={() => {
-                        // Optional: Show hint "Tap button to interact"
-                    }}
-                />
-            )}
             {/* Visual Controls Toggle & Overlay */}
             <div className="absolute bottom-4 left-4 z-20 flex flex-col items-start gap-2">
                 {/* Mobile Interaction Toggle */}

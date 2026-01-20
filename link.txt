@@ -1,38 +1,38 @@
-00:01:19.224 Running build in Washington, D.C., USA (East) – iad1
-00:01:19.225 Build machine configuration: 2 cores, 8 GB
-00:01:19.362 Cloning github.com/biocracy/urbanous (Branch: main, Commit: 6dab760)
-00:01:21.005 Cloning completed: 1.643s
-00:01:21.281 Restored build cache from previous deployment (7nLVdKFJBvKktQZTKyrcsTR4k1cn)
-00:01:21.554 Running "vercel build"
-00:01:22.484 Vercel CLI 50.4.8
-00:01:22.753 Installing dependencies...
-00:01:24.224 
-00:01:24.226 up to date in 1s
-00:01:24.226 
-00:01:24.227 339 packages are looking for funding
-00:01:24.227   run `npm fund` for details
-00:01:24.252 Detected Next.js version: 16.1.1
-00:01:24.257 Running "npm run build"
-00:01:24.353 
-00:01:24.354 > frontend@0.1.1 build
-00:01:24.354 > next build
-00:01:24.354 
-00:01:25.370 ▲ Next.js 16.1.1 (Turbopack)
-00:01:25.371 
-00:01:25.411   Creating an optimized production build ...
-00:01:38.143 ✓ Compiled successfully in 12.2s
-00:01:38.147   Running TypeScript ...
-00:01:44.565 Failed to compile.
-00:01:44.566 
-00:01:44.566 ./components/NewsGlobe.tsx:103:58
-00:01:44.566 Type error: Cannot find name 'setIsMetaPressed'.
-00:01:44.566 
-00:01:44.567 [0m [90m 101 |[39m     useEffect(() [33m=>[39m {
-00:01:44.567  [90m 102 |[39m         [36mconst[39m handleKeyDown [33m=[39m (e[33m:[39m [33mKeyboardEvent[39m) [33m=>[39m {
-00:01:44.567 [31m[1m>[22m[39m[90m 103 |[39m             [36mif[39m (e[33m.[39mkey [33m===[39m [32m'Meta'[39m [33m||[39m e[33m.[39mkey [33m===[39m [32m'Control'[39m) setIsMetaPressed([36mtrue[39m)[33m;[39m
-00:01:44.567  [90m     |[39m                                                          [31m[1m^[22m[39m
-00:01:44.567  [90m 104 |[39m         }[33m;[39m
-00:01:44.568  [90m 105 |[39m         [36mconst[39m handleKeyUp [33m=[39m (e[33m:[39m [33mKeyboardEvent[39m) [33m=>[39m {
-00:01:44.568  [90m 106 |[39m             [36mif[39m (e[33m.[39mkey [33m===[39m [32m'Meta'[39m [33m||[39m e[33m.[39mkey [33m===[39m [32m'Control'[39m) setIsMetaPressed([36mfalse[39m)[33m;[39m[0m
-00:01:44.602 Next.js build worker exited with code: 1 and signal: null
-00:01:44.639 Error: Command "npm run build" exited with 1
+00:04:20.489 Running build in Washington, D.C., USA (East) – iad1
+00:04:20.489 Build machine configuration: 2 cores, 8 GB
+00:04:20.620 Cloning github.com/biocracy/urbanous (Branch: main, Commit: 16416c8)
+00:04:21.676 Cloning completed: 1.056s
+00:04:22.594 Restored build cache from previous deployment (7nLVdKFJBvKktQZTKyrcsTR4k1cn)
+00:04:22.887 Running "vercel build"
+00:04:23.813 Vercel CLI 50.4.8
+00:04:24.080 Installing dependencies...
+00:04:25.622 
+00:04:25.624 up to date in 1s
+00:04:25.624 
+00:04:25.624 339 packages are looking for funding
+00:04:25.624   run `npm fund` for details
+00:04:25.650 Detected Next.js version: 16.1.1
+00:04:25.656 Running "npm run build"
+00:04:25.756 
+00:04:25.757 > frontend@0.1.1 build
+00:04:25.757 > next build
+00:04:25.757 
+00:04:26.733 ▲ Next.js 16.1.1 (Turbopack)
+00:04:26.734 
+00:04:26.772   Creating an optimized production build ...
+00:04:40.210 ✓ Compiled successfully in 12.9s
+00:04:40.212   Running TypeScript ...
+00:04:47.160 Failed to compile.
+00:04:47.160 
+00:04:47.160 ./components/NewsGlobe.tsx:2604:27
+00:04:47.160 Type error: Cannot find name 'isMobileInteract'.
+00:04:47.160 
+00:04:47.160 [0m [90m 2602 |[39m         [33m<[39m[33mdiv[39m className[33m=[39m{[32m`relative w-full h-full bg-slate-950 transition-cursor ${(isAtTop && !isMetaPressed) ? 'cursor-move' : 'cursor-default'} ${isMobile ? 'touch-pan-y' : ''}`[39m}[33m>[39m
+00:04:47.161  [90m 2603 |[39m             {[90m/* Mobile Interaction Fix: Overlay to allow scrolling over the canvas */[39m}
+00:04:47.161 [31m[1m>[22m[39m[90m 2604 |[39m             {isMobile [33m&&[39m [33m![39misMobileInteract [33m&&[39m (
+00:04:47.161  [90m      |[39m                           [31m[1m^[22m[39m
+00:04:47.161  [90m 2605 |[39m                 [33m<[39m[33mdiv[39m
+00:04:47.161  [90m 2606 |[39m                     className[33m=[39m[32m"absolute inset-0 z-10 touch-pan-y"[39m
+00:04:47.161  [90m 2607 |[39m                     style[33m=[39m{{ background[33m:[39m [32m'transparent'[39m }}[0m
+00:04:47.201 Next.js build worker exited with code: 1 and signal: null
+00:04:47.254 Error: Command "npm run build" exited with 1
