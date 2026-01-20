@@ -1,38 +1,66 @@
-23:11:28.304 Running build in Washington, D.C., USA (East) – iad1
-23:11:28.305 Build machine configuration: 2 cores, 8 GB
-23:11:28.450 Cloning github.com/biocracy/urbanous (Branch: main, Commit: 5717e9f)
-23:11:30.350 Cloning completed: 1.900s
-23:11:30.777 Restored build cache from previous deployment (6aYuJNm35Wjpnn3cPSRfKYDxjjsf)
-23:11:31.073 Running "vercel build"
-23:11:32.039 Vercel CLI 50.4.6
-23:11:32.310 Installing dependencies...
-23:11:33.809 
-23:11:33.810 up to date in 1s
-23:11:33.811 
-23:11:33.811 339 packages are looking for funding
-23:11:33.811   run `npm fund` for details
-23:11:33.837 Detected Next.js version: 16.1.1
-23:11:33.843 Running "npm run build"
-23:11:33.947 
-23:11:33.947 > frontend@0.1.1 build
-23:11:33.948 > next build
-23:11:33.948 
-23:11:34.940 ▲ Next.js 16.1.1 (Turbopack)
-23:11:34.940 
-23:11:34.979   Creating an optimized production build ...
-23:11:48.081 ✓ Compiled successfully in 12.6s
-23:11:48.083   Running TypeScript ...
-23:11:54.446 Failed to compile.
-23:11:54.447 
-23:11:54.447 ./components/NewsGlobe.tsx:3080:38
-23:11:54.447 Type error: 'savedDigests' is possibly 'null'.
-23:11:54.447 
-23:11:54.447 [0m [90m 3078 |[39m                             ) [33m:[39m (
-23:11:54.447  [90m 3079 |[39m                                 [33m<[39m[33mdiv[39m className[33m=[39m[32m"space-y-2"[39m[33m>[39m
-23:11:54.447 [31m[1m>[22m[39m[90m 3080 |[39m                                     {savedDigests[33m.[39mlength [33m===[39m [35m0[39m [33m?[39m (
-23:11:54.448  [90m      |[39m                                      [31m[1m^[22m[39m
-23:11:54.448  [90m 3081 |[39m                                         [33m<[39m[33mdiv[39m className[33m=[39m[32m"text-center text-slate-500 py-6 px-2 flex flex-col gap-3"[39m[33m>[39m
-23:11:54.448  [90m 3082 |[39m                                             [33m<[39m[33mdiv[39m[33m>[39m[33mNo[39m saved digests found [36mfor[39m [36mthis[39m city[33m.[39m[33m<[39m[33m/[39m[33mdiv[39m[33m>[39m
-23:11:54.448  [90m 3083 |[39m[0m
-23:11:54.485 Next.js build worker exited with code: 1 and signal: null
-23:11:54.520 Error: Command "npm run build" exited with 1
+23:32:08.693 Running build in Washington, D.C., USA (East) – iad1
+23:32:08.694 Build machine configuration: 2 cores, 8 GB
+23:32:08.836 Cloning github.com/biocracy/urbanous (Branch: main, Commit: 87ba0fa)
+23:32:10.451 Cloning completed: 1.615s
+23:32:11.048 Restored build cache from previous deployment (FLdENCaVhhibPj8hbGYcK6FhPa4Y)
+23:32:11.356 Running "vercel build"
+23:32:12.399 Vercel CLI 50.4.8
+23:32:12.670 Installing dependencies...
+23:32:14.155 
+23:32:14.156 up to date in 1s
+23:32:14.157 
+23:32:14.157 339 packages are looking for funding
+23:32:14.157   run `npm fund` for details
+23:32:14.184 Detected Next.js version: 16.1.1
+23:32:14.190 Running "npm run build"
+23:32:14.286 
+23:32:14.287 > frontend@0.1.1 build
+23:32:14.287 > next build
+23:32:14.287 
+23:32:15.258 ▲ Next.js 16.1.1 (Turbopack)
+23:32:15.259 
+23:32:15.297   Creating an optimized production build ...
+23:32:29.099 
+23:32:29.100 > Build error occurred
+23:32:29.103 Error: Turbopack build failed with 2 errors:
+23:32:29.103 ./frontend/components/NewsGlobe.tsx:95:12
+23:32:29.103 Ecmascript file had an error
+23:32:29.103 [0m [90m 93 |[39m     [36mconst[39m [isMetaPressed[33m,[39m setIsMetaPressed] [33m=[39m useState([36mfalse[39m)[33m;[39m [90m// Track Cmd/Ctrl key[39m
+23:32:29.103  [90m 94 |[39m
+23:32:29.103 [31m[1m>[22m[39m[90m 95 |[39m     [36mconst[39m [isMetaPressed[33m,[39m setIsMetaPressed] [33m=[39m useState([36mfalse[39m)[33m;[39m [90m// Track Cmd/Ctrl key[39m
+23:32:29.104  [90m    |[39m            [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+23:32:29.104  [90m 96 |[39m     [36mconst[39m [isMobile[33m,[39m setIsMobile] [33m=[39m useState([36mfalse[39m)[33m;[39m
+23:32:29.104  [90m 97 |[39m
+23:32:29.104  [90m 98 |[39m     [90m// Detect Mobile[39m[0m
+23:32:29.104 
+23:32:29.104 the name `isMetaPressed` is defined multiple times
+23:32:29.104 
+23:32:29.104 Import trace:
+23:32:29.104   Client Component Browser:
+23:32:29.104     ./frontend/components/NewsGlobe.tsx [Client Component Browser]
+23:32:29.104     ./frontend/app/page.tsx [Client Component Browser]
+23:32:29.104     ./frontend/app/page.tsx [Server Component]
+23:32:29.104 
+23:32:29.104 
+23:32:29.104 ./frontend/components/NewsGlobe.tsx:95:27
+23:32:29.104 Ecmascript file had an error
+23:32:29.104 [0m [90m 93 |[39m     [36mconst[39m [isMetaPressed[33m,[39m setIsMetaPressed] [33m=[39m useState([36mfalse[39m)[33m;[39m [90m// Track Cmd/Ctrl key[39m
+23:32:29.105  [90m 94 |[39m
+23:32:29.105 [31m[1m>[22m[39m[90m 95 |[39m     [36mconst[39m [isMetaPressed[33m,[39m setIsMetaPressed] [33m=[39m useState([36mfalse[39m)[33m;[39m [90m// Track Cmd/Ctrl key[39m
+23:32:29.105  [90m    |[39m                           [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+23:32:29.105  [90m 96 |[39m     [36mconst[39m [isMobile[33m,[39m setIsMobile] [33m=[39m useState([36mfalse[39m)[33m;[39m
+23:32:29.105  [90m 97 |[39m
+23:32:29.105  [90m 98 |[39m     [90m// Detect Mobile[39m[0m
+23:32:29.105 
+23:32:29.105 the name `setIsMetaPressed` is defined multiple times
+23:32:29.105 
+23:32:29.105 Import trace:
+23:32:29.105   Client Component Browser:
+23:32:29.105     ./frontend/components/NewsGlobe.tsx [Client Component Browser]
+23:32:29.106     ./frontend/app/page.tsx [Client Component Browser]
+23:32:29.106     ./frontend/app/page.tsx [Server Component]
+23:32:29.106 
+23:32:29.106 
+23:32:29.106     at <unknown> (./frontend/components/NewsGlobe.tsx:95:12)
+23:32:29.106     at <unknown> (./frontend/components/NewsGlobe.tsx:95:27)
+23:32:29.195 Error: Command "npm run build" exited with 1
