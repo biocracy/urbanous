@@ -2274,17 +2274,24 @@ async def generate_analytics(req: AnalyticsRequest, current_user: User = Depends
         ]
         """
         try:
+            print(f"Analytics Batch {batch_idx}: Sending prompt to LLM...")
             response = await model.generate_content_async(prompt, generation_config={"response_mime_type": "application/json"})
             text = response.text
+            print(f"Analytics Batch {batch_idx}: LLM Response (First 100 chars): {text[:100]}...")
+            
             # Clean JSON
             if text.strip().startswith("```"):
                 text = text.strip().split("\n", 1)[1]
                 if text.strip().endswith("```"):
                      text = text.strip().rsplit("\n", 1)[0]
             
-            return json.loads(text)
+            data = json.loads(text)
+            print(f"Analytics Batch {batch_idx}: Parsed {len(data)} items.")
+            return data
         except Exception as e:
             print(f"Batch {batch_idx} failed: {e}")
+            import traceback
+            traceback.print_exc()
             return []
 
     # Run Batches in Parallel

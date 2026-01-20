@@ -440,55 +440,62 @@ export default function UnifiedDigestViewer({
                             />
                         ) : (
                             <div className="max-w-none">
-                                <ReactMarkdown
-                                    rehypePlugins={[rehypeRaw]}
-                                    components={{
-                                        // Custom Link Handling (Citations & External)
-                                        a: ({ href, children, ...props }) => {
-                                            if (href?.startsWith('citation:')) {
-                                                const id = href.split(':')[1];
-                                                return <sup className="text-blue-400 font-bold ml-0.5 cursor-pointer hover:underline">[{id}]</sup>;
-                                            }
-                                            const isExample = !href?.startsWith('http');
-                                            if (isExample) return <span className="text-blue-300">{children}</span>;
+                                {(() => {
+                                    const rawContent = digestData?.digest || digestData?.summary_markdown || "";
+                                    console.log("[UnifiedDigestViewer] Raw Digest Content:", rawContent.slice(0, 200));
+                                    return (
+                                        <ReactMarkdown
+                                            rehypePlugins={[rehypeRaw]}
+                                            components={{
+                                                // Custom Link Handling (Citations & External)
+                                                a: ({ href, children, ...props }) => {
+                                                    if (href?.startsWith('citation:')) {
+                                                        const id = href.split(':')[1];
+                                                        return <sup className="text-blue-400 font-bold ml-0.5 cursor-pointer hover:underline">[{id}]</sup>;
+                                                    }
+                                                    const isExample = !href?.startsWith('http');
+                                                    if (isExample) return <span className="text-blue-300">{children}</span>;
 
-                                            // Handle raw <a> tags from HTML if any
-                                            return <a href={href} className="text-blue-400 hover:text-blue-300 underline decoration-blue-500/50 underline-offset-4" target="_blank" rel="noopener noreferrer" {...props}>{children}</a>;
-                                        },
-                                        // Headings
-                                        h1: ({ children }) => <h1 className="text-3xl font-bold mb-6 text-white border-b border-neutral-800 pb-2 mt-8 first:mt-0">{children}</h1>,
-                                        h2: ({ children }) => <h2 className="text-2xl font-bold mb-4 text-white mt-8">{children}</h2>,
-                                        h3: ({ children }) => <h3 className="text-xl font-bold mb-3 text-blue-200 mt-6">{children}</h3>,
-                                        // Text & Layout
-                                        p: ({ children }) => <div className="text-neutral-300 mb-4 leading-relaxed text-lg">{children}</div>,
-                                        ul: ({ children }) => <ul className="list-disc list-inside mb-4 space-y-2 text-neutral-300 pl-4">{children}</ul>,
-                                        ol: ({ children }) => <ol className="list-decimal list-inside mb-4 space-y-2 text-neutral-300 pl-4">{children}</ol>,
-                                        li: ({ children }) => <li className="pl-1 marker:text-neutral-500">{children}</li>,
-                                        blockquote: ({ children }) => <blockquote className="border-l-4 border-blue-500 pl-4 italic my-6 text-neutral-400 bg-neutral-900/30 p-4 rounded-r">{children}</blockquote>,
-                                        // Code
-                                        code: ({ children }) => <code className="bg-neutral-800 px-1.5 py-0.5 rounded text-sm font-mono text-blue-300">{children}</code>,
-                                        pre: ({ children }) => <pre className="bg-neutral-900 p-4 rounded-lg overflow-x-auto mb-6 text-sm border border-neutral-800">{children}</pre>,
-                                        // HTML Elements Pass-through (Important for rehype-raw)
-                                        div: ({ className, children, ...props }) => <div className={className} {...props}>{children}</div>,
-                                        span: ({ className, children, ...props }) => <span className={className} {...props}>{children}</span>,
-                                        table: ({ children, ...props }) => <div className="overflow-x-auto mb-8 rounded-lg border border-neutral-800 shadow-lg"><table className="w-full text-left bg-neutral-900/50 border-collapse" {...props}>{children}</table></div>,
-                                        thead: ({ children, ...props }) => <thead className="bg-neutral-900 text-neutral-200 uppercase text-xs font-bold tracking-wider" {...props}>{children}</thead>,
-                                        tbody: ({ children, ...props }) => <tbody className="divide-y divide-neutral-800" {...props}>{children}</tbody>,
-                                        tr: ({ children, ...props }) => <tr className="hover:bg-neutral-800/50 transition-colors" {...props}>{children}</tr>,
-                                        th: ({ children, ...props }) => <th className="p-4 border-b border-neutral-700 whitespace-nowrap" {...props}>{children}</th>,
-                                        td: ({ children, ...props }) => <td className="p-4 text-neutral-300 align-top" {...props}>{children}</td>,
-                                        details: ({ children, ...props }) => <details className="mb-4 group bg-neutral-900/30 rounded-lg border border-neutral-800 overflow-hidden" {...props}>{children}</details>,
-                                        summary: ({ children, ...props }) => <summary className="cursor-pointer p-3 font-bold text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors select-none" {...props}>{children}</summary>,
-                                    }}
-                                >
-                                    {(digestData?.digest || digestData?.summary_markdown || "")
-                                        .replace(/```(?:html|markdown)?\s*([\s\S]*?)\s*```/yi, '$1') // Greedy strip of outer code blocks
-                                        .replace(/^#\s+.+$/m, '')  // Remove duplicate top-level title
-                                        .replace(/\[(\d+)\]/g, '[$1](citation:$1)')
-                                        // Strip 4+ spaces indentation (which triggers code blocks) but preserve structure
-                                        .replace(/^[ \t]{4,}/gm, '')
-                                        .trim()}
-                                </ReactMarkdown>
+                                                    // Handle raw <a> tags from HTML if any
+                                                    return <a href={href} className="text-blue-400 hover:text-blue-300 underline decoration-blue-500/50 underline-offset-4" target="_blank" rel="noopener noreferrer" {...props}>{children}</a>;
+                                                },
+                                                // Headings
+                                                h1: ({ children }) => <h1 className="text-3xl font-bold mb-6 text-white border-b border-neutral-800 pb-2 mt-8 first:mt-0">{children}</h1>,
+                                                h2: ({ children }) => <h2 className="text-2xl font-bold mb-4 text-white mt-8">{children}</h2>,
+                                                h3: ({ children }) => <h3 className="text-xl font-bold mb-3 text-blue-200 mt-6">{children}</h3>,
+                                                // Text & Layout
+                                                p: ({ children }) => <div className="text-neutral-300 mb-4 leading-relaxed text-lg">{children}</div>,
+                                                ul: ({ children }) => <ul className="list-disc list-inside mb-4 space-y-2 text-neutral-300 pl-4">{children}</ul>,
+                                                ol: ({ children }) => <ol className="list-decimal list-inside mb-4 space-y-2 text-neutral-300 pl-4">{children}</ol>,
+                                                li: ({ children }) => <li className="pl-1 marker:text-neutral-500">{children}</li>,
+                                                blockquote: ({ children }) => <blockquote className="border-l-4 border-blue-500 pl-4 italic my-6 text-neutral-400 bg-neutral-900/30 p-4 rounded-r">{children}</blockquote>,
+                                                // Code
+                                                code: ({ children }) => <code className="bg-neutral-800 px-1.5 py-0.5 rounded text-sm font-mono text-blue-300">{children}</code>,
+                                                pre: ({ children }) => <pre className="bg-neutral-900 p-4 rounded-lg overflow-x-auto mb-6 text-sm border border-neutral-800">{children}</pre>,
+                                                // HTML Elements Pass-through (Important for rehype-raw)
+                                                div: ({ className, children, ...props }) => <div className={className} {...props}>{children}</div>,
+                                                span: ({ className, children, ...props }) => <span className={className} {...props}>{children}</span>,
+                                                table: ({ children, ...props }) => <div className="overflow-x-auto mb-8 rounded-lg border border-neutral-800 shadow-lg"><table className="w-full text-left bg-neutral-900/50 border-collapse" {...props}>{children}</table></div>,
+                                                thead: ({ children, ...props }) => <thead className="bg-neutral-900 text-neutral-200 uppercase text-xs font-bold tracking-wider" {...props}>{children}</thead>,
+                                                tbody: ({ children, ...props }) => <tbody className="divide-y divide-neutral-800" {...props}>{children}</tbody>,
+                                                tr: ({ children, ...props }) => <tr className="hover:bg-neutral-800/50 transition-colors" {...props}>{children}</tr>,
+                                                th: ({ children, ...props }) => <th className="p-4 border-b border-neutral-700 whitespace-nowrap" {...props}>{children}</th>,
+                                                td: ({ children, ...props }) => <td className="p-4 text-neutral-300 align-top" {...props}>{children}</td>,
+                                                details: ({ children, ...props }) => <details className="mb-4 group bg-neutral-900/30 rounded-lg border border-neutral-800 overflow-hidden" {...props}>{children}</details>,
+                                                summary: ({ children, ...props }) => <summary className="cursor-pointer p-3 font-bold text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors select-none" {...props}>{children}</summary>,
+                                            }}
+                                        >
+                                            {(digestData?.digest || digestData?.summary_markdown || "")
+                                                .replace(/```(?:html|markdown)?\s*([\s\S]*?)\s*```/yi, '$1') // Greedy strip of outer code blocks
+                                                .replace(/^#\s+.+$/m, '')  // Remove duplicate top-level title
+                                                .replace(/\[(\d+)\]/g, '[$1](citation:$1)')
+                                                // Strip 4+ spaces indentation (which triggers code blocks) but preserve structure
+                                                .replace(/^[ \t]{4,}/gm, '')
+                                                .replace(/^[ \t]{4,}/gm, '')
+                                                .trim()}
+                                        </ReactMarkdown>
+                                    );
+                                })()}
                             </div>
                         )}
 
