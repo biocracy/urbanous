@@ -2579,16 +2579,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
             // CONTROLS: Default = Zoom Enabled (Scroll Trap) ONLY if At Top.
             enableZoom={!isMobile && isAtTop && !isMetaPressed}
         />
-        {/* Mobile Interaction Fix: Overlay to allow scrolling over the canvas */ }
-    {
-        isMobile && (
-            <div
-                className="absolute inset-0 z-10 touch-pan-y"
-                style={{ background: 'transparent' }}
-            // Allow clicks to pass through if needed, but capture scrolls
-            />
-        )
-    }
+
     );
 
     // Dynamic Control Update
@@ -2605,7 +2596,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
     }, [isMetaPressed, isAtTop]);
 
     return (
-    return (
+
         <div className={`relative w-full h-full bg-slate-950 transition-cursor ${(isAtTop && !isMetaPressed) ? 'cursor-move' : 'cursor-default'} ${isMobile ? 'touch-pan-y' : ''}`}>
             {/* Mobile Interaction Fix: Overlay to allow scrolling over the canvas */}
             {isMobile && (
