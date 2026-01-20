@@ -35,7 +35,7 @@ const formatDateRange = (createdDateStr: string, timeframeStr: string = "24h") =
     const createdDate = new Date(createdDateStr);
     const msToSubtract = timeframeStr === '24h' ? 24 * 60 * 60 * 1000 :
         timeframeStr === '3days' ? 3 * 24 * 60 * 60 * 1000 :
-            timeframeStr === 'week' ? 7 * 24 * 60 * 60 * 1000 : 0;
+            (timeframeStr === 'week' || timeframeStr === '1week') ? 7 * 24 * 60 * 60 * 1000 : 0;
     const startDate = new Date(createdDate.getTime() - msToSubtract);
 
     // Format: DD.MM - DD.MM.YYYY
