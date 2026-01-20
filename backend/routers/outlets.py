@@ -999,10 +999,6 @@ async def get_city_info(city: str, country: str, current_user: Optional[User] = 
     Fetches quick city stats using Gemini, with DB caching.
     """
     # 1. Check DB Cache
-    stmt = select(CityMetadata).join(Country).where(
-        CityMetadata.name == city, 
-        (Country.name == country) | (Country.native_name == country)
-    )
     stmt = select(CityMetadata).where(CityMetadata.name == city)
     result = await db.execute(stmt)
     cached_city = result.scalars().first()
@@ -1013,6 +1009,14 @@ async def get_city_info(city: str, country: str, current_user: Optional[User] = 
         db_country = res_c.scalars().first()
         
         if db_country:
+            # Localize Flag on Read if needed
+            from utils.flag_utils import ensure_local_flag
+            if db_country.flag_url and not db_country.flag_url.startswith("/static/"):
+                 local_flag = await ensure_local_flag(db_country.flag_url, db_country.name)
+                 if local_flag != db_country.flag_url:
+                     db_country.flag_url = local_flag
+                     await db.commit()
+
             return CityInfoResponse(
                 population=cached_city.population or "Unknown",
                 description=cached_city.description or "",
@@ -1068,20 +1072,27 @@ async def get_city_info(city: str, country: str, current_user: Optional[User] = 
         res_c = await db.execute(stmt_c)
         db_country = res_c.scalars().first()
         
+        # LOCALIZE FLAG BEFORE SAVING
+        from utils.flag_utils import ensure_local_flag
+        raw_flag = data.get('country_flag_url')
+        local_flag_url = await ensure_local_flag(raw_flag, c_eng)
+        
         if not db_country:
             db_country = Country(
                 name=c_eng,
                 native_name=data.get('country_native'),
                 phonetic_name=data.get('country_phonetic'),
-                flag_url=data.get('country_flag_url')
+                flag_url=local_flag_url
             )
             db.add(db_country)
             await db.commit()
             await db.refresh(db_country)
         else:
-            if not db_country.flag_url and data.get('country_flag_url'):
-                db_country.flag_url = data.get('country_flag_url')
-                await db.commit()
+            # Update existing if needed
+            if not db_country.flag_url or (raw_flag and not db_country.flag_url.startswith("/static/")):
+                 db_country.flag_url = local_flag_url
+                 await db.commit()
+
 
         db_city = CityMetadata(
             name=city,
