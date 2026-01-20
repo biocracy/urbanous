@@ -446,6 +446,8 @@ export default function UnifiedDigestViewer({
                                     return (
                                         <ReactMarkdown
                                             rehypePlugins={[rehypeRaw]}
+                                            // Allow 'citation:' protocol
+                                            urlTransform={(url) => url}
                                             components={{
                                                 // Custom Link Handling (Citations & External)
                                                 a: ({ href, children, ...props }) => {
@@ -462,11 +464,11 @@ export default function UnifiedDigestViewer({
                                                                 console.warn(`[UnifiedDigestViewer] Citation [${id}] not found in articles.`);
                                                             }
                                                         };
-                                                        // Just return the inner clickable number. The outer brackets/sup are handled by the replacement regex/HTML.
+
                                                         return (
                                                             <span
                                                                 onClick={articleHandler}
-                                                                className="cursor-pointer hover:underline hover:text-blue-300 transition-colors"
+                                                                className="text-blue-400 font-bold cursor-pointer hover:underline hover:text-blue-300 transition-colors"
                                                                 title={`Open Source Article ${id}`}
                                                             >
                                                                 {children}
@@ -503,22 +505,33 @@ export default function UnifiedDigestViewer({
                                                 td: ({ children, ...props }) => <td className="p-4 text-neutral-300 align-top" {...props}>{children}</td>,
                                                 details: ({ children, ...props }) => <details className="mb-4 group bg-neutral-900/30 rounded-lg border border-neutral-800 overflow-hidden" {...props}>{children}</details>,
                                                 summary: ({ children, ...props }) => <summary className="cursor-pointer p-3 font-bold text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors select-none" {...props}>{children}</summary>,
-                                                sup: ({ className, children, ...props }) => <sup className={className || "text-blue-400 font-bold ml-0.5 select-none"} {...props}>{children}</sup>,
                                             }}
                                         >
                                             {(digestData?.digest || digestData?.summary_markdown || "")
                                                 .replace(/```(?:html|markdown)?\s*([\s\S]*?)\s*```/yi, '$1') // Greedy strip of outer code blocks
                                                 .replace(/^#\s+.+$/m, '')  // Remove duplicate top-level title
                                                 .replace(/\[([\d,\s]+)\]/g, (match: string, group: string) => {
-                                                    // Handle multiple citations like [1, 5, 28] by formatting as one block: [1, 5, 28]
-                                                    // We use raw HTML <sup> wrapper because markdown doesn't support nested styles well inside [] syntax if we want commas plain.
+                                                    // Handle multiple citations like [1, 5, 28] by formatting as markdown: [1](citation:1), [5](citation:5)...
+                                                    // We wrap the whole thing in a blue-styled span text so the brackets are colored too?
+                                                    // User said: "keep the brackets and commas".
+                                                    // Let's output pure markdown with styling.
+                                                    // We can use an HTML span to wrap the whole block if we want the brackets blue too, 
+                                                    // OR just let the brackets be text and the numbers be links.
+                                                    // The user previously saw "square brackets... superscript".
+                                                    // Let's match the request: "remove superscript, keep brackets and commas".
+                                                    // We'll generate: <span class="text-blue-400 font-bold ml-0.5">[</span><a href="citation:1">1</a>, <a href="citation:2">2</a><span class="text-blue-400 font-bold">]</span>
+
                                                     const links = group.split(',')
                                                         .map((n: string) => {
                                                             const num = n.trim();
-                                                            return `<a href="citation:${num}">${num}</a>`;
+                                                            return `[${num}](citation:${num})`;
                                                         })
                                                         .join(', ');
-                                                    return `<sup class="text-blue-400 font-bold ml-0.5">[${links}]</sup>`;
+
+                                                    // We wrap the whole thing in a span to give the brackets color, if desired?
+                                                    // Let's just output text brackets + markdown links for maximum stability.
+                                                    // If we want the brackets blue, we can wrap in HTML span.
+                                                    return `<span class="text-blue-400 font-bold ml-0.5">[${links}]</span>`;
                                                 })
                                                 // Strip 4+ spaces indentation (which triggers code blocks) but preserve structure
                                                 .replace(/^[ \t]{4,}/gm, '')

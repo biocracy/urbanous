@@ -142,7 +142,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
     }
 
     // Use centralized version constant
-    const APP_VERSION = "0.173";
+    const APP_VERSION = "0.174";
 
     // UI States
     const [isDiscovering, setIsDiscovering] = useState(false);
