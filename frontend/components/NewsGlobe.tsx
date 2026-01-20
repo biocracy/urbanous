@@ -2577,8 +2577,14 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
             // CONTROLS: Enable Zoom only when Meta/Ctrl is pressed (if disableScrollZoom is true)
             // If disableScrollZoom is false (default), zoom is always enabled
             // CONTROLS: Default = Zoom Enabled (Scroll Trap) ONLY if At Top.
-            // If scrolled down OR Meta pressed -> Zoom Disabled (Page Scroll).
-            // MOBILE FIX: Always disable zoom on mobile to prevent scroll trap (allows 2-finger page scroll)
+            {/* Mobile Interaction Fix: Overlay to allow scrolling over the canvas */}
+            {isMobile && (
+                <div
+                    className="absolute inset-0 z-10 touch-pan-y"
+                    style={{ background: 'transparent' }}
+                // Allow clicks to pass through if needed, but capture scrolls
+                />
+            )}
             enableZoom={!isMobile && isAtTop && !isMetaPressed}
         />
     );
