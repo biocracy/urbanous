@@ -90,6 +90,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
     const [hoverPoint, setHoverPoint] = useState<any | null>(null);
     const [digestData, setDigestData] = useState<any>(null);
     const [isReportSaved, setIsReportSaved] = useState(false); // Track unsaved changes
+    const [isMetaPressed, setIsMetaPressed] = useState(false); // Track Cmd/Ctrl key
     const [isMobile, setIsMobile] = useState(false);
 
     // Detect Mobile
