@@ -1,33 +1,35 @@
 [NewsGlobe] Render Cycle
-39dcd085b42375e9.js:1 [UnifiedDigestViewer] formatDateRange Input: Object
-39dcd085b42375e9.js:1 [UnifiedDigestViewer] formatDateRange Input: Object
+39dcd085b42375e9.js:1 [UnifiedDigestViewer] formatDateRange Input: {createdDateStr: '2026-01-20T09:26:55.120294Z', timeframeStr: '1week'}
+39dcd085b42375e9.js:1 [UnifiedDigestViewer] formatDateRange Input: {createdDateStr: '2026-01-20T09:26:55.120294Z', timeframeStr: '1week'}
 39dcd085b42375e9.js:4 [UnifiedDigestViewer] Raw Digest Content: # Trump's Greenland Gambit Fuels Arctic Military Buildup, Sparks Global Outcry & EU Retaliation Threats
 
 Nuuk finds itself at the epicenter of escalating geopolitical tensions, driven primarily by for
-39dcd085b42375e9.js:1 [UnifiedDigestViewer] formatDateRange Input: Object
-39dcd085b42375e9.js:1 [UnifiedDigestViewer] formatDateRange Input: Object
+39dcd085b42375e9.js:1 [UnifiedDigestViewer] formatDateRange Input: {createdDateStr: '2026-01-20T09:26:55.120294Z', timeframeStr: '1week'}
+39dcd085b42375e9.js:1 [UnifiedDigestViewer] formatDateRange Input: {createdDateStr: '2026-01-20T09:26:55.120294Z', timeframeStr: '1week'}
 39dcd085b42375e9.js:4 [UnifiedDigestViewer] Raw Digest Content: # Trump's Greenland Gambit Fuels Arctic Military Buildup, Sparks Global Outcry & EU Retaliation Threats
 
 Nuuk finds itself at the epicenter of escalating geopolitical tensions, driven primarily by for
-39dcd085b42375e9.js:1 [UnifiedDigestViewer] formatDateRange Input: Object
-39dcd085b42375e9.js:1 [UnifiedDigestViewer] formatDateRange Input: Object
+079e863fdfdc1d85.js:5 [NewsGlobe] Render Cycle
+39dcd085b42375e9.js:1 [UnifiedDigestViewer] formatDateRange Input: {createdDateStr: '2026-01-20T09:26:55.120294Z', timeframeStr: '1week'}
+39dcd085b42375e9.js:1 [UnifiedDigestViewer] formatDateRange Input: {createdDateStr: '2026-01-20T09:26:55.120294Z', timeframeStr: '1week'}
 39dcd085b42375e9.js:4 [UnifiedDigestViewer] Raw Digest Content: # Trump's Greenland Gambit Fuels Arctic Military Buildup, Sparks Global Outcry & EU Retaliation Threats
 
 Nuuk finds itself at the epicenter of escalating geopolitical tensions, driven primarily by for
-bb34ecd2bc201150.js:5 [NewsGlobe] Render Cycle
-39dcd085b42375e9.js:1 [UnifiedDigestViewer] formatDateRange Input: ObjectcreatedDateStr: "2026-01-20T09:26:55.120294Z"timeframeStr: "1week"[[Prototype]]: Object
-39dcd085b42375e9.js:1 [UnifiedDigestViewer] formatDateRange Input: ObjectcreatedDateStr: "2026-01-20T09:26:55.120294Z"timeframeStr: "1week"[[Prototype]]: Object
-39dcd085b42375e9.js:4 [UnifiedDigestViewer] Raw Digest Content: # Trump's Greenland Gambit Fuels Arctic Military Buildup, Sparks Global Outcry & EU Retaliation Threats
-
-Nuuk finds itself at the epicenter of escalating geopolitical tensions, driven primarily by for
-bb34ecd2bc201150.js:5 ANALYTICS DEBUG: Response Data: Objectdebug_batches: 1debug_count: 0debug_errors: [{…}]debug_message: "Processed 44 articles."keywords: [][[Prototype]]: Object
-bb34ecd2bc201150.js:5 ANALYTICS DEBUG: Setting 0 keywords.
-bb34ecd2bc201150.js:5 ANALYTICS DEBUG: Backend Info: Processed 44 articles. (Batches: 1)
-bb34ecd2bc201150.js:5 ANALYTICS DEBUG: Backend Errors: Array(1)0: {status: 'error', error: '404 models/gemini-1.5-flash is not found for API v… of available models and their supported methods.', raw: 'No text'}length: 1[[Prototype]]: Array(0)
-t2 @ bb34ecd2bc201150.js:5Understand this error
-bb34ecd2bc201150.js:5 [NewsGlobe] Render Cycle
-39dcd085b42375e9.js:1 [UnifiedDigestViewer] formatDateRange Input: Object
-39dcd085b42375e9.js:1 [UnifiedDigestViewer] formatDateRange Input: Object
+079e863fdfdc1d85.js:5 ANALYTICS DEBUG: Response Data: {keywords: Array(0), debug_count: 0, debug_batches: 1, debug_message: 'Processed 44 articles.', debug_errors: Array(1)}
+079e863fdfdc1d85.js:5 ANALYTICS DEBUG: Setting 0 keywords.
+079e863fdfdc1d85.js:5 ANALYTICS DEBUG: Backend Info: Processed 44 articles. (Batches: 1)
+079e863fdfdc1d85.js:5 ANALYTICS DEBUG: Backend Errors: [{…}]0: {status: 'error', error: '404 models/gemini-1.5-flash-001 is not found for A… of available models and their supported methods.', raw: 'No text'}length: 1[[Prototype]]: Array(0)
+t2 @ 079e863fdfdc1d85.js:5
+await in t2
+sY @ 4c631c12e6a90c7e.js:1
+(anonymous) @ 4c631c12e6a90c7e.js:1
+tD @ 4c631c12e6a90c7e.js:1
+s3 @ 4c631c12e6a90c7e.js:1
+fC @ 4c631c12e6a90c7e.js:1
+fP @ 4c631c12e6a90c7e.js:1Understand this error
+079e863fdfdc1d85.js:5 [NewsGlobe] Render Cycle
+39dcd085b42375e9.js:1 [UnifiedDigestViewer] formatDateRange Input: {createdDateStr: '2026-01-20T09:26:55.120294Z', timeframeStr: '1week'}
+39dcd085b42375e9.js:1 [UnifiedDigestViewer] formatDateRange Input: {createdDateStr: '2026-01-20T09:26:55.120294Z', timeframeStr: '1week'}
 39dcd085b42375e9.js:4 [UnifiedDigestViewer] Raw Digest Content: # Trump's Greenland Gambit Fuels Arctic Military Buildup, Sparks Global Outcry & EU Retaliation Threats
 
 Nuuk finds itself at the epicenter of escalating geopolitical tensions, driven primarily by for

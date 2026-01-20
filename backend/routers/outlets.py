@@ -2221,7 +2221,10 @@ async def generate_analytics(req: AnalyticsRequest, current_user: User = Depends
         
     genai.configure(api_key=api_key)
     # Use standard stable model
-    model = genai.GenerativeModel('gemini-1.5-flash-001', generation_config={"response_mime_type": "application/json"})
+    # Primary Model (Best Quality/Speed)
+    model_primary = genai.GenerativeModel('gemini-1.5-flash-001', generation_config={"response_mime_type": "application/json"})
+    # Fallback Model (Older Stable)
+    model_fallback = genai.GenerativeModel('gemini-pro', generation_config={"response_mime_type": "application/json"})
     
     # Remove Article Cap; Use MapReduce
     BATCH_SIZE = 50 
@@ -2274,8 +2277,13 @@ async def generate_analytics(req: AnalyticsRequest, current_user: User = Depends
         ]
         """
         try:
-            print(f"Analytics Batch {batch_idx}: Sending prompt to LLM...")
-            response = await model.generate_content_async(prompt, generation_config={"response_mime_type": "application/json"})
+            print(f"Analytics Batch {batch_idx}: Sending prompt to LLM (Primary)...")
+            try:
+                response = await model_primary.generate_content_async(prompt)
+            except Exception as e_prim:
+                print(f"Analytics Batch {batch_idx}: Primary model failed ({e_prim}). Trying fallback...")
+                response = await model_fallback.generate_content_async(prompt)
+                
             text = response.text
             print(f"Analytics Batch {batch_idx}: LLM Response (First 100 chars): {text[:100]}...")
             
