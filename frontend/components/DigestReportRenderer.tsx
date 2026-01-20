@@ -121,9 +121,14 @@ export default function DigestReportRenderer({ articles, category, isTranslated 
 
             {/* Loader - Always show if loading (even if partially populated) */}
             {isLoading && (
-                <div className="text-center py-8 text-slate-500 italic flex flex-col items-center gap-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-                    <span className="animate-pulse">Mining sources for more truth...</span>
+                <div className="flex flex-col items-center justify-center py-20 animate-pulse">
+                    <div className="text-5xl mb-6 animate-bounce">🧠</div>
+                    <div className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-indigo-400">
+                        Gathering Intelligence...
+                    </div>
+                    <div className="text-sm text-neutral-500 mt-2 font-mono">
+                        Connecting to {visibleGroups.length > 0 ? visibleGroups.length : 'global'} sources
+                    </div>
                 </div>
             )}
 

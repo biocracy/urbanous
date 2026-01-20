@@ -4,6 +4,7 @@ import {
     RotateCcw, Trash2, Languages, Cloud, Columns, X
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import rehypeRaw from 'rehype-raw';
 import DigestReportRenderer from './DigestReportRenderer';
 
 // Fixed Tooltip Component
@@ -16,9 +17,6 @@ const AnalyticsTooltip = ({ data, isTranslated, onClose }: { data: { kw: any, re
     const top = rect.top - 10; // 10px buffer
     const left = rect.left + (rect.width / 2);
 
-    // If too close to top, flip to bottom?
-    // For now, let's just default to above, but strict fixed positioning.
-
     return (
         <div
             className="fixed z-[9999] bg-black/95 border border-neutral-700 p-3 rounded-xl text-xs w-64 shadow-2xl overflow-hidden text-left animate-in fade-in zoom-in-95 duration-200"
@@ -26,10 +24,7 @@ const AnalyticsTooltip = ({ data, isTranslated, onClose }: { data: { kw: any, re
                 top: top,
                 left: left,
                 transform: 'translate(-50%, -100%)', // Shift up and center
-                pointerEvents: 'none' // Initially just visual? NO, user needs to scroll.
-                // Wait, if pointerEvents is none, we can't scroll.
-                // If pointerEvents is auto, and there is a gap between element and tooltip, we might lose hover.
-                // But the user said "Click to Lock".
+                pointerEvents: 'none'
             }}
         >
             <div className="font-bold text-white mb-1 text-base">{kw.translation || kw.word}</div>
@@ -183,9 +178,6 @@ export default function UnifiedDigestViewer({
     const formatDateRange = (createdDateStr: string, timeframeStr: string = "24h") => {
         console.log(`[UnifiedDigestViewer] formatDateRange Input:`, { createdDateStr, timeframeStr });
         const createdDate = new Date(createdDateStr || Date.now());
-
-        // "Inclusive" subtraction: If 3 days, we want Today + (Today-1) + (Today-2). 
-        // So we subtract 2 days from the valid range "start".
 
         const msToSubtract = timeframeStr === '24h' ? 24 * 60 * 60 * 1000 :
             timeframeStr === '3days' ? 3 * 24 * 60 * 60 * 1000 :
@@ -391,7 +383,7 @@ export default function UnifiedDigestViewer({
                             onDebug={!isReadOnly ? onDebugArticle : undefined}
                             spamUrls={spamUrls}
                             excludedArticles={digestData?.excluded_articles || []}
-                            isLoading={false} // Assuming loaded if enabled
+                            isLoading={isSummarizing} // Connected to global loading state
                         />
                     </div>
                 </div>
@@ -449,58 +441,50 @@ export default function UnifiedDigestViewer({
                         ) : (
                             <div className="max-w-none">
                                 <ReactMarkdown
-                                    urlTransform={(url) => url}
+                                    rehypePlugins={[rehypeRaw]}
                                     components={{
-                                        h1: ({ node, ...props }) => <h1 className="text-4xl font-extrabold text-white mb-8 border-b border-white/10 pb-4 mt-8" {...props} />,
-                                        h2: ({ node, ...props }) => <h2 className="text-3xl font-bold text-blue-200 mt-12 mb-6 border-l-4 border-blue-500 pl-4" {...props} />,
-                                        h3: ({ node, ...props }) => <h3 className="text-xl font-bold text-indigo-300 mt-8 mb-3 uppercase tracking-wide" {...props} />,
-                                        p: ({ node, ...props }) => <p className="text-lg text-slate-300 leading-loose mb-8 text-justify" {...props} />,
-                                        ul: ({ node, ...props }) => <ul className="list-disc list-outside ml-6 mb-6 space-y-2 text-slate-300" {...props} />,
-                                        li: ({ node, ...props }) => <li className="pl-2" {...props} />,
-                                        strong: ({ node, ...props }) => <strong className="text-amber-400 font-bold" {...props} />,
-                                        blockquote: ({ node, ...props }) => <blockquote className="border-l-4 border-slate-600 pl-4 italic text-slate-400 my-6 bg-slate-800/30 py-2 rounded-r" {...props} />,
-                                        a: ({ node, ...props }) => {
-                                            const href = props.href || '';
-                                            if (href.startsWith('citation:')) {
-                                                const index = parseInt(href.split(':')[1]);
-                                                const article = digestData?.articles?.[index - 1];
-                                                const title = article ? (article.title || 'Source') : `Source ${index}`;
-                                                const url = article ? article.url : '';
-                                                const isValidUrl = url && url.startsWith('http');
-
-                                                return (
-                                                    <span className="relative inline-block group mx-1 align-baseline">
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                if (isValidUrl) window.open(url, '_blank');
-                                                            }}
-                                                            className={`font-bold text-xs align-super px-1 rounded transition-colors ${isValidUrl
-                                                                ? 'text-blue-400 hover:bg-blue-900/30 cursor-pointer'
-                                                                : 'text-slate-500 cursor-help'
-                                                                }`}
-                                                        >
-                                                            [{index}]
-                                                        </button>
-                                                        {/* Tooltip */}
-                                                        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-72 p-3 bg-slate-900 border border-slate-700 rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 text-xs text-left">
-                                                            <span className="block font-bold text-white mb-1 line-clamp-3 leading-tight">{title}</span>
-                                                            <span className={`block truncate font-mono mt-1 ${isValidUrl ? 'text-blue-400' : 'text-amber-500'}`}>
-                                                                {isValidUrl ? new URL(url).hostname : 'Source URL not available'}
-                                                            </span>
-                                                        </span>
-                                                    </span>
-                                                );
+                                        // Custom Link Handling (Citations & External)
+                                        a: ({ href, children, ...props }) => {
+                                            if (href?.startsWith('citation:')) {
+                                                const id = href.split(':')[1];
+                                                return <sup className="text-blue-400 font-bold ml-0.5 cursor-pointer hover:underline">[{id}]</sup>;
                                             }
-                                            const isExample = !href.startsWith('http');
-                                            return <a className="text-blue-400 hover:text-blue-300 underline decoration-blue-500/50 underline-offset-4" target="_blank" {...props} />;
-                                        }
+                                            const isExample = !href?.startsWith('http');
+                                            if (isExample) return <span className="text-blue-300">{children}</span>;
+
+                                            // Handle raw <a> tags from HTML if any
+                                            return <a href={href} className="text-blue-400 hover:text-blue-300 underline decoration-blue-500/50 underline-offset-4" target="_blank" rel="noopener noreferrer" {...props}>{children}</a>;
+                                        },
+                                        // Headings
+                                        h1: ({ children }) => <h1 className="text-3xl font-bold mb-6 text-white border-b border-neutral-800 pb-2 mt-8 first:mt-0">{children}</h1>,
+                                        h2: ({ children }) => <h2 className="text-2xl font-bold mb-4 text-white mt-8">{children}</h2>,
+                                        h3: ({ children }) => <h3 className="text-xl font-bold mb-3 text-blue-200 mt-6">{children}</h3>,
+                                        // Text & Layout
+                                        p: ({ children }) => <div className="text-neutral-300 mb-4 leading-relaxed text-lg">{children}</div>,
+                                        ul: ({ children }) => <ul className="list-disc list-inside mb-4 space-y-2 text-neutral-300 pl-4">{children}</ul>,
+                                        ol: ({ children }) => <ol className="list-decimal list-inside mb-4 space-y-2 text-neutral-300 pl-4">{children}</ol>,
+                                        li: ({ children }) => <li className="pl-1 marker:text-neutral-500">{children}</li>,
+                                        blockquote: ({ children }) => <blockquote className="border-l-4 border-blue-500 pl-4 italic my-6 text-neutral-400 bg-neutral-900/30 p-4 rounded-r">{children}</blockquote>,
+                                        // Code
+                                        code: ({ children }) => <code className="bg-neutral-800 px-1.5 py-0.5 rounded text-sm font-mono text-blue-300">{children}</code>,
+                                        pre: ({ children }) => <pre className="bg-neutral-900 p-4 rounded-lg overflow-x-auto mb-6 text-sm border border-neutral-800">{children}</pre>,
+                                        // HTML Elements Pass-through (Important for rehype-raw)
+                                        div: ({ className, children, ...props }) => <div className={className} {...props}>{children}</div>,
+                                        span: ({ className, children, ...props }) => <span className={className} {...props}>{children}</span>,
+                                        table: ({ children, ...props }) => <div className="overflow-x-auto mb-8 rounded-lg border border-neutral-800 shadow-lg"><table className="w-full text-left bg-neutral-900/50 border-collapse" {...props}>{children}</table></div>,
+                                        thead: ({ children, ...props }) => <thead className="bg-neutral-900 text-neutral-200 uppercase text-xs font-bold tracking-wider" {...props}>{children}</thead>,
+                                        tbody: ({ children, ...props }) => <tbody className="divide-y divide-neutral-800" {...props}>{children}</tbody>,
+                                        tr: ({ children, ...props }) => <tr className="hover:bg-neutral-800/50 transition-colors" {...props}>{children}</tr>,
+                                        th: ({ children, ...props }) => <th className="p-4 border-b border-neutral-700 whitespace-nowrap" {...props}>{children}</th>,
+                                        td: ({ children, ...props }) => <td className="p-4 text-neutral-300 align-top" {...props}>{children}</td>,
+                                        details: ({ children, ...props }) => <details className="mb-4 group bg-neutral-900/30 rounded-lg border border-neutral-800 overflow-hidden" {...props}>{children}</details>,
+                                        summary: ({ children, ...props }) => <summary className="cursor-pointer p-3 font-bold text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors select-none" {...props}>{children}</summary>,
                                     }}
                                 >
                                     {(digestData?.digest || digestData?.summary_markdown || "")
-                                        .replace(/^```(?:markdown)?\s*/i, '') // Remove leading code block
+                                        .replace(/^```(?:markdown|html)?\s*/i, '') // Remove leading code block
                                         .replace(/\s*```$/i, '')          // Remove trailing code block
-                                        .replace(/^#\s+.+$/m, '')         // Remove duplicate title
+                                        .replace(/^#\s+.+$/m, '')         // Remove duplicate top-level title
                                         .replace(/\[(\d+)\]/g, '[$1](citation:$1)')}
                                 </ReactMarkdown>
                             </div>

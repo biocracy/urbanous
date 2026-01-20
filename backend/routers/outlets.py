@@ -2208,6 +2208,7 @@ async def summarize_selected_articles(req: SummarizeRequest, current_user: User 
 class AnalyticsRequest(BaseModel):
     articles: List[dict]
     city: str = "Unknown City"
+    category: Optional[str] = "General"
 
 @router.post("/outlets/digest/analytics")
 async def generate_analytics(req: AnalyticsRequest, current_user: User = Depends(get_current_user)):
@@ -2219,7 +2220,8 @@ async def generate_analytics(req: AnalyticsRequest, current_user: User = Depends
         raise HTTPException(status_code=400, detail="Missing Gemini API Key. Please set it in Settings.")
         
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-2.0-flash-exp', generation_config={"response_mime_type": "application/json"})
+    # Use standard stable model
+    model = genai.GenerativeModel('gemini-1.5-flash', generation_config={"response_mime_type": "application/json"})
     
     # Remove Article Cap; Use MapReduce
     BATCH_SIZE = 50 
@@ -2239,7 +2241,7 @@ async def generate_analytics(req: AnalyticsRequest, current_user: User = Depends
             context += f"SOURCE_ID_{global_idx}: {src} - {txt}\n"
 
         prompt = f"""
-        Analyze these articles regarding '{req.city}'.
+        Analyze these articles regarding '{req.city}' and category '{req.category}'.
         
         DATA:
         {context}
