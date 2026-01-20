@@ -1,25 +1,17 @@
-[NewsGlobe] Render Cycle
+[UnifiedDigestViewer] Raw Digest Content: # Trump's Greenland Gambit Fuels Arctic Military Buildup, Sparks Global Outcry & EU Retaliation Threats
+
+Nuuk finds itself at the epicenter of escalating geopolitical tensions, driven primarily by for
+341783987e1f39f2.js:5 [NewsGlobe] Render Cycle
 39dcd085b42375e9.js:1 [UnifiedDigestViewer] formatDateRange Input: {createdDateStr: '2026-01-20T09:26:55.120294Z', timeframeStr: '1week'}
 39dcd085b42375e9.js:1 [UnifiedDigestViewer] formatDateRange Input: {createdDateStr: '2026-01-20T09:26:55.120294Z', timeframeStr: '1week'}
 39dcd085b42375e9.js:4 [UnifiedDigestViewer] Raw Digest Content: # Trump's Greenland Gambit Fuels Arctic Military Buildup, Sparks Global Outcry & EU Retaliation Threats
 
 Nuuk finds itself at the epicenter of escalating geopolitical tensions, driven primarily by for
-39dcd085b42375e9.js:1 [UnifiedDigestViewer] formatDateRange Input: {createdDateStr: '2026-01-20T09:26:55.120294Z', timeframeStr: '1week'}
-39dcd085b42375e9.js:1 [UnifiedDigestViewer] formatDateRange Input: {createdDateStr: '2026-01-20T09:26:55.120294Z', timeframeStr: '1week'}
-39dcd085b42375e9.js:4 [UnifiedDigestViewer] Raw Digest Content: # Trump's Greenland Gambit Fuels Arctic Military Buildup, Sparks Global Outcry & EU Retaliation Threats
-
-Nuuk finds itself at the epicenter of escalating geopolitical tensions, driven primarily by for
-079e863fdfdc1d85.js:5 [NewsGlobe] Render Cycle
-39dcd085b42375e9.js:1 [UnifiedDigestViewer] formatDateRange Input: {createdDateStr: '2026-01-20T09:26:55.120294Z', timeframeStr: '1week'}
-39dcd085b42375e9.js:1 [UnifiedDigestViewer] formatDateRange Input: {createdDateStr: '2026-01-20T09:26:55.120294Z', timeframeStr: '1week'}
-39dcd085b42375e9.js:4 [UnifiedDigestViewer] Raw Digest Content: # Trump's Greenland Gambit Fuels Arctic Military Buildup, Sparks Global Outcry & EU Retaliation Threats
-
-Nuuk finds itself at the epicenter of escalating geopolitical tensions, driven primarily by for
-079e863fdfdc1d85.js:5 ANALYTICS DEBUG: Response Data: {keywords: Array(0), debug_count: 0, debug_batches: 1, debug_message: 'Processed 44 articles.', debug_errors: Array(1)}
-079e863fdfdc1d85.js:5 ANALYTICS DEBUG: Setting 0 keywords.
-079e863fdfdc1d85.js:5 ANALYTICS DEBUG: Backend Info: Processed 44 articles. (Batches: 1)
-079e863fdfdc1d85.js:5 ANALYTICS DEBUG: Backend Errors: [{…}]0: {status: 'error', error: '404 models/gemini-1.5-flash-001 is not found for A… of available models and their supported methods.', raw: 'No text'}length: 1[[Prototype]]: Array(0)
-t2 @ 079e863fdfdc1d85.js:5
+341783987e1f39f2.js:5 ANALYTICS DEBUG: Response Data: {keywords: Array(0), debug_count: 0, debug_batches: 1, debug_message: 'Processed 44 articles.', debug_errors: Array(1)}
+341783987e1f39f2.js:5 ANALYTICS DEBUG: Setting 0 keywords.
+341783987e1f39f2.js:5 ANALYTICS DEBUG: Backend Info: Processed 44 articles. (Batches: 1)
+341783987e1f39f2.js:5 ANALYTICS DEBUG: Backend Errors: [{…}]0: {status: 'error', error: '404 models/gemini-pro is not found for API version… of available models and their supported methods.', raw: 'No text'}length: 1[[Prototype]]: Array(0)at: ƒ at()concat: ƒ concat()constructor: ƒ Array()copyWithin: ƒ copyWithin()entries: ƒ entries()every: ƒ every()fill: ƒ fill()filter: ƒ filter()find: ƒ find()findIndex: ƒ findIndex()findLast: ƒ findLast()findLastIndex: ƒ findLastIndex()flat: ƒ flat()flatMap: ƒ flatMap()forEach: ƒ forEach()includes: ƒ includes()indexOf: ƒ indexOf()join: ƒ join()keys: ƒ keys()lastIndexOf: ƒ lastIndexOf()length: 0map: ƒ map()pop: ƒ pop()push: ƒ push()reduce: ƒ reduce()reduceRight: ƒ reduceRight()reverse: ƒ reverse()shift: ƒ shift()slice: ƒ slice()some: ƒ some()sort: ƒ sort()splice: ƒ splice()toLocaleString: ƒ toLocaleString()toReversed: ƒ toReversed()toSorted: ƒ toSorted()toSpliced: ƒ toSpliced()toString: ƒ toString()unshift: ƒ unshift()values: ƒ values()with: ƒ with()Symbol(Symbol.iterator): ƒ values()Symbol(Symbol.unscopables): {at: true, copyWithin: true, entries: true, fill: true, find: true, …}[[Prototype]]: Object
+t2 @ 341783987e1f39f2.js:5
 await in t2
 sY @ 4c631c12e6a90c7e.js:1
 (anonymous) @ 4c631c12e6a90c7e.js:1
@@ -27,7 +19,7 @@ tD @ 4c631c12e6a90c7e.js:1
 s3 @ 4c631c12e6a90c7e.js:1
 fC @ 4c631c12e6a90c7e.js:1
 fP @ 4c631c12e6a90c7e.js:1Understand this error
-079e863fdfdc1d85.js:5 [NewsGlobe] Render Cycle
+341783987e1f39f2.js:5 [NewsGlobe] Render Cycle
 39dcd085b42375e9.js:1 [UnifiedDigestViewer] formatDateRange Input: {createdDateStr: '2026-01-20T09:26:55.120294Z', timeframeStr: '1week'}
 39dcd085b42375e9.js:1 [UnifiedDigestViewer] formatDateRange Input: {createdDateStr: '2026-01-20T09:26:55.120294Z', timeframeStr: '1week'}
 39dcd085b42375e9.js:4 [UnifiedDigestViewer] Raw Digest Content: # Trump's Greenland Gambit Fuels Arctic Military Buildup, Sparks Global Outcry & EU Retaliation Threats
