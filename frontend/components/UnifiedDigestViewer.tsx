@@ -450,8 +450,27 @@ export default function UnifiedDigestViewer({
                                                 // Custom Link Handling (Citations & External)
                                                 a: ({ href, children, ...props }) => {
                                                     if (href?.startsWith('citation:')) {
-                                                        const id = href.split(':')[1];
-                                                        return <sup className="text-blue-400 font-bold ml-0.5 cursor-pointer hover:underline">[{id}]</sup>;
+                                                        const id = parseInt(href.split(':')[1]);
+                                                        const articleHandler = (e: React.MouseEvent) => {
+                                                            e.preventDefault();
+                                                            e.stopPropagation();
+                                                            // Try to find the article
+                                                            if (digestData?.articles && digestData.articles[id - 1]) {
+                                                                const url = digestData.articles[id - 1].url;
+                                                                window.open(url, '_blank');
+                                                            } else {
+                                                                console.warn(`[UnifiedDigestViewer] Citation [${id}] not found in articles.`);
+                                                            }
+                                                        };
+                                                        return (
+                                                            <sup
+                                                                onClick={articleHandler}
+                                                                className="text-blue-400 font-bold ml-0.5 cursor-pointer hover:underline hover:text-blue-300"
+                                                                title="Open Source Article"
+                                                            >
+                                                                [{id}]
+                                                            </sup>
+                                                        );
                                                     }
                                                     const isExample = !href?.startsWith('http');
                                                     if (isExample) return <span className="text-blue-300">{children}</span>;
@@ -488,9 +507,16 @@ export default function UnifiedDigestViewer({
                                             {(digestData?.digest || digestData?.summary_markdown || "")
                                                 .replace(/```(?:html|markdown)?\s*([\s\S]*?)\s*```/yi, '$1') // Greedy strip of outer code blocks
                                                 .replace(/^#\s+.+$/m, '')  // Remove duplicate top-level title
-                                                .replace(/\[(\d+)\]/g, '[$1](citation:$1)')
+                                                .replace(/\[([\d,\s]+)\]/g, (match, group) => {
+                                                    // Handle multiple citations like [1, 5, 28] by splitting and reformatting
+                                                    return group.split(',')
+                                                        .map((n: string) => {
+                                                            const num = n.trim();
+                                                            return `[${num}](citation:${num})`;
+                                                        })
+                                                        .join(''); // Join without spaces because the sup tags will handle spacing or look better compact
+                                                })
                                                 // Strip 4+ spaces indentation (which triggers code blocks) but preserve structure
-                                                .replace(/^[ \t]{4,}/gm, '')
                                                 .replace(/^[ \t]{4,}/gm, '')
                                                 .trim()}
                                         </ReactMarkdown>
