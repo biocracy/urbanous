@@ -2602,16 +2602,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
         <div className={`relative w-full h-full bg-slate-950 transition-cursor ${(isAtTop && !isMetaPressed) ? 'cursor-move' : 'cursor-default'} ${isMobile ? 'touch-pan-y' : ''}`}>
             {/* Visual Controls Toggle & Overlay */}
             <div className="absolute bottom-4 left-4 z-20 flex flex-col items-start gap-2">
-                {/* Mobile Interaction Toggle */}
-                {isMobile && (
-                    <button
-                        onClick={() => setIsMobileInteract(!isMobileInteract)}
-                        className={`p-2 rounded-lg border text-white transition-colors shadow-lg backdrop-blur ${isMobileInteract ? 'bg-blue-600 border-blue-500' : 'bg-slate-900/80 border-slate-700 hover:bg-slate-800'}`}
-                        title={isMobileInteract ? "Lock Globe (Enable Scroll)" : "Interact with Globe"}
-                    >
-                        {isMobileInteract ? <Check size={20} /> : <MapIcon size={20} />}
-                    </button>
-                )}
+
 
                 {!showControls && (
                     <button
