@@ -1,38 +1,106 @@
-00:04:20.489 Running build in Washington, D.C., USA (East) – iad1
-00:04:20.489 Build machine configuration: 2 cores, 8 GB
-00:04:20.620 Cloning github.com/biocracy/urbanous (Branch: main, Commit: 16416c8)
-00:04:21.676 Cloning completed: 1.056s
-00:04:22.594 Restored build cache from previous deployment (7nLVdKFJBvKktQZTKyrcsTR4k1cn)
-00:04:22.887 Running "vercel build"
-00:04:23.813 Vercel CLI 50.4.8
-00:04:24.080 Installing dependencies...
-00:04:25.622 
-00:04:25.624 up to date in 1s
-00:04:25.624 
-00:04:25.624 339 packages are looking for funding
-00:04:25.624   run `npm fund` for details
-00:04:25.650 Detected Next.js version: 16.1.1
-00:04:25.656 Running "npm run build"
-00:04:25.756 
-00:04:25.757 > frontend@0.1.1 build
-00:04:25.757 > next build
-00:04:25.757 
-00:04:26.733 ▲ Next.js 16.1.1 (Turbopack)
-00:04:26.734 
-00:04:26.772   Creating an optimized production build ...
-00:04:40.210 ✓ Compiled successfully in 12.9s
-00:04:40.212   Running TypeScript ...
-00:04:47.160 Failed to compile.
-00:04:47.160 
-00:04:47.160 ./components/NewsGlobe.tsx:2604:27
-00:04:47.160 Type error: Cannot find name 'isMobileInteract'.
-00:04:47.160 
-00:04:47.160 [0m [90m 2602 |[39m         [33m<[39m[33mdiv[39m className[33m=[39m{[32m`relative w-full h-full bg-slate-950 transition-cursor ${(isAtTop && !isMetaPressed) ? 'cursor-move' : 'cursor-default'} ${isMobile ? 'touch-pan-y' : ''}`[39m}[33m>[39m
-00:04:47.161  [90m 2603 |[39m             {[90m/* Mobile Interaction Fix: Overlay to allow scrolling over the canvas */[39m}
-00:04:47.161 [31m[1m>[22m[39m[90m 2604 |[39m             {isMobile [33m&&[39m [33m![39misMobileInteract [33m&&[39m (
-00:04:47.161  [90m      |[39m                           [31m[1m^[22m[39m
-00:04:47.161  [90m 2605 |[39m                 [33m<[39m[33mdiv[39m
-00:04:47.161  [90m 2606 |[39m                     className[33m=[39m[32m"absolute inset-0 z-10 touch-pan-y"[39m
-00:04:47.161  [90m 2607 |[39m                     style[33m=[39m{{ background[33m:[39m [32m'transparent'[39m }}[0m
-00:04:47.201 Next.js build worker exited with code: 1 and signal: null
-00:04:47.254 Error: Command "npm run build" exited with 1
+00:27:03.936 Running build in Washington, D.C., USA (East) – iad1
+00:27:03.936 Build machine configuration: 2 cores, 8 GB
+00:27:04.088 Cloning github.com/biocracy/urbanous (Branch: main, Commit: a2b2690)
+00:27:05.043 Cloning completed: 955.000ms
+00:27:05.964 Restored build cache from previous deployment (4bgeYw8qkXjjTxoQGGCAGXRybtEK)
+00:27:06.283 Running "vercel build"
+00:27:07.414 Vercel CLI 50.4.8
+00:27:07.724 Installing dependencies...
+00:27:09.290 
+00:27:09.291 up to date in 1s
+00:27:09.291 
+00:27:09.292 339 packages are looking for funding
+00:27:09.292   run `npm fund` for details
+00:27:09.317 Detected Next.js version: 16.1.1
+00:27:09.322 Running "npm run build"
+00:27:09.419 
+00:27:09.420 > frontend@0.1.1 build
+00:27:09.420 > next build
+00:27:09.420 
+00:27:11.256 ▲ Next.js 16.1.1 (Turbopack)
+00:27:11.257 
+00:27:11.342   Creating an optimized production build ...
+00:27:25.369 
+00:27:25.370 > Build error occurred
+00:27:25.373 Error: Turbopack build failed with 4 errors:
+00:27:25.373 ./frontend/components/NewsGlobe.tsx:97:12
+00:27:25.374 Ecmascript file had an error
+00:27:25.374 [0m [90m  95 |[39m     [36mconst[39m [debugGesture[33m,[39m setDebugGesture] [33m=[39m useState[33m<[39m[33mstring[39m[33m>[39m([32m""[39m)[33m;[39m [90m// Debugging content[39m
+00:27:25.374  [90m  96 |[39m     [36mconst[39m [isMobile[33m,[39m setIsMobile] [33m=[39m useState([36mfalse[39m)[33m;[39m
+00:27:25.374 [31m[1m>[22m[39m[90m  97 |[39m     [36mconst[39m [debugGesture[33m,[39m setDebugGesture] [33m=[39m useState[33m<[39m[33mstring[39m[33m>[39m([32m""[39m)[33m;[39m [90m// Debugging content[39m
+00:27:25.375  [90m     |[39m            [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+00:27:25.375  [90m  98 |[39m
+00:27:25.375  [90m  99 |[39m     [90m// Touch Tracking Refs for Manual Scroll[39m
+00:27:25.375  [90m 100 |[39m     [36mconst[39m lastTouchY [33m=[39m useRef[33m<[39m[33mnumber[39m [33m|[39m [36mnull[39m[33m>[39m([36mnull[39m)[33m;[39m[0m
+00:27:25.375 
+00:27:25.376 the name `debugGesture` is defined multiple times
+00:27:25.376 
+00:27:25.376 Import trace:
+00:27:25.376   Client Component Browser:
+00:27:25.376     ./frontend/components/NewsGlobe.tsx [Client Component Browser]
+00:27:25.376     ./frontend/app/page.tsx [Client Component Browser]
+00:27:25.377     ./frontend/app/page.tsx [Server Component]
+00:27:25.377 
+00:27:25.377 
+00:27:25.377 ./frontend/components/NewsGlobe.tsx:96:12
+00:27:25.377 Ecmascript file had an error
+00:27:25.378 [0m [90m 94 |[39m     [36mconst[39m [isMobile[33m,[39m setIsMobile] [33m=[39m useState([36mfalse[39m)[33m;[39m
+00:27:25.378  [90m 95 |[39m     [36mconst[39m [debugGesture[33m,[39m setDebugGesture] [33m=[39m useState[33m<[39m[33mstring[39m[33m>[39m([32m""[39m)[33m;[39m [90m// Debugging content[39m
+00:27:25.378 [31m[1m>[22m[39m[90m 96 |[39m     [36mconst[39m [isMobile[33m,[39m setIsMobile] [33m=[39m useState([36mfalse[39m)[33m;[39m
+00:27:25.378  [90m    |[39m            [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+00:27:25.379  [90m 97 |[39m     [36mconst[39m [debugGesture[33m,[39m setDebugGesture] [33m=[39m useState[33m<[39m[33mstring[39m[33m>[39m([32m""[39m)[33m;[39m [90m// Debugging content[39m
+00:27:25.379  [90m 98 |[39m
+00:27:25.379  [90m 99 |[39m     [90m// Touch Tracking Refs for Manual Scroll[39m[0m
+00:27:25.379 
+00:27:25.379 the name `isMobile` is defined multiple times
+00:27:25.380 
+00:27:25.380 Import trace:
+00:27:25.380   Client Component Browser:
+00:27:25.380     ./frontend/components/NewsGlobe.tsx [Client Component Browser]
+00:27:25.380     ./frontend/app/page.tsx [Client Component Browser]
+00:27:25.380     ./frontend/app/page.tsx [Server Component]
+00:27:25.380 
+00:27:25.380 
+00:27:25.381 ./frontend/components/NewsGlobe.tsx:97:26
+00:27:25.381 Ecmascript file had an error
+00:27:25.381 [0m [90m  95 |[39m     [36mconst[39m [debugGesture[33m,[39m setDebugGesture] [33m=[39m useState[33m<[39m[33mstring[39m[33m>[39m([32m""[39m)[33m;[39m [90m// Debugging content[39m
+00:27:25.381  [90m  96 |[39m     [36mconst[39m [isMobile[33m,[39m setIsMobile] [33m=[39m useState([36mfalse[39m)[33m;[39m
+00:27:25.381 [31m[1m>[22m[39m[90m  97 |[39m     [36mconst[39m [debugGesture[33m,[39m setDebugGesture] [33m=[39m useState[33m<[39m[33mstring[39m[33m>[39m([32m""[39m)[33m;[39m [90m// Debugging content[39m
+00:27:25.382  [90m     |[39m                          [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+00:27:25.382  [90m  98 |[39m
+00:27:25.382  [90m  99 |[39m     [90m// Touch Tracking Refs for Manual Scroll[39m
+00:27:25.383  [90m 100 |[39m     [36mconst[39m lastTouchY [33m=[39m useRef[33m<[39m[33mnumber[39m [33m|[39m [36mnull[39m[33m>[39m([36mnull[39m)[33m;[39m[0m
+00:27:25.383 
+00:27:25.383 the name `setDebugGesture` is defined multiple times
+00:27:25.383 
+00:27:25.384 Import trace:
+00:27:25.384   Client Component Browser:
+00:27:25.384     ./frontend/components/NewsGlobe.tsx [Client Component Browser]
+00:27:25.384     ./frontend/app/page.tsx [Client Component Browser]
+00:27:25.384     ./frontend/app/page.tsx [Server Component]
+00:27:25.384 
+00:27:25.385 
+00:27:25.391 ./frontend/components/NewsGlobe.tsx:96:22
+00:27:25.392 Ecmascript file had an error
+00:27:25.392 [0m [90m 94 |[39m     [36mconst[39m [isMobile[33m,[39m setIsMobile] [33m=[39m useState([36mfalse[39m)[33m;[39m
+00:27:25.392  [90m 95 |[39m     [36mconst[39m [debugGesture[33m,[39m setDebugGesture] [33m=[39m useState[33m<[39m[33mstring[39m[33m>[39m([32m""[39m)[33m;[39m [90m// Debugging content[39m
+00:27:25.392 [31m[1m>[22m[39m[90m 96 |[39m     [36mconst[39m [isMobile[33m,[39m setIsMobile] [33m=[39m useState([36mfalse[39m)[33m;[39m
+00:27:25.392  [90m    |[39m                      [31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m[31m[1m^[22m[39m
+00:27:25.392  [90m 97 |[39m     [36mconst[39m [debugGesture[33m,[39m setDebugGesture] [33m=[39m useState[33m<[39m[33mstring[39m[33m>[39m([32m""[39m)[33m;[39m [90m// Debugging content[39m
+00:27:25.392  [90m 98 |[39m
+00:27:25.393  [90m 99 |[39m     [90m// Touch Tracking Refs for Manual Scroll[39m[0m
+00:27:25.393 
+00:27:25.393 the name `setIsMobile` is defined multiple times
+00:27:25.393 
+00:27:25.393 Import trace:
+00:27:25.393   Client Component Browser:
+00:27:25.393     ./frontend/components/NewsGlobe.tsx [Client Component Browser]
+00:27:25.394     ./frontend/app/page.tsx [Client Component Browser]
+00:27:25.394     ./frontend/app/page.tsx [Server Component]
+00:27:25.394 
+00:27:25.394 
+00:27:25.394     at <unknown> (./frontend/components/NewsGlobe.tsx:97:12)
+00:27:25.394     at <unknown> (./frontend/components/NewsGlobe.tsx:96:12)
+00:27:25.395     at <unknown> (./frontend/components/NewsGlobe.tsx:97:26)
+00:27:25.395     at <unknown> (./frontend/components/NewsGlobe.tsx:96:22)
+00:27:25.445 Error: Command "npm run build" exited with 1
