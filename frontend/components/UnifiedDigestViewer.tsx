@@ -106,6 +106,7 @@ interface UnifiedDigestViewerProps {
 
     // Navigation
     onClose?: () => void;
+    initialTab?: 'articles' | 'digest' | 'analytics'; // New Prop
 }
 
 export default function UnifiedDigestViewer({
@@ -132,10 +133,11 @@ export default function UnifiedDigestViewer({
     onReportSpam,
     onAssessArticle,
     onDebugArticle,
-    onClose
+    onClose,
+    initialTab = 'articles'
 }: UnifiedDigestViewerProps) {
 
-    const [activeTab, setActiveTab] = useState<'articles' | 'digest' | 'analytics'>('articles');
+    const [activeTab, setActiveTab] = useState<'articles' | 'digest' | 'analytics'>(initialTab || 'articles');
     const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
     const [isAnalyticsTranslated, setIsAnalyticsTranslated] = useState(false);
     const [isHeadlineTranslated, setIsHeadlineTranslated] = useState(false); // New State

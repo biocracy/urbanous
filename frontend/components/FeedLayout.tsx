@@ -118,6 +118,7 @@ export default function FeedLayout({ activeDigest, onCloseDigest }: FeedLayoutPr
                     <UnifiedDigestViewer
                         digestData={activeDigest}
                         isReadOnly={true}
+                        initialTab="digest" // Default to Report for Shared Links
                         onShare={() => {
                             if (activeDigest.public_slug) {
                                 const link = `${window.location.origin}/s/${activeDigest.public_slug}`;
