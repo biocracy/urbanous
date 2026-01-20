@@ -921,6 +921,7 @@ class DigestDetail(BaseModel):
     category: str
     timeframe: Optional[str] = "24h" # Added to support date calculation in frontend
     city: Optional[str] = None
+    country: Optional[str] = None # Added for Metadata
     summary_markdown: str
     articles: List[Dict[str, Any]]
     analysis_source: Optional[List[Dict[str, Any]]] = []
@@ -1805,13 +1806,24 @@ async def share_digest(digest_id: int, db: Session = Depends(get_db), current_us
 async def get_public_digest(slug: str, db: Session = Depends(get_db)):
     """Get a public digest by slug (No Auth required)."""
     print(f"DEBUG: Fetching public digest slug='{slug}'")
-    stmt = select(NewsDigest).where(NewsDigest.public_slug == slug) # Query by slug FIRST to see if it exists
-    result = await db.execute(stmt)
-    digest = result.scalars().first()
     
-    if not digest:
+    # Join Digest -> CityMetadata -> Country to get Country Name
+    stmt = (
+        select(NewsDigest, Country.name)
+        .outerjoin(CityMetadata, NewsDigest.city == CityMetadata.name)
+        .outerjoin(Country, CityMetadata.country_id == Country.id)
+        .where(NewsDigest.public_slug == slug)
+    )
+    
+    result = await db.execute(stmt)
+    row = result.first()
+    
+    if not row:
         print(f"DEBUG: Slug '{slug}' NOT FOUND in DB.")
         raise HTTPException(status_code=404, detail="Digest not found or private")
+
+    digest = row[0]
+    country_name = row[1]
 
     print(f"DEBUG: Found digest {digest.id}. is_public={digest.is_public}")
     if not digest.is_public:
@@ -1830,6 +1842,7 @@ async def get_public_digest(slug: str, db: Session = Depends(get_db)):
         category=digest.category,
         timeframe=digest.timeframe or "24h", # Pass to frontend
         city=digest.city,
+        country=country_name, # Return Country Name
         summary_markdown=digest.summary_markdown,
         articles=safe_json(digest.articles_json),
         analysis_source=safe_json(digest.analysis_source),
