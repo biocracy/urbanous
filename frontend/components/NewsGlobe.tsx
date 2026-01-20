@@ -92,6 +92,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
     const [isReportSaved, setIsReportSaved] = useState(false); // Track unsaved changes
     const [isMetaPressed, setIsMetaPressed] = useState(false); // Track Cmd/Ctrl key
     const [isMobile, setIsMobile] = useState(false);
+    const [isMobileInteract, setIsMobileInteract] = useState(false);
 
     // Detect Mobile
     useEffect(() => {
@@ -2577,7 +2578,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
             // CONTROLS: Enable Zoom only when Meta/Ctrl is pressed (if disableScrollZoom is true)
             // If disableScrollZoom is false (default), zoom is always enabled
             // CONTROLS: Default = Zoom Enabled (Scroll Trap) ONLY if At Top.
-            enableZoom={!isMobile && isAtTop && !isMetaPressed}
+            enableZoom={!isMobile ? (isAtTop && !isMetaPressed) : isMobileInteract}
         />
 
     );
@@ -2587,8 +2588,9 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
         if (globeEl.current) {
             const controls = globeEl.current.controls();
             if (controls) {
-                // Logic: Zoom enabled ONLY if At Top AND Meta not pressed AND not mobile
-                const shouldEnableZoom = !isMobile && isAtTop && !isMetaPressed;
+                // Logic: Zoom enabled ONLY if At Top AND Meta not pressed.
+                // Mobile: Only enable if interaction mode is active.
+                const shouldEnableZoom = !isMobile ? (isAtTop && !isMetaPressed) : isMobileInteract;
                 controls.enableZoom = shouldEnableZoom;
                 controls.update?.();
             }
@@ -2599,15 +2601,28 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
 
         <div className={`relative w-full h-full bg-slate-950 transition-cursor ${(isAtTop && !isMetaPressed) ? 'cursor-move' : 'cursor-default'} ${isMobile ? 'touch-pan-y' : ''}`}>
             {/* Mobile Interaction Fix: Overlay to allow scrolling over the canvas */}
-            {isMobile && (
+            {isMobile && !isMobileInteract && (
                 <div
                     className="absolute inset-0 z-10 touch-pan-y"
                     style={{ background: 'transparent' }}
-                // Allow clicks to pass through if needed, but capture scrolls
+                    onClick={() => {
+                        // Optional: Show hint "Tap button to interact"
+                    }}
                 />
             )}
             {/* Visual Controls Toggle & Overlay */}
             <div className="absolute bottom-4 left-4 z-20 flex flex-col items-start gap-2">
+                {/* Mobile Interaction Toggle */}
+                {isMobile && (
+                    <button
+                        onClick={() => setIsMobileInteract(!isMobileInteract)}
+                        className={`p-2 rounded-lg border text-white transition-colors shadow-lg backdrop-blur ${isMobileInteract ? 'bg-blue-600 border-blue-500' : 'bg-slate-900/80 border-slate-700 hover:bg-slate-800'}`}
+                        title={isMobileInteract ? "Lock Globe (Enable Scroll)" : "Interact with Globe"}
+                    >
+                        {isMobileInteract ? <Check size={20} /> : <MapIcon size={20} />}
+                    </button>
+                )}
+
                 {!showControls && (
                     <button
                         onClick={() => setShowControls(true)}
