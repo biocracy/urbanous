@@ -541,7 +541,10 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
             const slug = res.data.slug;
 
             setDigestData((prev: any) => ({ ...prev, is_public: true, public_slug: slug }));
-            setSavedDigests(prev => prev.map(d => d.id === digestData.id ? { ...d, is_public: true, public_slug: slug } : d));
+            setSavedDigests(prev => {
+                if (!prev) return [];
+                return prev.map(d => d.id === digestData.id ? { ...d, is_public: true, public_slug: slug } : d);
+            });
         } catch (err: any) {
             alert(`Sharing failed: ${err.message}`);
         } finally {
@@ -553,7 +556,10 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
         if (!confirm("Are you sure you want to delete this digest?")) return;
         try {
             await api.delete(`/digests/${id}`);
-            setSavedDigests(prev => prev.filter(d => d.id !== id));
+            setSavedDigests(prev => {
+                if (!prev) return [];
+                return prev.filter(d => d.id !== id);
+            });
             if (digestData?.id === id) {
                 setDigestData(null); // Close if currently viewing
                 setActiveModalTab('articles');
