@@ -1056,7 +1056,16 @@ async def get_city_info(city: str, country: str, current_user: Optional[User] = 
     """
     
     try:
-        api_key = current_user.gemini_api_key if current_user else None
+        # Resolve API Key (User > System)
+        api_key = None
+        if current_user and current_user.gemini_api_key:
+             api_key = current_user.gemini_api_key
+        else:
+             import os
+             from dotenv import load_dotenv
+             load_dotenv(override=True)
+             api_key = os.getenv("GEMINI_API_KEY")
+
         if not api_key: 
             return CityInfoResponse(population="Unknown", description="API Key needed.", ruling_party="Unknown")
         

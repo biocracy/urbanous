@@ -41,7 +41,8 @@ async def ensure_local_flag(remote_url: str, country_name: str = None) -> str:
     # Download
     print(f"DEBUG: Localizing flag for {country_name} from {remote_url}")
     try:
-        async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
+        headers = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"}
+        async with httpx.AsyncClient(timeout=10, follow_redirects=True, headers=headers) as client:
             resp = await client.get(remote_url)
             if resp.status_code == 200:
                 with open(local_path, "wb") as f:

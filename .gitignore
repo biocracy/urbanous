@@ -70,3 +70,9 @@ debug_*.txt
 master_timeline.html
 *.heapsnapshot
 *.heaptimeline
+
+# Data Exceptions
+!backend/data/cities500.json
+
+# Generated Flags
+backend/static/flags/
