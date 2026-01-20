@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
-    LayoutGrid, FileText, Sparkles, Check, Share2, Download, Copy,
-    RotateCcw, Trash2, Languages, Cloud, Columns, X
+    LayoutGrid, FileText, Sparkles, Check, Download, Copy,
+    RotateCcw, Trash2, Languages, Cloud, Columns, X, Save
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
@@ -243,40 +243,18 @@ export default function UnifiedDigestViewer({
                         </div>
                     )}
 
-                    {!isReadOnly && onSave && (
-                        <button
-                            onClick={onSave}
-                            disabled={isSaving}
-                            className="p-2 hover:bg-neutral-800 rounded-full text-neutral-400 hover:text-green-400 transition-colors"
-                            title="Save to Library"
-                        >
-                            <Check className={`w-5 h-5 ${isSaving ? 'animate-pulse' : ''}`} />
-                        </button>
-                    )}
-
-                    {onShare && (
-                        <button
-                            onClick={onShare}
-                            disabled={isSharing}
-                            className={`p-2 hover:bg-neutral-800 rounded-full transition-colors ${digestData?.is_public ? 'text-blue-400' : 'text-neutral-400 hover:text-blue-400'}`}
-                            title="Share Public Link"
-                        >
-                            <Share2 className="w-5 h-5" />
-                        </button>
-                    )}
-
+                    {/* Copy Link */}
                     {digestData?.is_public && (
-                        <div className="flex items-center">
-                            <button
-                                onClick={handleCopyLink}
-                                className="p-2 hover:bg-neutral-800 rounded-full text-neutral-400 hover:text-white transition-colors"
-                                title="Copy Public Link"
-                            >
-                                {copiedSlug === digestData.public_slug ? <Check className="w-5 h-5 text-green-500" /> : <Copy className="w-5 h-5" />}
-                            </button>
-                        </div>
+                        <button
+                            onClick={handleCopyLink}
+                            className="p-2 hover:bg-neutral-800 rounded-full text-neutral-400 hover:text-white transition-colors"
+                            title="Copy Public Link"
+                        >
+                            {copiedSlug === digestData.public_slug ? <Check className="w-5 h-5 text-green-500" /> : <Copy className="w-5 h-5" />}
+                        </button>
                     )}
 
+                    {/* Download */}
                     {onDownload && (
                         <button
                             onClick={onDownload}
@@ -287,8 +265,36 @@ export default function UnifiedDigestViewer({
                         </button>
                     )}
 
+                    {/* Divider */}
+                    <div className="w-px h-6 bg-neutral-800 mx-2"></div>
+
+                    {/* Save */}
+                    {!isReadOnly && onSave && (
+                        <button
+                            onClick={onSave}
+                            disabled={isSaving}
+                            className="p-2 hover:bg-neutral-800 rounded-full text-neutral-400 hover:text-green-400 transition-colors"
+                            title="Save to Library"
+                        >
+                            <Save className={`w-5 h-5 ${isSaving ? 'animate-pulse' : ''}`} />
+                        </button>
+                    )}
+
+                    {/* Delete */}
+                    {!isReadOnly && onDelete && (
+                        <button
+                            onClick={onDelete}
+                            className="p-2 hover:bg-red-900/20 rounded-full text-neutral-400 hover:text-red-400 transition-colors"
+                            title="Delete Digest"
+                        >
+                            <Trash2 className="w-5 h-5" />
+                        </button>
+                    )}
+
+                    {/* Closers */}
                     {onClose && (
-                        <div className="pl-4 ml-2 border-l border-neutral-800">
+                        <>
+                            <div className="w-px h-6 bg-neutral-800 mx-2"></div>
                             <button
                                 onClick={(e) => {
                                     e.stopPropagation();
@@ -298,7 +304,7 @@ export default function UnifiedDigestViewer({
                             >
                                 <X className="w-6 h-6" />
                             </button>
-                        </div>
+                        </>
                     )}
 
                     {!isReadOnly && onDelete && digestData?.id && (
