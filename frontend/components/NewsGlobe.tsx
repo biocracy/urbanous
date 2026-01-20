@@ -90,9 +90,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
     const [hoverPoint, setHoverPoint] = useState<any | null>(null);
     const [digestData, setDigestData] = useState<any>(null);
     const [isReportSaved, setIsReportSaved] = useState(false); // Track unsaved changes
-    const [isMetaPressed, setIsMetaPressed] = useState(false); // Track Cmd/Ctrl key
     const [isMobile, setIsMobile] = useState(false);
-    const [isMobileInteract, setIsMobileInteract] = useState(false);
 
     // Detect Mobile
     useEffect(() => {
@@ -2578,7 +2576,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
             // CONTROLS: Enable Zoom only when Meta/Ctrl is pressed (if disableScrollZoom is true)
             // If disableScrollZoom is false (default), zoom is always enabled
             // CONTROLS: Default = Zoom Enabled (Scroll Trap) ONLY if At Top.
-            enableZoom={!isMobile ? (isAtTop && !isMetaPressed) : isMobileInteract}
+            enableZoom={!isMobile && isAtTop && !isMetaPressed}
         />
 
     );
@@ -2589,9 +2587,10 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
             const controls = globeEl.current.controls();
             if (controls) {
                 // Logic: Zoom enabled ONLY if At Top AND Meta not pressed.
-                // Mobile: Only enable if interaction mode is active.
-                const shouldEnableZoom = !isMobile ? (isAtTop && !isMetaPressed) : isMobileInteract;
+                // Mobile: Disable Zoom and Pan to allow 2-finger page scroll.
+                const shouldEnableZoom = !isMobile && isAtTop && !isMetaPressed;
                 controls.enableZoom = shouldEnableZoom;
+                controls.enablePan = !isMobile; // Disable Pan on mobile to prevent 2-finger capture
                 controls.update?.();
             }
         }
