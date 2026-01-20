@@ -462,14 +462,15 @@ export default function UnifiedDigestViewer({
                                                                 console.warn(`[UnifiedDigestViewer] Citation [${id}] not found in articles.`);
                                                             }
                                                         };
+                                                        // Just return the inner clickable number. The outer brackets/sup are handled by the replacement regex/HTML.
                                                         return (
-                                                            <sup
+                                                            <span
                                                                 onClick={articleHandler}
-                                                                className="text-blue-400 font-bold ml-0.5 cursor-pointer hover:underline hover:text-blue-300"
-                                                                title="Open Source Article"
+                                                                className="cursor-pointer hover:underline hover:text-blue-300 transition-colors"
+                                                                title={`Open Source Article ${id}`}
                                                             >
-                                                                [{id}]
-                                                            </sup>
+                                                                {children}
+                                                            </span>
                                                         );
                                                     }
                                                     const isExample = !href?.startsWith('http');
@@ -502,19 +503,22 @@ export default function UnifiedDigestViewer({
                                                 td: ({ children, ...props }) => <td className="p-4 text-neutral-300 align-top" {...props}>{children}</td>,
                                                 details: ({ children, ...props }) => <details className="mb-4 group bg-neutral-900/30 rounded-lg border border-neutral-800 overflow-hidden" {...props}>{children}</details>,
                                                 summary: ({ children, ...props }) => <summary className="cursor-pointer p-3 font-bold text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors select-none" {...props}>{children}</summary>,
+                                                sup: ({ className, children, ...props }) => <sup className={className || "text-blue-400 font-bold ml-0.5 select-none"} {...props}>{children}</sup>,
                                             }}
                                         >
                                             {(digestData?.digest || digestData?.summary_markdown || "")
                                                 .replace(/```(?:html|markdown)?\s*([\s\S]*?)\s*```/yi, '$1') // Greedy strip of outer code blocks
                                                 .replace(/^#\s+.+$/m, '')  // Remove duplicate top-level title
                                                 .replace(/\[([\d,\s]+)\]/g, (match: string, group: string) => {
-                                                    // Handle multiple citations like [1, 5, 28] by splitting and reformatting
-                                                    return group.split(',')
+                                                    // Handle multiple citations like [1, 5, 28] by formatting as one block: [1, 5, 28]
+                                                    // We use raw HTML <sup> wrapper because markdown doesn't support nested styles well inside [] syntax if we want commas plain.
+                                                    const links = group.split(',')
                                                         .map((n: string) => {
                                                             const num = n.trim();
-                                                            return `[${num}](citation:${num})`;
+                                                            return `<a href="citation:${num}">${num}</a>`;
                                                         })
-                                                        .join(''); // Join without spaces because the sup tags will handle spacing or look better compact
+                                                        .join(', ');
+                                                    return `<sup class="text-blue-400 font-bold ml-0.5">[${links}]</sup>`;
                                                 })
                                                 // Strip 4+ spaces indentation (which triggers code blocks) but preserve structure
                                                 .replace(/^[ \t]{4,}/gm, '')
