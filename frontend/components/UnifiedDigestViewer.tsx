@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     LayoutGrid, FileText, Sparkles, Check, Download, Copy,
     RotateCcw, Trash2, Languages, Cloud, Columns, X, Save, Image
