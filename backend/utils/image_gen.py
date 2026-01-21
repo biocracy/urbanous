@@ -1,50 +1,29 @@
 import os
-import requests
+import httpx
 import uuid
 import base64
 
-# Configure Gemini
-# Assuming GEMINI_API_KEY is already loaded in environment
-# genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-
-# Use the specific model capable of image generation
-# 'gemini-1.5-flash' is often text-only or multimodal input. 
-# For image *generation*, we usually need a specific endpoint or model (e.g. Imagen or Gemini Pro Vision if supported).
-# However, effectively we use the 'generate_image' tool in this agent context.
-# BUT, for the actual Python backend to do it, it needs to call the API.
-# Currently, Gemini API for Image Generation (Imagen 3) is available via Vertex AI or specific endpoints.
-# For simplicity in this demo, since we might not have Vertex credentials set up, 
-# we will mock the generation IF we can't hit the real API or use a standard placeholder logic if key fails.
-# OR, better: We assume the user has access to a model like "gemini-1.5-pro-latest" or "imagen-3.0-generate-001".
+# ... (omitted comments)
 
 async def generate_digest_image(title: str, city: str, output_dir: str = None, api_key: str = None) -> tuple[str, str]:
     """
     Generates an image for a digest and returns the relative path.
-    Uses Imagen 4.0 Fast via REST API.
+    Uses Imagen 4.0 Fast via REST API (Async).
     """
     # Determine output directory (Persistent or Local)
     data_dir = os.getenv("DATA_DIR")
     if not data_dir:
-        # Auto-detect Railway Volume
         if os.path.exists("/app/data"):
             data_dir = "/app/data"
         else:
             data_dir = "."
-    # Ideally images go to DATA_DIR/static/digest_images or similar.
-    # But to keep URLs consistent (/static/...) we need to map it carefully.
-    
-    # If DATA_DIR is set (e.g. /app/data), we save to /app/data/static/digest_images
-    # Then main.py must mount /app/data/static as /static
-    
+            
     relative_path = "static/digest_images"
     if output_dir is None:
         output_dir = os.path.join(data_dir, relative_path)
     
     # Configure API Key per request
     final_key = api_key or os.getenv("GEMINI_API_KEY")
-    
-    if not final_key:
-         print("WARNING: No Gemini API Key provided for Image Gen. Falling back to placeholder.")
     
     prompt = (
         f"An illustration capturing '{title}'. "
@@ -55,27 +34,24 @@ async def generate_digest_image(title: str, city: str, output_dir: str = None, a
 
     try:
         if not final_key:
+             # Just raise to trigger fallback
              raise Exception("Missing API Key")
 
         # REST API for Imagen 4.0
-        # By pass deprecated/broken SDK
-        # Using Ultra as requested for "Pro" quality
         model = "imagen-4.0-ultra-generate-001"
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:predict?key={final_key}"
         
         payload = {
-            "instances": [
-                {"prompt": prompt}
-            ],
-            "parameters": {
-                "sampleCount": 1,
-                "aspectRatio": "16:9"
-            }
+            "instances": [{"prompt": prompt}],
+            "parameters": {"sampleCount": 1, "aspectRatio": "16:9"}
         }
         
         print(f"Generating image with {model}...")
-        resp = requests.post(url, json=payload, timeout=30)
         
+        # Async HTTP Request
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(url, json=payload)
+            
         if resp.status_code != 200:
             raise Exception(f"API Error {resp.status_code}: {resp.text}")
             
@@ -87,7 +63,6 @@ async def generate_digest_image(title: str, city: str, output_dir: str = None, a
         image_data = base64.b64decode(b64_data)
         
         # Ensure directory
-        # Fix: If output_dir is absolute (e.g. /app/data/...), do not join with cwd.
         if os.path.isabs(output_dir):
             full_dir = output_dir
         else:
@@ -113,12 +88,10 @@ async def generate_digest_image(title: str, city: str, output_dir: str = None, a
             from PIL import Image, ImageDraw
             import random
             
-            # Create a cool abstract gradient or dark background
             width, height = 1024, 576
             img = Image.new('RGB', (width, height), color=(20, 20, 30))
             draw = ImageDraw.Draw(img)
             
-            # Draw some random architectural lines
             for _ in range(10):
                 x1 = random.randint(0, width)
                 y1 = random.randint(0, height)
@@ -126,8 +99,7 @@ async def generate_digest_image(title: str, city: str, output_dir: str = None, a
                 y2 = random.randint(y1, height)
                 draw.line([(x1, y1), (x2, y2)], fill=(50, 50, 80), width=2)
                 
-            # Ensure directory
-            # Fix for fallback as well
+            # Ensure directory (Fallback)
             if os.path.isabs(output_dir):
                 full_dir = output_dir
             else:
@@ -141,9 +113,8 @@ async def generate_digest_image(title: str, city: str, output_dir: str = None, a
             img.save(filepath)
             
             print(f"Generated fallback image: {filename}")
-            # Use same return format as main function
             return f"/{relative_path}/{filename}", "Fallback Placeholder (API Error)"
             
         except Exception as fallback_error:
             print(f"FALLBACK GEN ERROR: {fallback_error}")
-            return "/static/placeholder_digest.png", "Error Placeholder" # valid static file fallback
+            return "/static/placeholder_digest.png", "Error Placeholder"
