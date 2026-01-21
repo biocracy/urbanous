@@ -1923,6 +1923,35 @@ async def get_public_digests_feed(limit: int = 6, offset: int = 0, db: Session =
         
     return feed
 
+@router.post("/digests/{digest_id}/generate-image")
+async def generate_digest_image_endpoint(digest_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Generate and assign an AI illustration for the digest."""
+    from utils.image_gen import generate_digest_image
+    
+    digest = await db.get(NewsDigest, digest_id)
+    if not digest:
+        raise HTTPException(status_code=404, detail="Digest not found")
+        
+    if digest.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    try:
+        # Generate Image
+        image_path = await generate_digest_image(digest.title, digest.city or "Metropolis")
+        
+        # Update DB
+        digest.image_url = image_path
+        db.add(digest)
+        await db.commit()
+        await db.refresh(digest)
+        
+        return {"image_url": image_path}
+        
+    except Exception as e:
+        print(f"Gen Failed: {e}")
+        # Fail gracefully but let user know
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.post("/digests/public/{slug}/translate_articles")
 async def translate_public_digest_articles(slug: str, db: Session = Depends(get_db)):
     """

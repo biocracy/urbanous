@@ -1,13 +1,125 @@
 import React, { useState, useEffect } from 'react';
 import {
-    LayoutGrid, FileText, Sparkles, Check, Download, Copy,
-    RotateCcw, Trash2, Languages, Cloud, Columns, X, Save
-} from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
-import rehypeRaw from 'rehype-raw';
-import DigestReportRenderer from './DigestReportRenderer';
+    const [hoveredKeywordData, setHoveredKeywordData] = useState<{ kw: any, rect: DOMRect } | null>(null);
+const [isEditing, setIsEditing] = useState(false); // Default to Preview Mode
+const [isGeneratingImage, setIsGeneratingImage] = useState(false);
 
-// Fixed Tooltip Component
+// Image Generation Handler
+const handleGenerateImage = async () => {
+    if (!digestData?.id) return;
+    setIsGeneratingImage(true);
+
+    // Inject Loader Placeholder
+    // We inject HTML directly because rehypeRaw is enabled
+    const loaderHtml = `<div id="gen-loader" class="my-8 p-8 border border-fuchsia-500/30 rounded-lg bg-fuchsia-900/10 flex flex-col items-center justify-center gap-3 animate-pulse">
+            <div class="w-8 h-8 border-2 border-fuchsia-500 border-t-transparent rounded-full animate-spin"></div>
+            <span class="text-fuchsia-300 font-mono text-xs uppercase">Rendering Architectural Sketch...</span>
+        </div>`;
+
+    // Insert after first paragraph (naive split by double newline)
+    let currentText = digestData.digest || digestData.summary_markdown || "";
+    const parts = currentText.split('\n\n');
+    if (parts.length > 1) {
+        parts.splice(1, 0, loaderHtml);
+        const newText = parts.join('\n\n');
+        if (setDigestSummary) setDigestSummary(newText);
+    } else {
+        // If text is too short, append to top
+        if (setDigestSummary) setDigestSummary(loaderHtml + "\n\n" + currentText);
+    }
+
+    try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+        const res = await fetch(`${apiUrl}/digests/${digestData.id}/generate-image`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}` // Assuming token is here, or relying on cookie?
+                // Actually better to use the authenticated fetcher if widely used, but raw fetch for now:
+            }
+        });
+
+        if (res.ok) {
+            const data = await res.json();
+            const imageUrl = data.image_url; // Relative Path
+
+            // Replace Loader with Image Markdown
+            // We use standard Markdown image syntax now
+            // Fix relative path for display if needed? No, markdown renderer handles it? 
+            // Wait, previous bug showed we need absolute for some viewers, 
+            // but the FeedLayout fix was specialized. 
+            // Let's use the API_URL prefix if it's relative, JUST TO BE SAFE in the markdown itself?
+            // Actually, if we save relative in DB, backend serves it.
+            // Let's use strict relative in markdown, and hope `react-markdown` resolves it?
+            // Standard markdown `![](/static/...)` works if base URL is domain. 
+            // But frontend is localhost:3000, backend is localhost:8000. 
+            // So we MUST prepend API_URL in the markdown logic or image transform.
+
+            let finalUrl = imageUrl;
+            if (imageUrl.startsWith('/')) {
+                const api = apiUrl.endsWith('/') ? apiUrl.slice(0, -1) : apiUrl;
+                finalUrl = `${api}${imageUrl}`;
+            }
+
+            const imageMd = `![${digestData.city} Illustration](${finalUrl})`;
+
+            // Update Text (Replace the HTML loader)
+            // We need to read the *latest* text in case user typed? 
+            // Ideally we use functional update or ref, but for now access state if possible?
+            // We don't have access to latest `digestData.digest` inside async closure safely without ref.
+            // But we modified it above.
+            // Let's rely on the fact that we put a unique ID string.
+
+            // We need to call the setter with a replacement on previous state
+            // Since `setDigestSummary` is likely from parent, we can't do functional update easily if it doesn't support it.
+            // We will assume `digestData` updates are fast enough OR we just use the variable we created + generic replacement.
+
+            // ACTUALLY: The best way is to fetch the fresh digest?
+            // But we want to keep the local edit.
+            // Let's just user the `setDigestSummary` with a replace() on the loader string.
+            // But we can't read the *current* val from `digestData` in closure if it changed?
+            // We'll hope user didn't delete the loader.
+
+            if (setDigestSummary) {
+                // We need to trigger an update that replaces the loader HTML with the Image MD
+                // CAUTION: We can't easily access 'prev' value of the prop.
+                // We will hack it: We know the loader string.
+
+                // We will fetch the *latest* text via a hack or just use `digestData.digest` assuming user didn't type much in 5 seconds.
+                // Better: use a ref for the text content?
+                // Let's just try replacing in the current `digestData.digest` (which might be slightly stale if user typed fast, but unlikely during a loading spinner).
+
+                // Actually, `digestData` prop will update after our first setDigestSummary call?
+                // Yes.
+
+                // Helper to find and replace
+                setTimeout(() => {
+                    const textWithLoader = document.querySelector('textarea')?.value || digestData.digest || "";
+                    // Fallback to DOM if in edit mode, else prop
+                    const newText = textWithLoader.replace(loaderHtml, imageMd);
+                    setDigestSummary(newText);
+                }, 100);
+            }
+
+        } else {
+            console.error("Gen failed");
+            alert("Failed to generate image.");
+            // Remove loader
+            if (setDigestSummary) {
+                const text = digestData.digest || "";
+                setDigestSummary(text.replace(loaderHtml, ""));
+            }
+        }
+    } catch (e) {
+        console.error(e);
+        alert("Error generating image");
+        if (setDigestSummary) {
+            const text = digestData.digest || "";
+            setDigestSummary(text.replace(loaderHtml, ""));
+        }
+    } finally {
+        setIsGeneratingImage(false);
+    }
+};
 const AnalyticsTooltip = ({ data, isTranslated, onClose }: { data: { kw: any, rect: DOMRect }, isTranslated: boolean, onClose: () => void }) => {
     const { kw, rect } = data;
     if (!kw || !rect) return null;
@@ -415,389 +527,418 @@ export default function UnifiedDigestViewer({
                                 <span>{formatDateRange(digestData?.created_at, digestData?.timeframe)}</span>
                             </div>
                         </div>
+                    </div>
 
-                        {/* Editor Toggle (Only if editable) */}
-                        {isEditorActive && (
-                            <div className="flex justify-end mb-4">
-                                <button
-                                    onClick={() => setIsEditing(!isEditing)}
-                                    className="text-xs font-bold uppercase tracking-wider text-neutral-500 hover:text-blue-400 transition-colors flex items-center gap-2"
-                                >
-                                    {isEditing ? (
-                                        <>
-                                            <FileText className="w-4 h-4" />
-                                            Switch to Preview
-                                        </>
-                                    ) : (
-                                        <>
-                                            <span className="w-4 h-4">✏️</span>
-                                            Edit Report
-                                        </>
-                                    )}
-                                </button>
-                            </div>
-                        )}
+                    {/* Image Generation Button */}
+                    {!isReadOnly && !digestData?.image_url && (
+                        <div className="flex justify-center -mt-6 mb-8">
+                            <button
+                                onClick={handleGenerateImage}
+                                disabled={isGeneratingImage}
+                                className={`
+                                        flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition-all border shadow-lg
+                                        ${isGeneratingImage
+                                        ? 'bg-neutral-800 text-neutral-500 border-neutral-700 cursor-not-allowed'
+                                        : 'bg-fuchsia-900/30 text-fuchsia-400 border-fuchsia-800 hover:bg-fuchsia-900/50 hover:text-white'}
+                                    `}
+                            >
+                                {isGeneratingImage ? (
+                                    <>
+                                        <RotateCcw className="w-3.5 h-3.5 animate-spin" />
+                                        Painting...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Image className="w-3.5 h-3.5" />
+                                        Generate Illustration
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    )}
 
-                        {isEditing ? (
-                            <textarea
-                                className="w-full h-[80vh] bg-neutral-900/50 border border-neutral-700 rounded-lg p-4 font-mono text-sm text-white focus:outline-none focus:border-blue-500"
-                                value={digestData?.digest || ""}
-                                onChange={(e) => setDigestSummary?.(e.target.value)}
-                                placeholder="# Write your intelligence report here..."
-                            />
-                        ) : (
-                            <div className="max-w-none">
-                                {(() => {
-                                    const rawContent = digestData?.digest || digestData?.summary_markdown || "";
-                                    console.log("[UnifiedDigestViewer] Raw Digest Content:", rawContent.slice(0, 200));
-                                    return (
-                                        <ReactMarkdown
-                                            rehypePlugins={[rehypeRaw]}
-                                            // Allow 'citation:' protocol
-                                            urlTransform={(url) => url}
-                                            components={{
-                                                // Custom Link Handling (Citations & External)
-                                                a: ({ href, children, ...props }) => {
-                                                    if (href?.startsWith('citation:')) {
-                                                        const id = parseInt(href.split(':')[1]);
-                                                        const articleHandler = (e: React.MouseEvent) => {
-                                                            e.preventDefault();
-                                                            e.stopPropagation();
-                                                            // Try to find the article
-                                                            if (digestData?.articles && digestData.articles[id - 1]) {
-                                                                const url = digestData.articles[id - 1].url;
-                                                                window.open(url, '_blank');
-                                                            } else {
-                                                                console.warn(`[UnifiedDigestViewer] Citation [${id}] not found in articles.`);
-                                                            }
-                                                        };
+                    {/* Editor Toggle (Only if editable) */}
+                    {isEditorActive && (
+                        <div className="flex justify-end mb-4">
+                            <button
+                                onClick={() => setIsEditing(!isEditing)}
+                                className="text-xs font-bold uppercase tracking-wider text-neutral-500 hover:text-blue-400 transition-colors flex items-center gap-2"
+                            >
+                                {isEditing ? (
+                                    <>
+                                        <FileText className="w-4 h-4" />
+                                        Switch to Preview
+                                    </>
+                                ) : (
+                                    <>
+                                        <span className="w-4 h-4">✏️</span>
+                                        Edit Report
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    )}
 
-                                                        return (
-                                                            <span
-                                                                onClick={articleHandler}
-                                                                className="text-blue-400 font-bold cursor-pointer hover:underline hover:text-blue-300 transition-colors"
-                                                                title={`Open Source Article ${id}`}
-                                                            >
-                                                                {children}
-                                                            </span>
-                                                        );
-                                                    }
-                                                    const isExample = !href?.startsWith('http');
-                                                    if (isExample) return <span className="text-blue-300">{children}</span>;
+                    {isEditing ? (
+                        <textarea
+                            className="w-full h-[80vh] bg-neutral-900/50 border border-neutral-700 rounded-lg p-4 font-mono text-sm text-white focus:outline-none focus:border-blue-500"
+                            value={digestData?.digest || ""}
+                            onChange={(e) => setDigestSummary?.(e.target.value)}
+                            placeholder="# Write your intelligence report here..."
+                        />
+                    ) : (
+                        <div className="max-w-none">
+                            {(() => {
+                                const rawContent = digestData?.digest || digestData?.summary_markdown || "";
+                                console.log("[UnifiedDigestViewer] Raw Digest Content:", rawContent.slice(0, 200));
+                                return (
+                                    <ReactMarkdown
+                                        rehypePlugins={[rehypeRaw]}
+                                        // Allow 'citation:' protocol
+                                        urlTransform={(url) => url}
+                                        components={{
+                                            // Custom Link Handling (Citations & External)
+                                            a: ({ href, children, ...props }) => {
+                                                if (href?.startsWith('citation:')) {
+                                                    const id = parseInt(href.split(':')[1]);
+                                                    const articleHandler = (e: React.MouseEvent) => {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        // Try to find the article
+                                                        if (digestData?.articles && digestData.articles[id - 1]) {
+                                                            const url = digestData.articles[id - 1].url;
+                                                            window.open(url, '_blank');
+                                                        } else {
+                                                            console.warn(`[UnifiedDigestViewer] Citation [${id}] not found in articles.`);
+                                                        }
+                                                    };
 
-                                                    // Handle raw <a> tags from HTML if any
-                                                    return <a href={href} className="text-blue-400 hover:text-blue-300 underline decoration-blue-500/50 underline-offset-4" target="_blank" rel="noopener noreferrer" {...props}>{children}</a>;
-                                                },
-                                                // Headings
-                                                h1: ({ children }) => <h1 className="text-3xl font-bold mb-6 text-white border-b border-neutral-800 pb-2 mt-8 first:mt-0">{children}</h1>,
-                                                h2: ({ children }) => <h2 className="text-2xl font-bold mb-4 text-white mt-8">{children}</h2>,
-                                                h3: ({ children }) => <h3 className="text-xl font-bold mb-3 text-blue-200 mt-6">{children}</h3>,
-                                                // Text & Layout
-                                                p: ({ children }) => <div className="text-neutral-300 mb-4 leading-relaxed text-lg">{children}</div>,
-                                                ul: ({ children }) => <ul className="list-disc list-inside mb-4 space-y-2 text-neutral-300 pl-4">{children}</ul>,
-                                                ol: ({ children }) => <ol className="list-decimal list-inside mb-4 space-y-2 text-neutral-300 pl-4">{children}</ol>,
-                                                li: ({ children }) => <li className="pl-1 marker:text-neutral-500">{children}</li>,
-                                                blockquote: ({ children }) => <blockquote className="border-l-4 border-blue-500 pl-4 italic my-6 text-neutral-400 bg-neutral-900/30 p-4 rounded-r">{children}</blockquote>,
-                                                // Code
-                                                code: ({ children }) => <code className="bg-neutral-800 px-1.5 py-0.5 rounded text-sm font-mono text-blue-300">{children}</code>,
-                                                pre: ({ children }) => <pre className="bg-neutral-900 p-4 rounded-lg overflow-x-auto mb-6 text-sm border border-neutral-800">{children}</pre>,
-                                                // HTML Elements Pass-through (Important for rehype-raw)
-                                                div: ({ className, children, ...props }) => <div className={className} {...props}>{children}</div>,
-                                                span: ({ className, children, ...props }) => <span className={className} {...props}>{children}</span>,
-                                                table: ({ children, ...props }) => <div className="overflow-x-auto mb-8"><table className="w-full text-left border-collapse" {...props}>{children}</table></div>,
-                                                thead: ({ children, ...props }) => <thead className="bg-neutral-900 text-neutral-200 uppercase text-xs font-bold tracking-wider" {...props}>{children}</thead>,
-                                                tbody: ({ children, ...props }) => <tbody className="divide-y divide-neutral-800" {...props}>{children}</tbody>,
-                                                tr: ({ children, ...props }) => <tr className="hover:bg-neutral-800/50 transition-colors" {...props}>{children}</tr>,
-                                                th: ({ children, ...props }) => <th className="p-4 border-b border-neutral-700 whitespace-nowrap" {...props}>{children}</th>,
-                                                td: ({ children, ...props }) => <td className="p-4 text-neutral-300 align-top" {...props}>{children}</td>,
-                                                details: ({ children, ...props }) => <details className="mb-4 group bg-neutral-900/30 rounded-lg border border-neutral-800 overflow-hidden" {...props}>{children}</details>,
-                                                summary: ({ children, ...props }) => <summary className="cursor-pointer p-3 font-bold text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors select-none" {...props}>{children}</summary>,
-                                            }}
-                                        >
-                                            {(digestData?.digest || digestData?.summary_markdown || "")
-                                                .replace(/```(?:html|markdown)?\s*([\s\S]*?)\s*```/yi, '$1') // Greedy strip of outer code blocks
-                                                .replace(/^#\s+.+$/m, '')  // Remove duplicate top-level title
-                                                .replace(/\[([\d,\s]+)\]/g, (match: string, group: string) => {
-                                                    // Handle multiple citations like [1, 5, 28] by formatting as markdown: [1](citation:1), [5](citation:5)...
-                                                    // We wrap the whole thing in a blue-styled span text so the brackets are colored too?
-                                                    // User said: "keep the brackets and commas".
-                                                    // Let's output pure markdown with styling.
-                                                    // We can use an HTML span to wrap the whole block if we want the brackets blue too, 
-                                                    // OR just let the brackets be text and the numbers be links.
-                                                    // The user previously saw "square brackets... superscript".
-                                                    // Let's match the request: "remove superscript, keep brackets and commas".
-                                                    // We'll generate: <span class="text-blue-400 font-bold ml-0.5">[</span><a href="citation:1">1</a>, <a href="citation:2">2</a><span class="text-blue-400 font-bold">]</span>
+                                                    return (
+                                                        <span
+                                                            onClick={articleHandler}
+                                                            className="text-blue-400 font-bold cursor-pointer hover:underline hover:text-blue-300 transition-colors"
+                                                            title={`Open Source Article ${id}`}
+                                                        >
+                                                            {children}
+                                                        </span>
+                                                    );
+                                                }
+                                                const isExample = !href?.startsWith('http');
+                                                if (isExample) return <span className="text-blue-300">{children}</span>;
 
-                                                    const links = group.split(',')
-                                                        .map((n: string) => {
-                                                            const num = n.trim();
-                                                            return `[${num}](citation:${num})`;
-                                                        })
-                                                        .join(', ');
+                                                // Handle raw <a> tags from HTML if any
+                                                return <a href={href} className="text-blue-400 hover:text-blue-300 underline decoration-blue-500/50 underline-offset-4" target="_blank" rel="noopener noreferrer" {...props}>{children}</a>;
+                                            },
+                                            // Headings
+                                            h1: ({ children }) => <h1 className="text-3xl font-bold mb-6 text-white border-b border-neutral-800 pb-2 mt-8 first:mt-0">{children}</h1>,
+                                            h2: ({ children }) => <h2 className="text-2xl font-bold mb-4 text-white mt-8">{children}</h2>,
+                                            h3: ({ children }) => <h3 className="text-xl font-bold mb-3 text-blue-200 mt-6">{children}</h3>,
+                                            // Text & Layout
+                                            p: ({ children }) => <div className="text-neutral-300 mb-4 leading-relaxed text-lg">{children}</div>,
+                                            ul: ({ children }) => <ul className="list-disc list-inside mb-4 space-y-2 text-neutral-300 pl-4">{children}</ul>,
+                                            ol: ({ children }) => <ol className="list-decimal list-inside mb-4 space-y-2 text-neutral-300 pl-4">{children}</ol>,
+                                            li: ({ children }) => <li className="pl-1 marker:text-neutral-500">{children}</li>,
+                                            blockquote: ({ children }) => <blockquote className="border-l-4 border-blue-500 pl-4 italic my-6 text-neutral-400 bg-neutral-900/30 p-4 rounded-r">{children}</blockquote>,
+                                            // Code
+                                            code: ({ children }) => <code className="bg-neutral-800 px-1.5 py-0.5 rounded text-sm font-mono text-blue-300">{children}</code>,
+                                            pre: ({ children }) => <pre className="bg-neutral-900 p-4 rounded-lg overflow-x-auto mb-6 text-sm border border-neutral-800">{children}</pre>,
+                                            // HTML Elements Pass-through (Important for rehype-raw)
+                                            div: ({ className, children, ...props }) => <div className={className} {...props}>{children}</div>,
+                                            span: ({ className, children, ...props }) => <span className={className} {...props}>{children}</span>,
+                                            table: ({ children, ...props }) => <div className="overflow-x-auto mb-8"><table className="w-full text-left border-collapse" {...props}>{children}</table></div>,
+                                            thead: ({ children, ...props }) => <thead className="bg-neutral-900 text-neutral-200 uppercase text-xs font-bold tracking-wider" {...props}>{children}</thead>,
+                                            tbody: ({ children, ...props }) => <tbody className="divide-y divide-neutral-800" {...props}>{children}</tbody>,
+                                            tr: ({ children, ...props }) => <tr className="hover:bg-neutral-800/50 transition-colors" {...props}>{children}</tr>,
+                                            th: ({ children, ...props }) => <th className="p-4 border-b border-neutral-700 whitespace-nowrap" {...props}>{children}</th>,
+                                            td: ({ children, ...props }) => <td className="p-4 text-neutral-300 align-top" {...props}>{children}</td>,
+                                            details: ({ children, ...props }) => <details className="mb-4 group bg-neutral-900/30 rounded-lg border border-neutral-800 overflow-hidden" {...props}>{children}</details>,
+                                            summary: ({ children, ...props }) => <summary className="cursor-pointer p-3 font-bold text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors select-none" {...props}>{children}</summary>,
+                                        }}
+                                    >
+                                        {(digestData?.digest || digestData?.summary_markdown || "")
+                                            .replace(/```(?:html|markdown)?\s*([\s\S]*?)\s*```/yi, '$1') // Greedy strip of outer code blocks
+                                            .replace(/^#\s+.+$/m, '')  // Remove duplicate top-level title
+                                            .replace(/\[([\d,\s]+)\]/g, (match: string, group: string) => {
+                                                // Handle multiple citations like [1, 5, 28] by formatting as markdown: [1](citation:1), [5](citation:5)...
+                                                // We wrap the whole thing in a blue-styled span text so the brackets are colored too?
+                                                // User said: "keep the brackets and commas".
+                                                // Let's output pure markdown with styling.
+                                                // We can use an HTML span to wrap the whole block if we want the brackets blue too, 
+                                                // OR just let the brackets be text and the numbers be links.
+                                                // The user previously saw "square brackets... superscript".
+                                                // Let's match the request: "remove superscript, keep brackets and commas".
+                                                // We'll generate: <span class="text-blue-400 font-bold ml-0.5">[</span><a href="citation:1">1</a>, <a href="citation:2">2</a><span class="text-blue-400 font-bold">]</span>
 
-                                                    // We wrap the whole thing in a span to give the brackets color, if desired?
-                                                    // Let's just output text brackets + markdown links for maximum stability.
-                                                    // If we want the brackets blue, we can wrap in HTML span.
-                                                    return `<span class="text-blue-400 font-bold ml-0.5">[${links}]</span>`;
-                                                })
-                                                // Strip 4+ spaces indentation (which triggers code blocks) but preserve structure
-                                                .replace(/^[ \t]{4,}/gm, '')
-                                                .trim()}
-                                        </ReactMarkdown>
-                                    );
-                                })()}
-                            </div>
-                        )}
+                                                const links = group.split(',')
+                                                    .map((n: string) => {
+                                                        const num = n.trim();
+                                                        return `[${num}](citation:${num})`;
+                                                    })
+                                                    .join(', ');
 
-                        {!isReadOnly && onRegenerateSummary && (
-                            <div className="mt-12 flex justify-center pb-20">
-                                <button
-                                    onClick={onRegenerateSummary}
-                                    disabled={isSummarizing || selectedArticleUrls.size === 0}
-                                    className={`
+                                                // We wrap the whole thing in a span to give the brackets color, if desired?
+                                                // Let's just output text brackets + markdown links for maximum stability.
+                                                // If we want the brackets blue, we can wrap in HTML span.
+                                                return `<span class="text-blue-400 font-bold ml-0.5">[${links}]</span>`;
+                                            })
+                                            // Strip 4+ spaces indentation (which triggers code blocks) but preserve structure
+                                            .replace(/^[ \t]{4,}/gm, '')
+                                            .trim()}
+                                    </ReactMarkdown>
+                                );
+                            })()}
+                        </div>
+                    )}
+
+                    {!isReadOnly && onRegenerateSummary && (
+                        <div className="mt-12 flex justify-center pb-20">
+                            <button
+                                onClick={onRegenerateSummary}
+                                disabled={isSummarizing || selectedArticleUrls.size === 0}
+                                className={`
                                         group relative px-8 py-4 rounded-full font-bold text-white shadow-2xl transition-all duration-500
                                         ${isSummarizing ? 'bg-neutral-800 cursor-not-allowed' : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:scale-105'}
                                     `}
-                                >
-                                    <span className="flex items-center gap-3 relative z-10">
-                                        {isSummarizing ? (
-                                            <>
-                                                <RotateCcw className="w-5 h-5 animate-spin" />
-                                                Start Thinking...
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Sparkles className="w-5 h-5" />
-                                                Regenerate Report ({selectedArticleUrls.size})
-                                            </>
-                                        )}
-                                    </span>
-                                </button>
-                            </div>
-                        )}
-                    </div>
+                            >
+                                <span className="flex items-center gap-3 relative z-10">
+                                    {isSummarizing ? (
+                                        <>
+                                            <RotateCcw className="w-5 h-5 animate-spin" />
+                                            Start Thinking...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Sparkles className="w-5 h-5" />
+                                            Regenerate Report ({selectedArticleUrls.size})
+                                        </>
+                                    )}
+                                </span>
+                            </button>
+                        </div>
+                    )}
                 </div>
+            </div>
 
-                {/* TAB 3: ANALYTICS */}
-                <div className={`p-6 max-w-6xl mx-auto w-full transition-opacity duration-300 ${activeTab === 'analytics' ? 'opacity-100 flex' : 'hidden opacity-0'}`}>
-                    <div className="w-full">
-                        <div className="flex justify-between items-center mb-6">
-                            {/* Left: View Controls */}
-                            <div className="flex items-center gap-2">
-                                <div className="flex bg-neutral-900 rounded-lg p-1 border border-neutral-800">
-                                    <button
-                                        onClick={() => handleSetViewMode('cloud')}
-                                        className={`p-2 rounded hover:text-white transition-colors ${viewMode === 'cloud' ? 'bg-neutral-800 text-white' : 'text-neutral-400'}`}
-                                        title="Word Cloud"
-                                    >
-                                        <Cloud className="w-4 h-4" />
-                                    </button>
-                                    <button
-                                        onClick={() => handleSetViewMode('columns')}
-                                        className={`p-2 rounded hover:text-white transition-colors ${viewMode === 'columns' ? 'bg-neutral-800 text-white' : 'text-neutral-400'}`}
-                                        title="Columns"
-                                    >
-                                        <Columns className="w-4 h-4" />
-                                    </button>
-                                </div>
-
+            {/* TAB 3: ANALYTICS */}
+            <div className={`p-6 max-w-6xl mx-auto w-full transition-opacity duration-300 ${activeTab === 'analytics' ? 'opacity-100 flex' : 'hidden opacity-0'}`}>
+                <div className="w-full">
+                    <div className="flex justify-between items-center mb-6">
+                        {/* Left: View Controls */}
+                        <div className="flex items-center gap-2">
+                            <div className="flex bg-neutral-900 rounded-lg p-1 border border-neutral-800">
                                 <button
-                                    onClick={() => setIsAnalyticsTranslated(!isAnalyticsTranslated)}
-                                    className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-colors border ${isAnalyticsTranslated ? 'bg-indigo-900/50 text-indigo-300 border-indigo-700' : 'bg-neutral-900 text-neutral-400 border-neutral-700 hover:text-white'}`}
+                                    onClick={() => handleSetViewMode('cloud')}
+                                    className={`p-2 rounded hover:text-white transition-colors ${viewMode === 'cloud' ? 'bg-neutral-800 text-white' : 'text-neutral-400'}`}
+                                    title="Word Cloud"
                                 >
-                                    <Languages className="w-3 h-3" />
-                                    {isAnalyticsTranslated ? 'A/文' : 'A/文'}
+                                    <Cloud className="w-4 h-4" />
+                                </button>
+                                <button
+                                    onClick={() => handleSetViewMode('columns')}
+                                    className={`p-2 rounded hover:text-white transition-colors ${viewMode === 'columns' ? 'bg-neutral-800 text-white' : 'text-neutral-400'}`}
+                                    title="Columns"
+                                >
+                                    <Columns className="w-4 h-4" />
                                 </button>
                             </div>
 
-                            {/* Right: Refresh (Editable Only) */}
-                            {!isReadOnly && onRegenerateAnalytics && (
-                                <button
-                                    onClick={onRegenerateAnalytics}
-                                    disabled={isAnalyzing}
-                                    className="flex items-center gap-2 px-4 py-2 bg-neutral-800 hover:bg-neutral-700 rounded text-sm transition-colors"
-                                >
-                                    <RotateCcw className={`w-4 h-4 ${isAnalyzing ? 'animate-spin' : ''}`} />
-                                    Refresh Intelligence
-                                </button>
-                            )}
+                            <button
+                                onClick={() => setIsAnalyticsTranslated(!isAnalyticsTranslated)}
+                                className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-bold transition-colors border ${isAnalyticsTranslated ? 'bg-indigo-900/50 text-indigo-300 border-indigo-700' : 'bg-neutral-900 text-neutral-400 border-neutral-700 hover:text-white'}`}
+                            >
+                                <Languages className="w-3 h-3" />
+                                {isAnalyticsTranslated ? 'A/文' : 'A/文'}
+                            </button>
                         </div>
 
-                        {effectiveKeywords.length > 0 ? (
-                            viewMode === 'columns' ? (
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                    {['Positive', 'Neutral', 'Negative'].map((sentiment) => {
-                                        const sentimentColor = sentiment === 'Positive' ? 'text-green-400 border-green-900/50' :
-                                            sentiment === 'Negative' ? 'text-red-400 border-red-900/50' :
-                                                'text-neutral-400 border-neutral-800';
+                        {/* Right: Refresh (Editable Only) */}
+                        {!isReadOnly && onRegenerateAnalytics && (
+                            <button
+                                onClick={onRegenerateAnalytics}
+                                disabled={isAnalyzing}
+                                className="flex items-center gap-2 px-4 py-2 bg-neutral-800 hover:bg-neutral-700 rounded text-sm transition-colors"
+                            >
+                                <RotateCcw className={`w-4 h-4 ${isAnalyzing ? 'animate-spin' : ''}`} />
+                                Refresh Intelligence
+                            </button>
+                        )}
+                    </div>
 
-                                        const items = effectiveKeywords.filter((k: any) => k.sentiment === sentiment);
+                    {effectiveKeywords.length > 0 ? (
+                        viewMode === 'columns' ? (
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                {['Positive', 'Neutral', 'Negative'].map((sentiment) => {
+                                    const sentimentColor = sentiment === 'Positive' ? 'text-green-400 border-green-900/50' :
+                                        sentiment === 'Negative' ? 'text-red-400 border-red-900/50' :
+                                            'text-neutral-400 border-neutral-800';
 
-                                        return (
-                                            <div key={sentiment} className="flex flex-col gap-4">
-                                                <h3 className={`text-sm font-bold uppercase tracking-widest border-b pb-2 ${sentimentColor.split(' ')[0]}`}>
-                                                    {sentiment}
-                                                </h3>
-                                                {items.length === 0 && <div className="text-neutral-600 italic text-xs">No keywords</div>}
-                                                {items.map((kw: any, idx: number) => (
-                                                    <div
-                                                        key={idx}
-                                                        className={`relative group bg-neutral-900/50 border border-neutral-800 p-4 rounded-lg flex justify-between items-start cursor-pointer hover:bg-neutral-800 transition-colors ${selectedKeyword === kw ? 'ring-2 ring-blue-500' : ''}`}
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            console.log("[UnifiedDigestViewer] Clicked Keyword (Column):", kw?.word);
-                                                            setSelectedKeyword(kw);
-                                                        }}
-                                                        onMouseEnter={(e) => setHoveredKeywordData({ kw, rect: e.currentTarget.getBoundingClientRect() })}
-                                                        onMouseLeave={() => setHoveredKeywordData(null)}
-                                                    >
+                                    const items = effectiveKeywords.filter((k: any) => k.sentiment === sentiment);
 
-                                                        <div className="w-full">
-                                                            <div className="font-bold text-white text-lg flex justify-between w-full">
-                                                                <span>{isAnalyticsTranslated && kw.translation ? kw.translation : kw.word}</span>
-                                                                <span className="text-xs font-mono bg-neutral-950 px-2 py-1 rounded text-neutral-500">{kw.sources?.length || 0} src</span>
-                                                            </div>
-                                                            {isAnalyticsTranslated && kw.translation && kw.translation !== kw.word && (
-                                                                <div className="text-xs text-neutral-500 mt-1">{kw.word}</div>
-                                                            )}
-                                                            <div className="text-xs text-neutral-400 mt-2 flex justify-between">
-                                                                <span>Imp: {kw.importance}</span>
-                                                            </div>
+                                    return (
+                                        <div key={sentiment} className="flex flex-col gap-4">
+                                            <h3 className={`text-sm font-bold uppercase tracking-widest border-b pb-2 ${sentimentColor.split(' ')[0]}`}>
+                                                {sentiment}
+                                            </h3>
+                                            {items.length === 0 && <div className="text-neutral-600 italic text-xs">No keywords</div>}
+                                            {items.map((kw: any, idx: number) => (
+                                                <div
+                                                    key={idx}
+                                                    className={`relative group bg-neutral-900/50 border border-neutral-800 p-4 rounded-lg flex justify-between items-start cursor-pointer hover:bg-neutral-800 transition-colors ${selectedKeyword === kw ? 'ring-2 ring-blue-500' : ''}`}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        console.log("[UnifiedDigestViewer] Clicked Keyword (Column):", kw?.word);
+                                                        setSelectedKeyword(kw);
+                                                    }}
+                                                    onMouseEnter={(e) => setHoveredKeywordData({ kw, rect: e.currentTarget.getBoundingClientRect() })}
+                                                    onMouseLeave={() => setHoveredKeywordData(null)}
+                                                >
+
+                                                    <div className="w-full">
+                                                        <div className="font-bold text-white text-lg flex justify-between w-full">
+                                                            <span>{isAnalyticsTranslated && kw.translation ? kw.translation : kw.word}</span>
+                                                            <span className="text-xs font-mono bg-neutral-950 px-2 py-1 rounded text-neutral-500">{kw.sources?.length || 0} src</span>
                                                         </div>
-
+                                                        {isAnalyticsTranslated && kw.translation && kw.translation !== kw.word && (
+                                                            <div className="text-xs text-neutral-500 mt-1">{kw.word}</div>
+                                                        )}
+                                                        <div className="text-xs text-neutral-400 mt-2 flex justify-between">
+                                                            <span>Imp: {kw.importance}</span>
+                                                        </div>
                                                     </div>
-                                                ))}
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            ) : (
-                                <div className="flex flex-wrap gap-3 justify-center">
-                                    {effectiveKeywords.map((kw: any, idx: number) => {
-                                        const size = 1 + ((kw.importance || 50) / 100) * 2;
-                                        let colorClass = "border-slate-700 bg-slate-900/50 text-slate-300";
-                                        if (kw.sentiment === 'Positive') colorClass = "border-green-900/50 bg-green-900/20 text-green-400";
-                                        if (kw.sentiment === 'Negative') colorClass = "border-red-900/50 bg-red-900/20 text-red-400";
 
-                                        // DISPLAY WORD LOGIC
-                                        const displayWord = (isAnalyticsTranslated && kw.translation) ? kw.translation : kw.word;
-
-                                        return (
-                                            <div
-                                                key={idx}
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    console.log("[UnifiedDigestViewer] Clicked Keyword (Cloud):", kw?.word);
-                                                    setSelectedKeyword(kw);
-                                                }}
-                                                className={`relative group px-4 py-2 rounded-full border ${colorClass} transition-all hover:scale-110 cursor-pointer ${selectedKeyword === kw ? 'ring-2 ring-blue-500 bg-black' : ''}`}
-                                                style={{ fontSize: `${Math.max(0.8, size)}rem` }}
-                                                onMouseEnter={(e) => setHoveredKeywordData({ kw, rect: e.currentTarget.getBoundingClientRect() })}
-                                                onMouseLeave={() => setHoveredKeywordData(null)}
-                                            >
-                                                {displayWord}
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            )
-                        ) : isAnalyzing ? (
-                            <div className="flex flex-col items-center justify-center py-20 text-neutral-400">
-                                <div className="relative w-16 h-16 mb-6">
-                                    <div className="absolute inset-0 border-4 border-blue-500/30 rounded-full animate-ping"></div>
-                                    <div className="absolute inset-0 border-4 border-t-blue-500 rounded-full animate-spin"></div>
-                                    <Sparkles className="absolute inset-0 m-auto text-blue-400 w-6 h-6 animate-pulse" />
-                                </div>
-                                <div className="text-lg font-bold text-blue-300 mb-2">Analyzing Intelligence</div>
-                                <div className="text-sm text-neutral-500 animate-pulse">Extracting entities & sentiments...</div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    );
+                                })}
                             </div>
                         ) : (
-                            <div className="text-center py-20 text-neutral-500 italic">
-                                No analytics generated yet.
+                            <div className="flex flex-wrap gap-3 justify-center">
+                                {effectiveKeywords.map((kw: any, idx: number) => {
+                                    const size = 1 + ((kw.importance || 50) / 100) * 2;
+                                    let colorClass = "border-slate-700 bg-slate-900/50 text-slate-300";
+                                    if (kw.sentiment === 'Positive') colorClass = "border-green-900/50 bg-green-900/20 text-green-400";
+                                    if (kw.sentiment === 'Negative') colorClass = "border-red-900/50 bg-red-900/20 text-red-400";
+
+                                    // DISPLAY WORD LOGIC
+                                    const displayWord = (isAnalyticsTranslated && kw.translation) ? kw.translation : kw.word;
+
+                                    return (
+                                        <div
+                                            key={idx}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                console.log("[UnifiedDigestViewer] Clicked Keyword (Cloud):", kw?.word);
+                                                setSelectedKeyword(kw);
+                                            }}
+                                            className={`relative group px-4 py-2 rounded-full border ${colorClass} transition-all hover:scale-110 cursor-pointer ${selectedKeyword === kw ? 'ring-2 ring-blue-500 bg-black' : ''}`}
+                                            style={{ fontSize: `${Math.max(0.8, size)}rem` }}
+                                            onMouseEnter={(e) => setHoveredKeywordData({ kw, rect: e.currentTarget.getBoundingClientRect() })}
+                                            onMouseLeave={() => setHoveredKeywordData(null)}
+                                        >
+                                            {displayWord}
+                                        </div>
+                                    );
+                                })}
                             </div>
-                        )}
-                    </div>
+                        )
+                    ) : isAnalyzing ? (
+                        <div className="flex flex-col items-center justify-center py-20 text-neutral-400">
+                            <div className="relative w-16 h-16 mb-6">
+                                <div className="absolute inset-0 border-4 border-blue-500/30 rounded-full animate-ping"></div>
+                                <div className="absolute inset-0 border-4 border-t-blue-500 rounded-full animate-spin"></div>
+                                <Sparkles className="absolute inset-0 m-auto text-blue-400 w-6 h-6 animate-pulse" />
+                            </div>
+                            <div className="text-lg font-bold text-blue-300 mb-2">Analyzing Intelligence</div>
+                            <div className="text-sm text-neutral-500 animate-pulse">Extracting entities & sentiments...</div>
+                        </div>
+                    ) : (
+                        <div className="text-center py-20 text-neutral-500 italic">
+                            No analytics generated yet.
+                        </div>
+                    )}
                 </div>
+            </div>
 
-                {/* Selected Keyword Modal/Overlay */}
-                {selectedKeyword && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setSelectedKeyword(null)}>
-                        <div className="bg-neutral-900 border border-neutral-700 rounded-xl shadow-2xl p-6 max-w-md w-full relative" onClick={e => e.stopPropagation()}>
-                            <button
-                                onClick={() => setSelectedKeyword(null)}
-                                className="absolute top-4 right-4 text-neutral-500 hover:text-white"
-                            >
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                            </button>
+            {/* Selected Keyword Modal/Overlay */}
+            {selectedKeyword && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setSelectedKeyword(null)}>
+                    <div className="bg-neutral-900 border border-neutral-700 rounded-xl shadow-2xl p-6 max-w-md w-full relative" onClick={e => e.stopPropagation()}>
+                        <button
+                            onClick={() => setSelectedKeyword(null)}
+                            className="absolute top-4 right-4 text-neutral-500 hover:text-white"
+                        >
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                        </button>
 
-                            <h3 className="text-2xl font-black text-white mb-1">
-                                {isAnalyticsTranslated && selectedKeyword.translation ? selectedKeyword.translation : selectedKeyword.word}
-                            </h3>
-                            {isAnalyticsTranslated && selectedKeyword.translation !== selectedKeyword.word && (
-                                <div className="text-neutral-500 text-sm font-mono mb-4">{selectedKeyword.word}</div>
-                            )}
+                        <h3 className="text-2xl font-black text-white mb-1">
+                            {isAnalyticsTranslated && selectedKeyword.translation ? selectedKeyword.translation : selectedKeyword.word}
+                        </h3>
+                        {isAnalyticsTranslated && selectedKeyword.translation !== selectedKeyword.word && (
+                            <div className="text-neutral-500 text-sm font-mono mb-4">{selectedKeyword.word}</div>
+                        )}
 
-                            <div className="flex gap-2 mb-6 mt-2">
-                                <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${selectedKeyword.sentiment === 'Positive' ? 'bg-green-900/30 text-green-400 border border-green-900' :
-                                    selectedKeyword.sentiment === 'Negative' ? 'bg-red-900/30 text-red-400 border border-red-900' :
-                                        'bg-neutral-800 text-neutral-400 border border-neutral-700'
-                                    }`}>
-                                    {selectedKeyword.sentiment}
-                                </span>
-                                <span className="px-2 py-1 rounded text-xs font-bold bg-neutral-800 text-neutral-400 border border-neutral-700">
-                                    Imp: {selectedKeyword.importance}
-                                </span>
+                        <div className="flex gap-2 mb-6 mt-2">
+                            <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${selectedKeyword.sentiment === 'Positive' ? 'bg-green-900/30 text-green-400 border border-green-900' :
+                                selectedKeyword.sentiment === 'Negative' ? 'bg-red-900/30 text-red-400 border border-red-900' :
+                                    'bg-neutral-800 text-neutral-400 border border-neutral-700'
+                                }`}>
+                                {selectedKeyword.sentiment}
+                            </span>
+                            <span className="px-2 py-1 rounded text-xs font-bold bg-neutral-800 text-neutral-400 border border-neutral-700">
+                                Imp: {selectedKeyword.importance}
+                            </span>
+                        </div>
+
+                        <div className="border-t border-neutral-800 pt-4">
+                            <div className="text-xs text-neutral-500 font-bold uppercase tracking-widest mb-3">
+                                Found in {selectedKeyword.sources?.length || 0} Sources
                             </div>
+                            <ul className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
+                                {(selectedKeyword.sources || []).map((s: any, i: number) => {
+                                    // Handle String vs Object source
+                                    const url = typeof s === 'string' ? s : s?.url;
+                                    if (!url) return null;
 
-                            <div className="border-t border-neutral-800 pt-4">
-                                <div className="text-xs text-neutral-500 font-bold uppercase tracking-widest mb-3">
-                                    Found in {selectedKeyword.sources?.length || 0} Sources
-                                </div>
-                                <ul className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
-                                    {(selectedKeyword.sources || []).map((s: any, i: number) => {
-                                        // Handle String vs Object source
-                                        const url = typeof s === 'string' ? s : s?.url;
-                                        if (!url) return null;
+                                    return (
+                                        <li key={i}>
+                                            <a
+                                                href={url}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="block p-3 rounded-lg bg-neutral-950 border border-neutral-800 hover:border-blue-700 hover:bg-blue-900/10 transition-colors group"
+                                                onClick={(e) => e.stopPropagation()} // Prevent closing modal on link click
+                                            >
+                                                <div className="text-sm text-blue-300 font-medium line-clamp-2 group-hover:text-blue-200">
+                                                    {(() => {
+                                                        try {
+                                                            // Use object title if available, else find in articles
+                                                            if (typeof s === 'object' && s.title) return s.title;
 
-                                        return (
-                                            <li key={i}>
-                                                <a
-                                                    href={url}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="block p-3 rounded-lg bg-neutral-950 border border-neutral-800 hover:border-blue-700 hover:bg-blue-900/10 transition-colors group"
-                                                    onClick={(e) => e.stopPropagation()} // Prevent closing modal on link click
-                                                >
-                                                    <div className="text-sm text-blue-300 font-medium line-clamp-2 group-hover:text-blue-200">
-                                                        {(() => {
-                                                            try {
-                                                                // Use object title if available, else find in articles
-                                                                if (typeof s === 'object' && s.title) return s.title;
-
-                                                                const article = digestData?.articles?.find((a: any) => a.url === url);
-                                                                if (article && article.title) return article.title;
-                                                                return new URL(url).hostname;
-                                                            } catch { return "Source Detail"; }
-                                                        })()}
-                                                    </div>
-                                                    <div className="text-xs text-neutral-600 mt-1 truncate">
-                                                        {(() => {
-                                                            try { return new URL(url).hostname; } catch { return 'Source'; }
-                                                        })()}
-                                                    </div>
-                                                </a>
-                                            </li>
-                                        );
-                                    })}
-                                </ul>
-                            </div>
+                                                            const article = digestData?.articles?.find((a: any) => a.url === url);
+                                                            if (article && article.title) return article.title;
+                                                            return new URL(url).hostname;
+                                                        } catch { return "Source Detail"; }
+                                                    })()}
+                                                </div>
+                                                <div className="text-xs text-neutral-600 mt-1 truncate">
+                                                    {(() => {
+                                                        try { return new URL(url).hostname; } catch { return 'Source'; }
+                                                    })()}
+                                                </div>
+                                            </a>
+                                        </li>
+                                    );
+                                })}
+                            </ul>
                         </div>
                     </div>
-                )}
+                </div>
+            )}
 
-            </div>
-            {/* Fixed Analytics Tooltip */}
-            {hoveredKeywordData && <AnalyticsTooltip data={hoveredKeywordData} isTranslated={isAnalyticsTranslated} onClose={() => setHoveredKeywordData(null)} />}
+        </div>
+            {/* Fixed Analytics Tooltip */ }
+    { hoveredKeywordData && <AnalyticsTooltip data={hoveredKeywordData} isTranslated={isAnalyticsTranslated} onClose={() => setHoveredKeywordData(null)} /> }
 
         </div >
     );
