@@ -148,6 +148,8 @@ export default function UnifiedDigestViewer({
     // FIX: Use Ref to track latest digest data for async operations (Stale Closure Fix)
     const digestDataRef = useRef(digestData);
     useEffect(() => {
+        const hasLoader = digestData?.digest?.includes('gen-loader');
+        if (hasLoader) console.log('[UnifiedDigestViewer] Ref Updated: Loader IS present in digest.');
         digestDataRef.current = digestData;
     }, [digestData]);
 
@@ -270,7 +272,6 @@ export default function UnifiedDigestViewer({
 
     // Date Range Helper
     const formatDateRange = (createdDateStr: string, timeframeStr: string = "24h") => {
-        console.log(`[UnifiedDigestViewer] formatDateRange Input:`, { createdDateStr, timeframeStr });
         const createdDate = new Date(createdDateStr || Date.now());
 
         const msToSubtract = timeframeStr === '24h' ? 24 * 60 * 60 * 1000 :
@@ -562,8 +563,8 @@ export default function UnifiedDigestViewer({
                     ) : (
                         <div className="max-w-3xl mx-auto px-4 md:px-0">
                             {(() => {
-                                const rawContent = digestData?.digest || digestData?.summary_markdown || "";
-                                console.log("[UnifiedDigestViewer] Raw Digest Content:", rawContent.slice(0, 200));
+                                // const rawContent = digestData?.digest || digestData?.summary_markdown || "";
+                                // console.log("[UnifiedDigestViewer] Raw Digest Content:", rawContent.slice(0, 200));
                                 return (
                                     <ReactMarkdown
                                         rehypePlugins={[rehypeRaw]}

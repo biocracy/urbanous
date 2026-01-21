@@ -78,7 +78,6 @@ const getPathPointLng = (p: any) => p[0];
 const getPathColor = (d: any) => d.color;
 
 export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, isAtTop = true }: NewsGlobeProps) {
-    console.log("[NewsGlobe] Render Cycle"); // Debug Log
     const globeEl = useRef<any>(null);
     const { isAuthenticated } = useAuthStore();
 
@@ -152,9 +151,10 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
     }
 
     // Use centralized version constant
-    const APP_VERSION = "v0.204";
+    const APP_VERSION = "v0.205";
 
-    // UI States
+    // Debugging State Reset
+    // useEffect(() => console.log("[NewsGlobe] Mount/Render"), []);
     const [isDiscovering, setIsDiscovering] = useState(false);
     const [showOutletPanel, setShowOutletPanel] = useState(false);
     const [showCloseConfirm, setShowCloseConfirm] = useState(false); // Custom Close Dialog
