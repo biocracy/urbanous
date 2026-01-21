@@ -189,6 +189,9 @@ export default function UnifiedDigestViewer({
                 const data = await res.json();
                 const imageUrl = data.image_url;
 
+                if (data.prompt) console.log("[UnifiedDigestViewer] GENERATION PROMPT:", data.prompt);
+
+
                 let finalUrl = imageUrl;
                 if (imageUrl.startsWith('/')) {
                     const api = apiUrl.endsWith('/') ? apiUrl.slice(0, -1) : apiUrl;
