@@ -87,27 +87,36 @@ export default function FeedLayout({ activeDigest, onCloseDigest }: FeedLayoutPr
         });
     }, [activeDigest]);
 
-    // Fetch Feed
-    useEffect(() => {
-        const fetchFeed = async () => {
-            setIsLoading(true);
-            try {
-                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/digests/public?limit=${ITEMS_PER_PAGE}&offset=${page * ITEMS_PER_PAGE}`);
-                if (res.ok) {
-                    const data = await res.json();
-                    setFeedItems(data);
-                } else {
-                    console.error("Failed to fetch feed");
-                }
-            } catch (err) {
-                console.error("Error fetching feed:", err);
-            } finally {
-                setIsLoading(false);
+    // Fetch Feed Function
+    const fetchFeed = async () => {
+        setIsLoading(true);
+        try {
+            // Add timestamp to prevent caching
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/digests/public?limit=${ITEMS_PER_PAGE}&offset=${page * ITEMS_PER_PAGE}&_t=${Date.now()}`);
+            if (res.ok) {
+                const data = await res.json();
+                setFeedItems(data);
+            } else {
+                console.error("Failed to fetch feed");
             }
-        };
+        } catch (err) {
+            console.error("Error fetching feed:", err);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
+    // Initial Fetch & Page Change
+    useEffect(() => {
         fetchFeed();
     }, [page]);
+
+    // Re-fetch when closing digest (returning to list) to ensure updates
+    useEffect(() => {
+        if (!activeDigest) {
+            fetchFeed();
+        }
+    }, [activeDigest]);
 
     // Handle Card Click
     const handleCardClick = (slug: string) => {
@@ -138,7 +147,7 @@ export default function FeedLayout({ activeDigest, onCloseDigest }: FeedLayoutPr
                 <div className="w-full bg-neutral-900/30 border border-neutral-800 rounded-2xl overflow-hidden shadow-2xl min-h-[800px]">
                     <UnifiedDigestViewer
                         digestData={digestToRender}
-                        isReadOnly={false} // Enable Interactions like Image Gen
+                        isReadOnly={true} // Disable Interactions in Feed Mode
                         initialTab="digest"
                         setDigestSummary={(summary) => {
                             setLocalDigest((prev: any) => ({
