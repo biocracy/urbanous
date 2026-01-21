@@ -75,7 +75,13 @@ export default function FeedLayout({ activeDigest, onCloseDigest }: FeedLayoutPr
         setLocalDigest((prev: any) => {
             // Only overwrite if it's a DIFFERENT digest (or we had nothing)
             // This prevents background re-renders/fetches from wiping out local edit state (like the loader)
+            // DEBUG LOG:
+            if (activeDigest) {
+                // console.log(`[FeedLayout] Syncing. ActiveID: ${activeDigest.id} (${typeof activeDigest.id}), PrevID: ${prev?.id} (${typeof prev?.id})`);
+            }
+
             if (!prev || prev.id !== activeDigest?.id) {
+                console.log("[FeedLayout] Resetting localDigest due to ID change/Init.");
                 return activeDigest;
             }
             return prev;
