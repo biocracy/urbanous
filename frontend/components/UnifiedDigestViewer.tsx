@@ -155,6 +155,7 @@ export default function UnifiedDigestViewer({
     const handleGenerateImage = async () => {
         if (!digestData?.id) return;
         setIsGeneratingImage(true);
+        console.log(`[Gen] Starting generation for Digest ID: ${digestData.id}`);
 
         const TOKEN = "[[GENERATING_SKETCH]]";
 
