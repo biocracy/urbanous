@@ -172,12 +172,15 @@ export default function UnifiedDigestViewer({
 
         try {
             const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+            console.log(`[Gen] Requesting: ${apiUrl}/digests/${digestData.id}/generate-image`);
             const res = await fetch(`${apiUrl}/digests/${digestData.id}/generate-image`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
                 }
             });
+
+            console.log(`[Gen] Response Status: ${res.status}`);
 
             if (res.ok) {
                 const data = await res.json();
@@ -210,6 +213,7 @@ export default function UnifiedDigestViewer({
                 }
 
             } else {
+                console.error(`[Gen] Failed with status ${res.status}`);
                 console.error("Gen failed");
                 if (setDigestSummary) {
                     const text = digestDataRef.current?.digest || "";
@@ -217,6 +221,7 @@ export default function UnifiedDigestViewer({
                 }
             }
         } catch (e) {
+            console.error("[Gen] Exception:", e);
             console.error(e);
             if (setDigestSummary) {
                 const text = digestDataRef.current?.digest || "";
