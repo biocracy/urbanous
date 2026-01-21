@@ -643,17 +643,19 @@ export default function UnifiedDigestViewer({
                                             img: ({ src, alt, ...props }) => {
                                                 console.log("[UnifiedDigestViewer] Rendering Image:", src);
                                                 return (
-                                                    <span className="block my-8 relative group">
+                                                    <span className="block my-8 relative group border-2 border-red-500 bg-red-900/20 min-h-[200px] p-4">
+                                                        <span className="absolute top-0 right-0 bg-red-500 text-white text-xs px-1">DEBUG: IMG CONTAINER</span>
                                                         <img
                                                             src={src}
                                                             alt={alt || "Digest Illustration"}
-                                                            className="w-full max-w-2xl mx-auto rounded-lg shadow-2xl border border-neutral-800 transition-transform group-hover:scale-[1.01]"
+                                                            className="w-full max-w-2xl mx-auto rounded-lg shadow-2xl border border-neutral-800 transition-transform group-hover:scale-[1.01] block"
+                                                            style={{ minHeight: '100px', backgroundColor: 'rgba(0,0,255,0.1)' }}
                                                             loading="lazy"
+                                                            onLoad={() => console.log("[UnifiedDigestViewer] Image Loaded Successfully:", src)}
                                                             onError={(e) => {
                                                                 console.error("[UnifiedDigestViewer] Image Load Failed:", src);
-                                                                e.currentTarget.style.display = 'none'; // Hide broken images? Or show placeholder?
-                                                                // Show visual error
-                                                                e.currentTarget.parentElement?.classList.add('hidden');
+                                                                // Don't hide for debug
+                                                                // e.currentTarget.style.display = 'none'; 
                                                             }}
                                                             {...props}
                                                         />
