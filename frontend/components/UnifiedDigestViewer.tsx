@@ -539,7 +539,7 @@ export default function UnifiedDigestViewer({
 
                         {/* Explicit Image Rendering (Persisted) */}
                         {!isReadOnly && digestData?.image_url && (
-                            <div className="mb-12 flex justify-center">
+                            <div className="mb-12 flex justify-center relative group">
                                 <img
                                     src={(() => {
                                         let url = digestData.image_url;
@@ -553,6 +553,16 @@ export default function UnifiedDigestViewer({
                                     alt="Digest Illustration"
                                     className="rounded-lg shadow-2xl border border-neutral-800 max-h-[500px] w-auto object-cover"
                                 />
+                                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
+                                    <button
+                                        onClick={handleGenerateImage}
+                                        disabled={isGeneratingImage}
+                                        className="bg-white text-black px-6 py-3 rounded-full font-bold flex items-center gap-2 hover:scale-105 transition-transform"
+                                    >
+                                        <RotateCcw className={`w-4 h-4 ${isGeneratingImage ? 'animate-spin' : ''}`} />
+                                        {isGeneratingImage ? 'Regenerating...' : 'Regenerate Illustration'}
+                                    </button>
+                                </div>
                             </div>
                         )}
                     </div>
