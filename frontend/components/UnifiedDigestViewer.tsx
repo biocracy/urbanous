@@ -198,9 +198,16 @@ export default function UnifiedDigestViewer({
 
                 if (setDigestSummary) {
                     setTimeout(() => {
-                        const textWithLoader = document.querySelector('textarea')?.value || digestData.digest || "";
-                        const newText = textWithLoader.replace(loaderHtml, imageMd);
-                        setDigestSummary(newText);
+                        const latestText = digestDataRef.current?.digest || document.querySelector('textarea')?.value || "";
+                        console.log(`[Gen] Replacing loader in text length: ${latestText.length}`);
+                        if (latestText.includes('Rendering Architectural Sketch') || latestText.includes('id="gen-loader"')) {
+                            const newText = latestText.replace(loaderHtml, imageMd);
+                            setDigestSummary(newText);
+                            console.log("[Gen] Replacement Success!");
+                        } else {
+                            console.warn("[Gen] Loader not found in latest text! Appending image instead.");
+                            setDigestSummary(imageMd + "\n\n" + latestText);
+                        }
                     }, 100);
                 }
 
