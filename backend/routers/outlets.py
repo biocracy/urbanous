@@ -1937,7 +1937,7 @@ async def generate_digest_image_endpoint(digest_id: int, db: Session = Depends(g
 
     try:
         # Generate Image (using User's Key)
-        image_path = await generate_digest_image(
+        image_path, prompt = await generate_digest_image(
             title=digest.title, 
             city=digest.city or "Metropolis", 
             api_key=current_user.gemini_api_key
@@ -1949,7 +1949,7 @@ async def generate_digest_image_endpoint(digest_id: int, db: Session = Depends(g
         await db.commit()
         await db.refresh(digest)
         
-        return {"image_url": image_path}
+        return {"image_url": image_path, "prompt": prompt}
         
     except Exception as e:
         print(f"Gen Failed: {e}")

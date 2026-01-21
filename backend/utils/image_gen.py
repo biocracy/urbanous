@@ -17,7 +17,7 @@ import base64
 # we will mock the generation IF we can't hit the real API or use a standard placeholder logic if key fails.
 # OR, better: We assume the user has access to a model like "gemini-1.5-pro-latest" or "imagen-3.0-generate-001".
 
-async def generate_digest_image(title: str, city: str, output_dir: str = "static/digest_images", api_key: str = None) -> str:
+async def generate_digest_image(title: str, city: str, output_dir: str = "static/digest_images", api_key: str = None) -> tuple[str, str]:
     """
     Generates an image for a digest and returns the relative path.
     Uses Imagen 4.0 Fast via REST API.
@@ -81,7 +81,7 @@ async def generate_digest_image(title: str, city: str, output_dir: str = "static
         with open(filepath, "wb") as f:
             f.write(image_data)
         
-        return f"/{output_dir}/{filename}"
+        return f"/{output_dir}/{filename}", prompt
 
     except Exception as e:
         print(f"IMAGE GEN ERROR: {e}")
@@ -113,8 +113,8 @@ async def generate_digest_image(title: str, city: str, output_dir: str = "static
             img.save(filepath)
             
             print(f"Generated fallback image: {filename}")
-            return f"/{output_dir}/{filename}"
+            return f"/{output_dir}/{filename}", "Fallback Placeholder (No Prompt)"
             
         except Exception as fallback_error:
             print(f"FALLBACK GEN ERROR: {fallback_error}")
-            return "/static/placeholder_digest.png" # valid static file fallback
+            return "/static/placeholder_digest.png", "Error Placeholder" # valid static file fallback
