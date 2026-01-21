@@ -492,7 +492,35 @@ export default function UnifiedDigestViewer({
                 <div className={`h-full flex flex-col transition-opacity duration-300 ${activeTab === 'digest' ? 'opacity-100 flex' : 'hidden opacity-0'}`}>
                     <div className="flex-grow p-6 md:p-12 max-w-4xl mx-auto w-full">
                         {/* Header in Report View */}
-                        <div className="mb-12 text-center border-b border-neutral-800 pb-8">
+                        <div className="mb-12 text-center border-b border-neutral-800 pb-8 relative">
+                            {/* Image Generation Button (Top Right) */}
+                            {!isReadOnly && !digestData?.image_url && (
+                                <div className="absolute top-0 right-0">
+                                    <button
+                                        onClick={handleGenerateImage}
+                                        disabled={isGeneratingImage}
+                                        className={`
+                                            flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition-all border shadow-lg
+                                            ${isGeneratingImage
+                                                ? 'bg-neutral-800 text-neutral-500 border-neutral-700 cursor-not-allowed'
+                                                : 'bg-fuchsia-900/30 text-fuchsia-400 border-fuchsia-800 hover:bg-fuchsia-900/50 hover:text-white'}
+                                        `}
+                                    >
+                                        {isGeneratingImage ? (
+                                            <>
+                                                <RotateCcw className="w-3.5 h-3.5 animate-spin" />
+                                                Sketching digest concept...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Image className="w-3.5 h-3.5" />
+                                                Generate Illustration
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+                            )}
+
                             <h1 className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-400 mb-4 tracking-tight">
                                 {digestData?.title || `${digestData?.category || 'News'} Report`}
                             </h1>
@@ -510,55 +538,9 @@ export default function UnifiedDigestViewer({
                         </div>
                     </div>
 
-                    {/* Image Generation Button */}
-                    {!isReadOnly && !digestData?.image_url && (
-                        <div className="flex justify-center -mt-6 mb-8">
-                            <button
-                                onClick={handleGenerateImage}
-                                disabled={isGeneratingImage}
-                                className={`
-                                        flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wider transition-all border shadow-lg
-                                        ${isGeneratingImage
-                                        ? 'bg-neutral-800 text-neutral-500 border-neutral-700 cursor-not-allowed'
-                                        : 'bg-fuchsia-900/30 text-fuchsia-400 border-fuchsia-800 hover:bg-fuchsia-900/50 hover:text-white'}
-                                    `}
-                            >
-                                {isGeneratingImage ? (
-                                    <>
-                                        <RotateCcw className="w-3.5 h-3.5 animate-spin" />
-                                        Painting...
-                                    </>
-                                ) : (
-                                    <>
-                                        <Image className="w-3.5 h-3.5" />
-                                        Generate Illustration
-                                    </>
-                                )}
-                            </button>
-                        </div>
-                    )}
 
-                    {/* Editor Toggle (Only if editable) */}
-                    {isEditorActive && (
-                        <div className="flex justify-end mb-4">
-                            <button
-                                onClick={() => setIsEditing(!isEditing)}
-                                className="text-xs font-bold uppercase tracking-wider text-neutral-500 hover:text-blue-400 transition-colors flex items-center gap-2"
-                            >
-                                {isEditing ? (
-                                    <>
-                                        <FileText className="w-4 h-4" />
-                                        Switch to Preview
-                                    </>
-                                ) : (
-                                    <>
-                                        <span className="w-4 h-4">✏️</span>
-                                        Edit Report
-                                    </>
-                                )}
-                            </button>
-                        </div>
-                    )}
+
+
 
                     {isEditing ? (
                         <textarea
