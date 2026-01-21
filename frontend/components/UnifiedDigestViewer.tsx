@@ -641,21 +641,17 @@ export default function UnifiedDigestViewer({
                                             th: ({ children, ...props }) => <th className="p-4 border-b border-neutral-700 whitespace-nowrap" {...props}>{children}</th>,
                                             // Images
                                             img: ({ src, alt, ...props }) => {
-                                                console.log("[UnifiedDigestViewer] Rendering Image:", src);
+                                                // console.log("[UnifiedDigestViewer] Rendering Image:", src);
                                                 return (
-                                                    <span className="block my-8 relative group border-2 border-red-500 bg-red-900/20 min-h-[200px] p-4">
-                                                        <span className="absolute top-0 right-0 bg-red-500 text-white text-xs px-1">DEBUG: IMG CONTAINER</span>
+                                                    <span className="block my-8 relative group">
                                                         <img
                                                             src={src}
                                                             alt={alt || "Digest Illustration"}
                                                             className="w-full max-w-2xl mx-auto rounded-lg shadow-2xl border border-neutral-800 transition-transform group-hover:scale-[1.01] block"
-                                                            style={{ minHeight: '100px', backgroundColor: 'rgba(0,0,255,0.1)' }}
                                                             loading="lazy"
-                                                            onLoad={() => console.log("[UnifiedDigestViewer] Image Loaded Successfully:", src)}
                                                             onError={(e) => {
                                                                 console.error("[UnifiedDigestViewer] Image Load Failed:", src);
-                                                                // Don't hide for debug
-                                                                // e.currentTarget.style.display = 'none'; 
+                                                                e.currentTarget.style.display = 'none';
                                                             }}
                                                             {...props}
                                                         />
