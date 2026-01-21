@@ -896,9 +896,9 @@ export default function UnifiedDigestViewer({
                 </div>
             )}
 
-        </div>
-            {/* Fixed Analytics Tooltip */ }
-    { hoveredKeywordData && <AnalyticsTooltip data={hoveredKeywordData} isTranslated={isAnalyticsTranslated} onClose={() => setHoveredKeywordData(null)} /> }
+
+            {/* Fixed Analytics Tooltip */}
+            {hoveredKeywordData && <AnalyticsTooltip data={hoveredKeywordData} isTranslated={isAnalyticsTranslated} onClose={() => setHoveredKeywordData(null)} />}
 
         </div >
     );
