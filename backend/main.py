@@ -120,20 +120,15 @@ if os.path.exists(local_static):
         dst_path = os.path.join(static_dir, item)
         
         if os.path.isdir(src_path):
-            # If directory, copy contents if missing
-            if not os.path.exists(dst_path):
-                print(f"STORAGE: Initializing {item} in Volume...")
-                shutil.copytree(src_path, dst_path)
-            else:
-                # Optional: Overwrite/Update logic if needed? 
-                # For now, trust the volume, but if clusters are missing in volume but present in app, copy them.
-                # Actually, for clusters/json which might update in code, we might want to overwrite.
-                # But let's verify if empty.
-                if item == "clusters":
-                     # Simple sync: copy any missing files
-                     for f in os.listdir(src_path):
-                         if not os.path.exists(os.path.join(dst_path, f)):
-                             shutil.copy2(os.path.join(src_path, f), os.path.join(dst_path, f))
+            # Sync Directory
+            print(f"STORAGE: Syncing {item} to Volume...")
+            # dirs_exist_ok=True allows overwriting/updating existing folder
+            # ignoring errors to be safe? No, we want to know.
+            try:
+                shutil.copytree(src_path, dst_path, dirs_exist_ok=True)
+            except Exception as e:
+                print(f"STORAGE ERROR: Failed to sync {item}: {e}")
+
         elif os.path.isfile(src_path):
             # Copy root static files (like placeholders)
             if not os.path.exists(dst_path):

@@ -87,7 +87,12 @@ async def generate_digest_image(title: str, city: str, output_dir: str = None, a
         image_data = base64.b64decode(b64_data)
         
         # Ensure directory
-        full_dir = os.path.join(os.getcwd(), output_dir)
+        # Fix: If output_dir is absolute (e.g. /app/data/...), do not join with cwd.
+        if os.path.isabs(output_dir):
+            full_dir = output_dir
+        else:
+            full_dir = os.path.join(os.getcwd(), output_dir)
+
         if not os.path.exists(full_dir):
             os.makedirs(full_dir)
             
@@ -95,6 +100,7 @@ async def generate_digest_image(title: str, city: str, output_dir: str = None, a
         filename = f"digest_{uuid.uuid4().hex[:8]}.png"
         filepath = os.path.join(full_dir, filename)
         
+        print(f"IMAGE GEN: Saving to {filepath}")
         with open(filepath, "wb") as f:
             f.write(image_data)
         
