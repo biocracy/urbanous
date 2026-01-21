@@ -72,7 +72,14 @@ export default function FeedLayout({ activeDigest, onCloseDigest }: FeedLayoutPr
 
     // Sync activeDigest prop to local state
     useEffect(() => {
-        setLocalDigest(activeDigest);
+        setLocalDigest((prev: any) => {
+            // Only overwrite if it's a DIFFERENT digest (or we had nothing)
+            // This prevents background re-renders/fetches from wiping out local edit state (like the loader)
+            if (!prev || prev.id !== activeDigest?.id) {
+                return activeDigest;
+            }
+            return prev;
+        });
     }, [activeDigest]);
 
     // Fetch Feed
