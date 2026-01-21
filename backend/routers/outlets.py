@@ -1945,6 +1945,24 @@ async def generate_digest_image_endpoint(digest_id: int, db: Session = Depends(g
         
         # Update DB
         digest.image_url = image_path
+        
+        # Clean up existing markdown to prevent duplication
+        # Users might have duplicate links if they regenerated multiple times.
+        if digest.summary_markdown:
+            # remove existing image links: ![...](...)
+            # We want to replace the first one or just prepend the new one while removing old ones?
+            # Actually, standard practice: Remove old cover images, prepend new one.
+            import re
+            cleaned_md = re.sub(r'!\[.*?\]\(.*?\)', '', digest.summary_markdown).strip()
+            # Add new one at top
+            image_md = f"![{digest.city} Illustration]({image_path})"
+            digest.summary_markdown = f"{image_md}\n\n{cleaned_md}"
+            
+            # Update the Digest column too if it differs
+            if digest.digest:
+                 cleaned_digest = re.sub(r'!\[.*?\]\(.*?\)', '', digest.digest).strip()
+                 digest.digest = f"{image_md}\n\n{cleaned_digest}"
+
         db.add(digest)
         await db.commit()
         await db.refresh(digest)

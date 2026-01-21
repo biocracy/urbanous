@@ -102,9 +102,43 @@ if not os.path.exists(static_dir):
     os.makedirs(static_dir)
 
 # Also ensure specific subdirs exist if volume was just created
-if not os.path.exists(os.path.join(static_dir, "digest_images")):
-    os.makedirs(os.path.join(static_dir, "digest_images"))
+for subdir in ["digest_images", "clusters"]:
+    s_path = os.path.join(static_dir, subdir)
+    if not os.path.exists(s_path):
+        os.makedirs(s_path)
 
+# --- CRITICAL: SYNC LOCAL STATIC ASSETS TO VOLUME ---
+# Since we are mounting the Volume version of 'static', it might be empty on first run.
+# We must copy the app's original static assets (like clusters/*.json or placeholders) into it.
+import shutil
+
+local_static = os.path.join(os.path.dirname(__file__), "static")
+if os.path.exists(local_static):
+    # Sync specific important folders
+    for item in os.listdir(local_static):
+        src_path = os.path.join(local_static, item)
+        dst_path = os.path.join(static_dir, item)
+        
+        if os.path.isdir(src_path):
+            # If directory, copy contents if missing
+            if not os.path.exists(dst_path):
+                print(f"STORAGE: Initializing {item} in Volume...")
+                shutil.copytree(src_path, dst_path)
+            else:
+                # Optional: Overwrite/Update logic if needed? 
+                # For now, trust the volume, but if clusters are missing in volume but present in app, copy them.
+                # Actually, for clusters/json which might update in code, we might want to overwrite.
+                # But let's verify if empty.
+                if item == "clusters":
+                     # Simple sync: copy any missing files
+                     for f in os.listdir(src_path):
+                         if not os.path.exists(os.path.join(dst_path, f)):
+                             shutil.copy2(os.path.join(src_path, f), os.path.join(dst_path, f))
+        elif os.path.isfile(src_path):
+            # Copy root static files (like placeholders)
+            if not os.path.exists(dst_path):
+                shutil.copy2(src_path, dst_path)
+                
 print(f"STORAGE: Static files mounted at {os.path.abspath(static_dir)}")
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
