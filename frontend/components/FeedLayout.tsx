@@ -142,15 +142,11 @@ export default function FeedLayout({ activeDigest, onCloseDigest }: FeedLayoutPr
                         isReadOnly={false} // Enable Interactions like Image Gen
                         initialTab="digest"
                         setDigestSummary={(summary) => {
-                            console.log("[FeedLayout] setDigestSummary called with length:", summary.length);
-                            setLocalDigest((prev: any) => {
-                                console.log("[FeedLayout] Updating localDigest. Prev ID:", prev?.id);
-                                return {
-                                    ...prev,
-                                    digest: summary,
-                                    summary_markdown: summary
-                                };
-                            });
+                            setLocalDigest((prev: any) => ({
+                                ...prev,
+                                digest: summary,
+                                summary_markdown: summary
+                            }));
                         }}
                         onShare={() => {
                             if (digestToRender.public_slug) {
