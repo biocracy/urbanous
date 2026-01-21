@@ -30,10 +30,9 @@ async def generate_digest_image(title: str, city: str, output_dir: str = "static
          print("WARNING: No Gemini API Key provided for Image Gen. Falling back to placeholder.")
     
     prompt = (
-        f"A line-drawing illustration with marker color rendering. "
-        f"{title}"
-        f"Background: A recognizable architectural landmark of {city}. "
-        f"Style: Architectural sketch, black ink lines, pastel marker highlights. "
+        f"{title}. "
+        f"Background: A recognizable architectural landmark of {city}."
+        f"Style: Architectural sketch, black ink lines, pastel marker highlights."
         f"Industrial design feel. Minimalist."
     )
 
