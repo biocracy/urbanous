@@ -92,7 +92,7 @@ async def generate_digest_image(title: str, city: str, output_dir: str = None, a
         with open(filepath, "wb") as f:
             f.write(image_data)
         
-        return f"/{output_dir}/{filename}", prompt
+        return f"/{relative_path}/{filename}", prompt
 
     except Exception as e:
         print(f"IMAGE GEN ERROR: {e}")
