@@ -639,6 +639,28 @@ export default function UnifiedDigestViewer({
                                             tbody: ({ children, ...props }) => <tbody className="divide-y divide-neutral-800" {...props}>{children}</tbody>,
                                             tr: ({ children, ...props }) => <tr className="hover:bg-neutral-800/50 transition-colors" {...props}>{children}</tr>,
                                             th: ({ children, ...props }) => <th className="p-4 border-b border-neutral-700 whitespace-nowrap" {...props}>{children}</th>,
+                                            // Images
+                                            img: ({ src, alt, ...props }) => {
+                                                console.log("[UnifiedDigestViewer] Rendering Image:", src);
+                                                return (
+                                                    <span className="block my-8 relative group">
+                                                        <img
+                                                            src={src}
+                                                            alt={alt || "Digest Illustration"}
+                                                            className="w-full max-w-2xl mx-auto rounded-lg shadow-2xl border border-neutral-800 transition-transform group-hover:scale-[1.01]"
+                                                            loading="lazy"
+                                                            onError={(e) => {
+                                                                console.error("[UnifiedDigestViewer] Image Load Failed:", src);
+                                                                e.currentTarget.style.display = 'none'; // Hide broken images? Or show placeholder?
+                                                                // Show visual error
+                                                                e.currentTarget.parentElement?.classList.add('hidden');
+                                                            }}
+                                                            {...props}
+                                                        />
+                                                        {alt && <span className="block text-center text-xs text-neutral-500 mt-2 italic">{alt}</span>}
+                                                    </span>
+                                                );
+                                            },
                                             td: ({ children, ...props }) => <td className="p-4 text-neutral-300 align-top" {...props}>{children}</td>,
                                             details: ({ children, ...props }) => <details className="mb-4 group bg-neutral-900/30 rounded-lg border border-neutral-800 overflow-hidden" {...props}>{children}</details>,
                                             summary: ({ children, ...props }) => <summary className="cursor-pointer p-3 font-bold text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors select-none" {...props}>{children}</summary>,
