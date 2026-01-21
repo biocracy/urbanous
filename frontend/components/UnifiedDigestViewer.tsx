@@ -495,7 +495,7 @@ export default function UnifiedDigestViewer({
                         <div className="mb-12 text-center border-b border-neutral-800 pb-8 relative">
                             {/* Image Generation Button (Top Right) */}
                             {!isReadOnly && !digestData?.image_url && (
-                                <div className="absolute top-0 right-0">
+                                <div className="absolute -top-12 right-0">
                                     <button
                                         onClick={handleGenerateImage}
                                         disabled={isGeneratingImage}
