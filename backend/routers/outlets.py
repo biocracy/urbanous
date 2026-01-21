@@ -922,6 +922,7 @@ class DigestDetail(BaseModel):
     timeframe: Optional[str] = "24h" # Added to support date calculation in frontend
     city: Optional[str] = None
     country: Optional[str] = None # Added for Metadata
+    image_url: Optional[str] = None # Added for Metadata Images
     summary_markdown: str
     articles: List[Dict[str, Any]]
     analysis_source: Optional[List[Dict[str, Any]]] = []

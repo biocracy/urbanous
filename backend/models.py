@@ -99,6 +99,7 @@ class NewsDigest(Base):
     # Sharing
     is_public = Column(Boolean, default=False)
     public_slug = Column(String, unique=True, nullable=True, index=True)
+    image_url = Column(String, nullable=True) # New: Digest Image URL
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
