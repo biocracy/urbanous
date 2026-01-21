@@ -267,9 +267,17 @@ export default function FeedLayout({ activeDigest, onCloseDigest }: FeedLayoutPr
 // Sub-Component for individual cards
 function NewsCard({ item, onClick }: { item: DigestFeedItem, onClick: () => void }) {
     // Determine Image: flag_url OR city map OR default
-    const imageUrl = item.image_url // Coat of Arms
+    let imageUrl = item.image_url // Coat of Arms
         || CITY_IMAGES[item.city || ""]
         || DEFAULT_IMAGE;
+
+    // Fix relative paths from backend (e.g. /static/...)
+    if (imageUrl && imageUrl.startsWith('/')) {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+        // Remove trailing slash from API URL if present to avoid double slash
+        const cleanApiUrl = apiUrl.endsWith('/') ? apiUrl.slice(0, -1) : apiUrl;
+        imageUrl = `${cleanApiUrl}${imageUrl}`;
+    }
 
     // Determine Source Text (user name? or generic?)
     // User requested "freshest first".
