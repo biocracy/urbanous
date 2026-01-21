@@ -1,125 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import {
-    const [hoveredKeywordData, setHoveredKeywordData] = useState<{ kw: any, rect: DOMRect } | null>(null);
-const [isEditing, setIsEditing] = useState(false); // Default to Preview Mode
-const [isGeneratingImage, setIsGeneratingImage] = useState(false);
-
-// Image Generation Handler
-const handleGenerateImage = async () => {
-    if (!digestData?.id) return;
-    setIsGeneratingImage(true);
-
-    // Inject Loader Placeholder
-    // We inject HTML directly because rehypeRaw is enabled
-    const loaderHtml = `<div id="gen-loader" class="my-8 p-8 border border-fuchsia-500/30 rounded-lg bg-fuchsia-900/10 flex flex-col items-center justify-center gap-3 animate-pulse">
-            <div class="w-8 h-8 border-2 border-fuchsia-500 border-t-transparent rounded-full animate-spin"></div>
-            <span class="text-fuchsia-300 font-mono text-xs uppercase">Rendering Architectural Sketch...</span>
-        </div>`;
-
-    // Insert after first paragraph (naive split by double newline)
-    let currentText = digestData.digest || digestData.summary_markdown || "";
-    const parts = currentText.split('\n\n');
-    if (parts.length > 1) {
-        parts.splice(1, 0, loaderHtml);
-        const newText = parts.join('\n\n');
-        if (setDigestSummary) setDigestSummary(newText);
-    } else {
-        // If text is too short, append to top
-        if (setDigestSummary) setDigestSummary(loaderHtml + "\n\n" + currentText);
-    }
-
-    try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-        const res = await fetch(`${apiUrl}/digests/${digestData.id}/generate-image`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${localStorage.getItem('token')}` // Assuming token is here, or relying on cookie?
-                // Actually better to use the authenticated fetcher if widely used, but raw fetch for now:
-            }
-        });
-
-        if (res.ok) {
-            const data = await res.json();
-            const imageUrl = data.image_url; // Relative Path
-
-            // Replace Loader with Image Markdown
-            // We use standard Markdown image syntax now
-            // Fix relative path for display if needed? No, markdown renderer handles it? 
-            // Wait, previous bug showed we need absolute for some viewers, 
-            // but the FeedLayout fix was specialized. 
-            // Let's use the API_URL prefix if it's relative, JUST TO BE SAFE in the markdown itself?
-            // Actually, if we save relative in DB, backend serves it.
-            // Let's use strict relative in markdown, and hope `react-markdown` resolves it?
-            // Standard markdown `![](/static/...)` works if base URL is domain. 
-            // But frontend is localhost:3000, backend is localhost:8000. 
-            // So we MUST prepend API_URL in the markdown logic or image transform.
-
-            let finalUrl = imageUrl;
-            if (imageUrl.startsWith('/')) {
-                const api = apiUrl.endsWith('/') ? apiUrl.slice(0, -1) : apiUrl;
-                finalUrl = `${api}${imageUrl}`;
-            }
-
-            const imageMd = `![${digestData.city} Illustration](${finalUrl})`;
-
-            // Update Text (Replace the HTML loader)
-            // We need to read the *latest* text in case user typed? 
-            // Ideally we use functional update or ref, but for now access state if possible?
-            // We don't have access to latest `digestData.digest` inside async closure safely without ref.
-            // But we modified it above.
-            // Let's rely on the fact that we put a unique ID string.
-
-            // We need to call the setter with a replacement on previous state
-            // Since `setDigestSummary` is likely from parent, we can't do functional update easily if it doesn't support it.
-            // We will assume `digestData` updates are fast enough OR we just use the variable we created + generic replacement.
-
-            // ACTUALLY: The best way is to fetch the fresh digest?
-            // But we want to keep the local edit.
-            // Let's just user the `setDigestSummary` with a replace() on the loader string.
-            // But we can't read the *current* val from `digestData` in closure if it changed?
-            // We'll hope user didn't delete the loader.
-
-            if (setDigestSummary) {
-                // We need to trigger an update that replaces the loader HTML with the Image MD
-                // CAUTION: We can't easily access 'prev' value of the prop.
-                // We will hack it: We know the loader string.
-
-                // We will fetch the *latest* text via a hack or just use `digestData.digest` assuming user didn't type much in 5 seconds.
-                // Better: use a ref for the text content?
-                // Let's just try replacing in the current `digestData.digest` (which might be slightly stale if user typed fast, but unlikely during a loading spinner).
-
-                // Actually, `digestData` prop will update after our first setDigestSummary call?
-                // Yes.
-
-                // Helper to find and replace
-                setTimeout(() => {
-                    const textWithLoader = document.querySelector('textarea')?.value || digestData.digest || "";
-                    // Fallback to DOM if in edit mode, else prop
-                    const newText = textWithLoader.replace(loaderHtml, imageMd);
-                    setDigestSummary(newText);
-                }, 100);
-            }
-
-        } else {
-            console.error("Gen failed");
-            alert("Failed to generate image.");
-            // Remove loader
-            if (setDigestSummary) {
-                const text = digestData.digest || "";
-                setDigestSummary(text.replace(loaderHtml, ""));
-            }
-        }
-    } catch (e) {
-        console.error(e);
-        alert("Error generating image");
-        if (setDigestSummary) {
-            const text = digestData.digest || "";
-            setDigestSummary(text.replace(loaderHtml, ""));
-        }
-    } finally {
-        setIsGeneratingImage(false);
-    }
-};
+    LayoutGrid, FileText, Sparkles, Check, Download, Copy,
+    RotateCcw, Trash2, Languages, Cloud, Columns, X, Save, Image
+} from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import rehypeRaw from 'rehype-raw';
+import DigestReportRenderer from './DigestReportRenderer';
 const AnalyticsTooltip = ({ data, isTranslated, onClose }: { data: { kw: any, rect: DOMRect }, isTranslated: boolean, onClose: () => void }) => {
     const { kw, rect } = data;
     if (!kw || !rect) return null;
@@ -257,6 +143,80 @@ export default function UnifiedDigestViewer({
     const [selectedKeyword, setSelectedKeyword] = useState<any | null>(null);
     const [hoveredKeywordData, setHoveredKeywordData] = useState<{ kw: any, rect: DOMRect } | null>(null);
     const [isEditing, setIsEditing] = useState(false); // Default to Preview Mode
+    const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+
+    // Image Generation Handler
+    const handleGenerateImage = async () => {
+        if (!digestData?.id) return;
+        setIsGeneratingImage(true);
+
+        // Inject Loader Placeholder
+        // We inject HTML directly because rehypeRaw is enabled
+        const loaderHtml = `<div id="gen-loader" class="my-8 p-8 border border-fuchsia-500/30 rounded-lg bg-fuchsia-900/10 flex flex-col items-center justify-center gap-3 animate-pulse">
+            <div class="w-8 h-8 border-2 border-fuchsia-500 border-t-transparent rounded-full animate-spin"></div>
+            <span class="text-fuchsia-300 font-mono text-xs uppercase">Rendering Architectural Sketch...</span>
+        </div>`;
+
+        // Insert after first paragraph (naive split by double newline)
+        let currentText = digestData.digest || digestData.summary_markdown || "";
+        const parts = currentText.split('\n\n');
+        if (parts.length > 1) {
+            parts.splice(1, 0, loaderHtml);
+            const newText = parts.join('\n\n');
+            if (setDigestSummary) setDigestSummary(newText);
+        } else {
+            // If text is too short, append to top
+            if (setDigestSummary) setDigestSummary(loaderHtml + "\n\n" + currentText);
+        }
+
+        try {
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+            const res = await fetch(`${apiUrl}/digests/${digestData.id}/generate-image`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                const imageUrl = data.image_url; // Relative Path
+
+                let finalUrl = imageUrl;
+                if (imageUrl.startsWith('/')) {
+                    const api = apiUrl.endsWith('/') ? apiUrl.slice(0, -1) : apiUrl;
+                    finalUrl = `${api}${imageUrl}`;
+                }
+
+                const imageMd = `![${digestData.city} Illustration](${finalUrl})`;
+
+                if (setDigestSummary) {
+                    setTimeout(() => {
+                        const textWithLoader = document.querySelector('textarea')?.value || digestData.digest || "";
+                        const newText = textWithLoader.replace(loaderHtml, imageMd);
+                        setDigestSummary(newText);
+                    }, 100);
+                }
+
+            } else {
+                console.error("Gen failed");
+                alert("Failed to generate image.");
+                if (setDigestSummary) {
+                    const text = digestData.digest || "";
+                    setDigestSummary(text.replace(loaderHtml, ""));
+                }
+            }
+        } catch (e) {
+            console.error(e);
+            alert("Error generating image");
+            if (setDigestSummary) {
+                const text = digestData.digest || "";
+                setDigestSummary(text.replace(loaderHtml, ""));
+            }
+        } finally {
+            setIsGeneratingImage(false);
+        }
+    };
 
     // Use prop if available (controlled), else local state
     const viewMode = analyticsViewMode || internalAnalyticsViewMode;
