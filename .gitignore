@@ -76,3 +76,4 @@ master_timeline.html
 
 # Generated Flags
 backend/static/flags/
+.env.backup
