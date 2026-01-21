@@ -203,7 +203,9 @@ export default function UnifiedDigestViewer({
                         if (latestText.includes(TOKEN)) {
                             const newText = latestText.replace(TOKEN, imageMd);
                             setDigestSummary(newText);
+                            console.log("[Gen] Token replaced successfully.");
                         } else {
+                            console.warn("[Gen] Token NOT found in latest text! Appending image.");
                             // Fallback: If token lost (rare), append to top/bottom logic? 
                             // Textarea focus might have cleared it?
                             // Just append to top + original text
