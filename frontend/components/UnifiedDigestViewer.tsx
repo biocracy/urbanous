@@ -162,6 +162,9 @@ export default function UnifiedDigestViewer({
         if (!digestData?.id) return;
         setIsGeneratingImage(true);
         console.log(`[Gen] Starting generation for Digest ID: ${digestData.id}`);
+        console.log(`[Gen] typeof setDigestSummary: ${typeof setDigestSummary}`);
+        const debugText = digestData.digest || digestData.summary_markdown || "";
+        console.log(`[Gen] currentText length: ${debugText.length}`);
 
         const TOKEN = "[[GENERATING_SKETCH]]";
 
@@ -171,9 +174,13 @@ export default function UnifiedDigestViewer({
         if (parts.length > 1) {
             parts.splice(1, 0, TOKEN);
             const newText = parts.join('\n\n');
+            console.log(`[Gen] Attempting sync update (long). New len: ${newText.length}`);
             if (setDigestSummary) setDigestSummary(newText);
+            else console.error("[Gen] setDigestSummary missing in IF block!");
         } else {
+            console.log("[Gen] Attempting sync update (short).");
             if (setDigestSummary) setDigestSummary(TOKEN + "\n\n" + currentText);
+            else console.error("[Gen] setDigestSummary missing in ELSE block!");
         }
 
         try {
