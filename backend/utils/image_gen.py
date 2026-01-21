@@ -30,10 +30,10 @@ async def generate_digest_image(title: str, city: str, output_dir: str = "static
          print("WARNING: No Gemini API Key provided for Image Gen. Falling back to placeholder.")
     
     prompt = (
-        f"{title}. "
-        f"Background: A recognizable architectural landmark of {city}."
-        f"Style: Architectural sketch, black ink lines, pastel marker highlights."
-        f"Industrial design feel. Minimalist."
+        f"A line-drawing illustration with minimal pastel color washes. "
+        f"Background features a recognizable landmark in {city}. "
+        f"The scene conceptually represents: '{title}'. "
+        f"Low saturation, simple lines, editorial style."
     )
 
     try:
@@ -41,8 +41,9 @@ async def generate_digest_image(title: str, city: str, output_dir: str = "static
              raise Exception("Missing API Key")
 
         # REST API for Imagen 4.0
-        # Bypass deprecated/broken SDK
-        model = "imagen-4.0-fast-generate-001"
+        # By pass deprecated/broken SDK
+        # Using Ultra as requested for "Pro" quality
+        model = "imagen-4.0-ultra-generate-001"
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:predict?key={final_key}"
         
         payload = {
