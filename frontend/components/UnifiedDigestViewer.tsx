@@ -144,6 +144,7 @@ export default function UnifiedDigestViewer({
     const [hoveredKeywordData, setHoveredKeywordData] = useState<{ kw: any, rect: DOMRect } | null>(null);
     const [isEditing, setIsEditing] = useState(false); // Default to Preview Mode
     const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+    const [imageError, setImageError] = useState(false); // Track broken images
 
     // FIX: Use Ref to track latest digest data for async operations (Stale Closure Fix)
     const digestDataRef = useRef(digestData);
@@ -540,20 +541,34 @@ export default function UnifiedDigestViewer({
                         {/* Explicit Image Rendering (Persisted) */}
                         {!isReadOnly && digestData?.image_url && (
                             <div className="mb-12 flex justify-center relative group">
-                                <img
-                                    src={(() => {
-                                        let url = digestData.image_url;
-                                        if (url && url.startsWith('/') && !url.startsWith('http')) {
-                                            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-                                            const cleanApiUrl = apiUrl.endsWith('/') ? apiUrl.slice(0, -1) : apiUrl;
-                                            url = `${cleanApiUrl}${url}`;
-                                        }
-                                        return url;
-                                    })()}
-                                    alt="Digest Illustration"
-                                    className="rounded-lg shadow-2xl border border-neutral-800 max-h-[500px] w-auto object-cover"
-                                />
-
+                                {!imageError ? (
+                                    <img
+                                        src={(() => {
+                                            let url = digestData.image_url;
+                                            if (url && url.startsWith('/') && !url.startsWith('http')) {
+                                                const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+                                                const cleanApiUrl = apiUrl.endsWith('/') ? apiUrl.slice(0, -1) : apiUrl;
+                                                url = `${cleanApiUrl}${url}`;
+                                            }
+                                            return url;
+                                        })()}
+                                        onError={() => setImageError(true)}
+                                        alt="Digest Illustration"
+                                        className="rounded-lg shadow-2xl border border-neutral-800 max-h-[500px] w-auto object-cover"
+                                    />
+                                ) : (
+                                    <div className="w-full h-64 bg-neutral-900/50 border border-neutral-800 rounded-lg flex flex-col items-center justify-center gap-4 border-dashed">
+                                        <div className="text-neutral-500 font-mono text-xs uppercase tracking-widest">Image File Missing</div>
+                                        <button
+                                            onClick={() => { setImageError(false); handleGenerateImage(); }}
+                                            disabled={isGeneratingImage}
+                                            className="bg-neutral-800 hover:bg-neutral-700 text-white px-6 py-2 rounded-full font-bold flex items-center gap-2 transition-all border border-neutral-700"
+                                        >
+                                            <RotateCcw className={`w-4 h-4 ${isGeneratingImage ? 'animate-spin' : ''}`} />
+                                            {isGeneratingImage ? 'Recovering...' : 'Regenerate Now'}
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>

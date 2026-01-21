@@ -99,6 +99,7 @@ if not os.path.exists(static_dir):
 if not os.path.exists(os.path.join(static_dir, "digest_images")):
     os.makedirs(os.path.join(static_dir, "digest_images"))
 
+print(f"STORAGE: Static files mounted at {os.path.abspath(static_dir)}")
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 @app.get("/")
