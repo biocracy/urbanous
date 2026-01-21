@@ -145,6 +145,12 @@ export default function UnifiedDigestViewer({
     const [isEditing, setIsEditing] = useState(false); // Default to Preview Mode
     const [isGeneratingImage, setIsGeneratingImage] = useState(false);
 
+    // FIX: Use Ref to track latest digest data for async operations (Stale Closure Fix)
+    const digestDataRef = useRef(digestData);
+    useEffect(() => {
+        digestDataRef.current = digestData;
+    }, [digestData]);
+
     // Image Generation Handler
     const handleGenerateImage = async () => {
         if (!digestData?.id) return;
@@ -202,7 +208,7 @@ export default function UnifiedDigestViewer({
                 console.error("Gen failed");
                 alert("Failed to generate image.");
                 if (setDigestSummary) {
-                    const text = digestData.digest || "";
+                    const text = digestDataRef.current?.digest || "";
                     setDigestSummary(text.replace(loaderHtml, ""));
                 }
             }
@@ -210,7 +216,7 @@ export default function UnifiedDigestViewer({
             console.error(e);
             alert("Error generating image");
             if (setDigestSummary) {
-                const text = digestData.digest || "";
+                const text = digestDataRef.current?.digest || "";
                 setDigestSummary(text.replace(loaderHtml, ""));
             }
         } finally {
