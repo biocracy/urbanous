@@ -88,7 +88,13 @@ from fastapi.staticfiles import StaticFiles
 # Ensure directory exists to prevent startup error
 # Mount Static Files for Clusters & Images
 # Support for Persistent Volume (DATA_DIR)
-DATA_DIR = os.getenv("DATA_DIR", ".")
+# Support for Persistent Volume (DATA_DIR)
+DATA_DIR = os.getenv("DATA_DIR")
+if not DATA_DIR:
+    if os.path.exists("/app/data"):
+        DATA_DIR = "/app/data"
+    else:
+        DATA_DIR = "."
 static_dir = os.path.join(DATA_DIR, "static")
 
 # Ensure directory exists to prevent startup error

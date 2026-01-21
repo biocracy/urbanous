@@ -78,7 +78,12 @@ async def run_migrations():
     # Because of the Ephemeral Storage migration, many old IDs point to files that don't exist in the new Volume.
     # We should detect these and NULL them so the UI doesn't show broken images (and allows regeneration).
     import os
-    DATA_DIR = os.getenv("DATA_DIR", ".")
+    DATA_DIR = os.getenv("DATA_DIR")
+    if not DATA_DIR:
+        if os.path.exists("/app/data"):
+            DATA_DIR = "/app/data"
+        else:
+            DATA_DIR = "."
     
     log("CLEANUP: Checking for orphaned images to facilitate regeneration...")
     
@@ -99,7 +104,13 @@ async def cleanup_broken_images():
     from models import NewsDigest
     import os
     
-    DATA_DIR = os.getenv("DATA_DIR", ".")
+    DATA_DIR = os.getenv("DATA_DIR")
+    if not DATA_DIR:
+        if os.path.exists("/app/data"):
+            DATA_DIR = "/app/data"
+        else:
+            DATA_DIR = "."
+
     STATIC_ROOT = os.path.join(DATA_DIR, "static") # e.g. /app/data/static
     
     logs = []

@@ -23,7 +23,13 @@ async def generate_digest_image(title: str, city: str, output_dir: str = None, a
     Uses Imagen 4.0 Fast via REST API.
     """
     # Determine output directory (Persistent or Local)
-    data_dir = os.getenv("DATA_DIR", ".")
+    data_dir = os.getenv("DATA_DIR")
+    if not data_dir:
+        # Auto-detect Railway Volume
+        if os.path.exists("/app/data"):
+            data_dir = "/app/data"
+        else:
+            data_dir = "."
     # Ideally images go to DATA_DIR/static/digest_images or similar.
     # But to keep URLs consistent (/static/...) we need to map it carefully.
     
