@@ -81,7 +81,6 @@ export default function FeedLayout({ activeDigest, onCloseDigest }: FeedLayoutPr
             }
 
             if (!prev || prev.id !== activeDigest?.id) {
-                console.log("[FeedLayout] Resetting localDigest due to ID change/Init.");
                 return activeDigest;
             }
             return prev;
