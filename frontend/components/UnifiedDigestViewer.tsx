@@ -536,6 +536,25 @@ export default function UnifiedDigestViewer({
                                 <span>{formatDateRange(digestData?.created_at, digestData?.timeframe)}</span>
                             </div>
                         </div>
+
+                        {/* Explicit Image Rendering (Persisted) */}
+                        {!isReadOnly && digestData?.image_url && (
+                            <div className="mb-12 flex justify-center">
+                                <img
+                                    src={(() => {
+                                        let url = digestData.image_url;
+                                        if (url && url.startsWith('/') && !url.startsWith('http')) {
+                                            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+                                            const cleanApiUrl = apiUrl.endsWith('/') ? apiUrl.slice(0, -1) : apiUrl;
+                                            url = `${cleanApiUrl}${url}`;
+                                        }
+                                        return url;
+                                    })()}
+                                    alt="Digest Illustration"
+                                    className="rounded-lg shadow-2xl border border-neutral-800 max-h-[500px] w-auto object-cover"
+                                />
+                            </div>
+                        )}
                     </div>
 
 
