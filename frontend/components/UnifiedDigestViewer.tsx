@@ -148,8 +148,6 @@ export default function UnifiedDigestViewer({
     // FIX: Use Ref to track latest digest data for async operations (Stale Closure Fix)
     const digestDataRef = useRef(digestData);
     useEffect(() => {
-        const hasLoader = digestData?.digest?.includes('gen-loader');
-        if (hasLoader) console.log('[UnifiedDigestViewer] Ref Updated: Loader IS present in digest.');
         digestDataRef.current = digestData;
     }, [digestData]);
 
@@ -608,7 +606,18 @@ export default function UnifiedDigestViewer({
                                             h2: ({ children }) => <h2 className="text-2xl font-bold mb-4 text-white mt-8">{children}</h2>,
                                             h3: ({ children }) => <h3 className="text-xl font-bold mb-3 text-blue-200 mt-6">{children}</h3>,
                                             // Text & Layout
-                                            p: ({ children }) => <div className="text-neutral-300 mb-4 leading-relaxed text-lg text-justify tracking-wide">{children}</div>,
+                                            p: ({ children }) => {
+                                                const childStr = String(children);
+                                                if (childStr.includes('[[GENERATING_SKETCH]]')) {
+                                                    return (
+                                                        <div className="my-8 p-8 border border-fuchsia-500/30 rounded-lg bg-fuchsia-900/10 flex flex-col items-center justify-center gap-3 animate-pulse">
+                                                            <div className="w-8 h-8 border-2 border-fuchsia-500 border-t-transparent rounded-full animate-spin"></div>
+                                                            <span className="text-fuchsia-300 font-mono text-xs uppercase">Rendering Architectural Sketch...</span>
+                                                        </div>
+                                                    );
+                                                }
+                                                return <div className="text-neutral-300 mb-4 leading-relaxed text-lg text-justify tracking-wide">{children}</div>;
+                                            },
                                             ul: ({ children }) => <ul className="list-disc list-inside mb-4 space-y-2 text-neutral-300 pl-4">{children}</ul>,
                                             ol: ({ children }) => <ol className="list-decimal list-inside mb-4 space-y-2 text-neutral-300 pl-4">{children}</ol>,
                                             li: ({ children }) => <li className="pl-1 marker:text-neutral-500">{children}</li>,

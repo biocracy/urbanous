@@ -151,7 +151,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
     }
 
     // Use centralized version constant
-    const APP_VERSION = "v0.205";
+    const APP_VERSION = "v0.207";
 
     // Debugging State Reset
     // useEffect(() => console.log("[NewsGlobe] Mount/Render"), []);
@@ -480,9 +480,9 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
     const fetchSavedDigests = async () => {
         if (!currentUser) return;
         try {
-            console.log("DIGEST_DEBUG: Fetching saved digests...");
+            // console.log("DIGEST_DEBUG: Fetching saved digests...");
             const res = await api.get('/digests');
-            console.log("DIGEST_DEBUG: Fetched Saved Digests:", res.data);
+            // console.log("DIGEST_DEBUG: Fetched Saved Digests:", res.data);
             setSavedDigests(res.data);
             setDigestFetchStatus(`success (${res.data.length} items)`);
         } catch (err: any) {
@@ -991,7 +991,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
                             }
                         }
                         else if (msg.type === 'meta') {
-                            console.log("DIGEST_DEBUG: Received Meta:", msg);
+                            // console.log("DIGEST_DEBUG: Received Meta:", msg);
                             currentDigestState.owner_id = msg.owner_id;
                             currentDigestState.owner_username = msg.owner_username;
                             // Immediate update to show user name
@@ -1186,7 +1186,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
         // Load initially discovered cities (Auth required)
         api.get('/outlets/cities/list')
             .then(res => {
-                console.log("Discovered Cities Loaded:", res.data?.length);
+                // console.log("Discovered Cities Loaded:", res.data?.length);
                 setDiscoveredCities(res.data);
             })
             .catch(err => console.error("Failed to load discovered cities", err));
