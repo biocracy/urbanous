@@ -184,7 +184,9 @@ export default function UnifiedDigestViewer({
 
             if (res.ok) {
                 const data = await res.json();
+                console.log("[Gen] Response Data:", data);
                 const imageUrl = data.image_url;
+                console.log(`[Gen] Success! Image URL: ${imageUrl}`);
 
                 let finalUrl = imageUrl;
                 if (imageUrl.startsWith('/')) {
