@@ -1844,6 +1844,7 @@ async def get_public_digest(slug: str, db: Session = Depends(get_db)):
         timeframe=digest.timeframe or "24h", # Pass to frontend
         city=digest.city,
         country=country_name, # Return Country Name
+        image_url=digest.image_url, # Return Digest Image
         summary_markdown=digest.summary_markdown,
         articles=safe_json(digest.articles_json),
         analysis_source=safe_json(digest.analysis_source),
@@ -1911,7 +1912,8 @@ async def get_public_digests_feed(limit: int = 6, offset: int = 0, db: Session =
             city=digest.city,
             timeframe=digest.timeframe or "24h",
             created_at=(digest.created_at or datetime.now()).isoformat(),
-            image_url=flag_url, 
+            # Priority: Digest Image > City Flag > None (Frontend handles default)
+            image_url=digest.image_url if digest.image_url else flag_url, 
             user_name=username if is_visible else "Anonymous",
             summary=summary_preview
         ))
