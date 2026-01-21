@@ -279,6 +279,8 @@ function NewsCard({ item, onClick }: { item: DigestFeedItem, onClick: () => void
         imageUrl = `${cleanApiUrl}${imageUrl}`;
     }
 
+    console.log(`[DEBUG] Image for ${item.slug}:`, { original: item.image_url, final: imageUrl, apiUrl: process.env.NEXT_PUBLIC_API_URL });
+
     // Determine Source Text (user name? or generic?)
     // User requested "freshest first".
     const dateStr = new Date(item.created_at).toLocaleDateString(undefined, {
