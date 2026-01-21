@@ -151,7 +151,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
     }
 
     // Use centralized version constant
-    const APP_VERSION = "v0.211";
+    const APP_VERSION = "v0.212";
 
     // Debugging State Reset
     // useEffect(() => console.log("[NewsGlobe] Mount/Render"), []);

@@ -148,6 +148,12 @@ export default function UnifiedDigestViewer({
     // FIX: Use Ref to track latest digest data for async operations (Stale Closure Fix)
     const digestDataRef = useRef(digestData);
     useEffect(() => {
+        if (digestData) {
+            console.log(`[UnifiedDigestViewer] digestData prop updated. ID: ${digestData.id}, Length: ${digestData.digest?.length}`);
+            if (digestData.digest?.includes('[[GENERATING_SKETCH]]')) {
+                console.log("[UnifiedDigestViewer] TOKEN DETECTED in prop update!");
+            }
+        }
         digestDataRef.current = digestData;
     }, [digestData]);
 
