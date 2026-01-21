@@ -1,12 +1,11 @@
 import os
 import requests
 import uuid
-import google.generativeai as genai
-from PIL import Image
+import base64
 
 # Configure Gemini
 # Assuming GEMINI_API_KEY is already loaded in environment
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+# genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
 # Use the specific model capable of image generation
 # 'gemini-1.5-flash' is often text-only or multimodal input. 
@@ -18,10 +17,17 @@ genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 # we will mock the generation IF we can't hit the real API or use a standard placeholder logic if key fails.
 # OR, better: We assume the user has access to a model like "gemini-1.5-pro-latest" or "imagen-3.0-generate-001".
 
-async def generate_digest_image(title: str, city: str, output_dir: str = "static/digest_images") -> str:
+async def generate_digest_image(title: str, city: str, output_dir: str = "static/digest_images", api_key: str = None) -> str:
     """
     Generates an image for a digest and returns the relative path.
+    Uses Imagen 4.0 Fast via REST API.
     """
+    
+    # Configure API Key per request
+    final_key = api_key or os.getenv("GEMINI_API_KEY")
+    
+    if not final_key:
+         print("WARNING: No Gemini API Key provided for Image Gen. Falling back to placeholder.")
     
     prompt = (
         f"A line-drawing illustration with marker rendering. "
@@ -32,22 +38,36 @@ async def generate_digest_image(title: str, city: str, output_dir: str = "static
     )
 
     try:
-        # NOTE: Using the standard Google GenAI SDK for image generation
-        # 'imagen-3.0-generate-001' is the model name for Imagen 3 on AI Studio
-        model = genai.ImageGenerationModel("imagen-3.0-generate-001")
-        
-        response = model.generate_images(
-            prompt=prompt,
-            number_of_images=1,
-            aspect_ratio="16:9", # or "1:1"
-            safety_filter_level="block_only_high",
-            person_generation="allow_adult"
-        )
-        
-        if not response.images:
-             raise Exception("No image generated")
+        if not final_key:
+             raise Exception("Missing API Key")
 
-        image = response.images[0]
+        # REST API for Imagen 4.0
+        # Bypass deprecated/broken SDK
+        model = "imagen-4.0-fast-generate-001"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:predict?key={final_key}"
+        
+        payload = {
+            "instances": [
+                {"prompt": prompt}
+            ],
+            "parameters": {
+                "sampleCount": 1,
+                "aspectRatio": "16:9"
+            }
+        }
+        
+        print(f"Generating image with {model}...")
+        resp = requests.post(url, json=payload, timeout=30)
+        
+        if resp.status_code != 200:
+            raise Exception(f"API Error {resp.status_code}: {resp.text}")
+            
+        data = resp.json()
+        if 'predictions' not in data or not data['predictions']:
+            raise Exception("No predictions returned")
+            
+        b64_data = data['predictions'][0]['bytesBase64Encoded']
+        image_data = base64.b64decode(b64_data)
         
         # Ensure directory
         full_dir = os.path.join(os.getcwd(), output_dir)
@@ -58,15 +78,16 @@ async def generate_digest_image(title: str, city: str, output_dir: str = "static
         filename = f"digest_{uuid.uuid4().hex[:8]}.png"
         filepath = os.path.join(full_dir, filename)
         
-        image.save(filepath)
+        with open(filepath, "wb") as f:
+            f.write(image_data)
         
-        return f"/static/digest_images/{filename}"
+        return f"/{output_dir}/{filename}"
 
     except Exception as e:
         print(f"IMAGE GEN ERROR: {e}")
         # Fallback: Generate a local placeholder image using PIL
         try:
-            from PIL import Image, ImageDraw, ImageFont
+            from PIL import Image, ImageDraw
             import random
             
             # Create a cool abstract gradient or dark background
@@ -82,10 +103,6 @@ async def generate_digest_image(title: str, city: str, output_dir: str = "static
                 y2 = random.randint(y1, height)
                 draw.line([(x1, y1), (x2, y2)], fill=(50, 50, 80), width=2)
                 
-            # Draw Title Text (Mock)
-            # We don't have a guaranteed font, so we'll just skip text or use default
-            # draw.text((50, 50), title[0:20], fill=(200, 200, 200))
-            
             # Ensure directory
             full_dir = os.path.join(os.getcwd(), output_dir)
             if not os.path.exists(full_dir):

@@ -1936,8 +1936,12 @@ async def generate_digest_image_endpoint(digest_id: int, db: Session = Depends(g
         raise HTTPException(status_code=403, detail="Not authorized")
 
     try:
-        # Generate Image
-        image_path = await generate_digest_image(digest.title, digest.city or "Metropolis")
+        # Generate Image (using User's Key)
+        image_path = await generate_digest_image(
+            title=digest.title, 
+            city=digest.city or "Metropolis", 
+            api_key=current_user.gemini_api_key
+        )
         
         # Update DB
         digest.image_url = image_path
