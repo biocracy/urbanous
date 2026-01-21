@@ -127,7 +127,12 @@ async def generate_digest_image(title: str, city: str, output_dir: str = None, a
                 draw.line([(x1, y1), (x2, y2)], fill=(50, 50, 80), width=2)
                 
             # Ensure directory
-            full_dir = os.path.join(os.getcwd(), output_dir)
+            # Fix for fallback as well
+            if os.path.isabs(output_dir):
+                full_dir = output_dir
+            else:
+                full_dir = os.path.join(os.getcwd(), output_dir)
+
             if not os.path.exists(full_dir):
                 os.makedirs(full_dir)
                 
@@ -136,7 +141,8 @@ async def generate_digest_image(title: str, city: str, output_dir: str = None, a
             img.save(filepath)
             
             print(f"Generated fallback image: {filename}")
-            return f"/{output_dir}/{filename}", "Fallback Placeholder (No Prompt)"
+            # Use same return format as main function
+            return f"/{relative_path}/{filename}", "Fallback Placeholder (API Error)"
             
         except Exception as fallback_error:
             print(f"FALLBACK GEN ERROR: {fallback_error}")
