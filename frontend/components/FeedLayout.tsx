@@ -300,7 +300,8 @@ function NewsCard({ item, onClick }: { item: DigestFeedItem, onClick: () => void
         || DEFAULT_IMAGE;
 
     // Fix relative paths from backend (e.g. /static/...)
-    if (imageUrl && imageUrl.startsWith('/')) {
+    // Fix relative paths from backend (e.g. /static/...)
+    if (imageUrl && imageUrl.startsWith('/') && !imageUrl.startsWith('http')) {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
         // Remove trailing slash from API URL if present to avoid double slash
         const cleanApiUrl = apiUrl.endsWith('/') ? apiUrl.slice(0, -1) : apiUrl;
