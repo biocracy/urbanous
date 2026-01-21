@@ -196,10 +196,21 @@ export default function UnifiedDigestViewer({
 
                 const imageMd = `![${digestData.city} Illustration](${finalUrl})`;
 
+                console.log(`[Gen] setDigestSummary is defined? ${!!setDigestSummary}`);
                 if (setDigestSummary) {
+                    console.log("[Gen] Scheduling timeout...");
                     setTimeout(() => {
-                        // Use Ref to get latest text state
-                        const latestText = digestDataRef.current?.digest || document.querySelector('textarea')?.value || "";
+                        console.log("[Gen] Timeout executed.");
+
+                        let latestText = "";
+                        try {
+                            latestText = digestDataRef.current?.digest || document.querySelector('textarea')?.value || "";
+                        } catch (err) {
+                            console.error("[Gen] Error reading latest text:", err);
+                        }
+
+                        console.log(`[Gen] Latest text length: ${latestText.length}`);
+                        // console.log(`[Gen] Snippet: ${latestText.slice(0, 50)}...`);
 
                         // Robustly replace the token
                         if (latestText.includes(TOKEN)) {
@@ -207,10 +218,11 @@ export default function UnifiedDigestViewer({
                             setDigestSummary(newText);
                             console.log("[Gen] Token replaced successfully.");
                         } else {
-                            console.warn("[Gen] Token NOT found in latest text! Appending image.");
                             // Fallback: If token lost (rare), append to top/bottom logic? 
                             // Textarea focus might have cleared it?
                             // Just append to top + original text
+                            console.warn("[Gen] Token NOT found in latest text! Appending image.");
+                            console.log("[Gen] Does text include token?", latestText.includes(TOKEN));
                             setDigestSummary(imageMd + "\n\n" + latestText);
                         }
                     }, 100);
