@@ -151,7 +151,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
     }
 
     // Use centralized version constant
-    const APP_VERSION = "v0.214";
+    const APP_VERSION = "v0.215";
 
     // Debugging State Reset
     // useEffect(() => console.log("[NewsGlobe] Mount/Render"), []);
@@ -228,6 +228,15 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
     const [selectedArticleUrls, setSelectedArticleUrls] = useState<Set<string>>(new Set());
     const [spamUrls, setSpamUrls] = useState<Set<string>>(new Set());
     const [digestSummary, setDigestSummary] = useState<string>("");
+
+    // FIX: Sync digestSummary to digestData to prevent stale closure in UnifiedDigestViewer
+    useEffect(() => {
+        if (digestData && digestSummary && digestData.digest !== digestSummary) {
+            console.log("[NewsGlobe] Syncing digestSummary to digestData");
+            setDigestData((prev: any) => prev ? ({ ...prev, digest: digestSummary, summary_markdown: digestSummary }) : null);
+        }
+    }, [digestSummary, digestData]);
+
     const [isSummarizing, setIsSummarizing] = useState(false);
 
     // Analytics State
