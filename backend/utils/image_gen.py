@@ -117,4 +117,5 @@ async def generate_digest_image(title: str, city: str, output_dir: str = None, a
             
         except Exception as fallback_error:
             print(f"FALLBACK GEN ERROR: {fallback_error}")
+            # Absolute safety net: Return a static asset that we know exists (copied in main.py)
             return "/static/placeholder_digest.png", "Error Placeholder"
