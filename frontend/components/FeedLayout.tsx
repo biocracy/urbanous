@@ -66,8 +66,14 @@ export default function FeedLayout({ activeDigest, onCloseDigest }: FeedLayoutPr
     const [feedItems, setFeedItems] = useState<DigestFeedItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [page, setPage] = useState(0); // 0-indexed
+    const [localDigest, setLocalDigest] = useState<any>(null); // NEW: Local mutable state for viewer
     const ITEMS_PER_PAGE = 6;
     const router = useRouter();
+
+    // Sync activeDigest prop to local state
+    useEffect(() => {
+        setLocalDigest(activeDigest);
+    }, [activeDigest]);
 
     // Fetch Feed
     useEffect(() => {
@@ -98,6 +104,9 @@ export default function FeedLayout({ activeDigest, onCloseDigest }: FeedLayoutPr
 
     // If Viewing a Digest, override the main content
     if (activeDigest) {
+        // Use local state if synced, else fallback to prop
+        const digestToRender = localDigest || activeDigest;
+
         return (
             <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8 flex flex-col min-h-full">
                 {/* Header with Back Button */}
@@ -116,12 +125,19 @@ export default function FeedLayout({ activeDigest, onCloseDigest }: FeedLayoutPr
                 {/* Unified Viewer Container */}
                 <div className="w-full bg-neutral-900/30 border border-neutral-800 rounded-2xl overflow-hidden shadow-2xl min-h-[800px]">
                     <UnifiedDigestViewer
-                        digestData={activeDigest}
-                        isReadOnly={true}
-                        initialTab="digest" // Default to Report for Shared Links
+                        digestData={digestToRender}
+                        isReadOnly={false} // Enable Interactions like Image Gen
+                        initialTab="digest"
+                        setDigestSummary={(summary) => {
+                            setLocalDigest((prev: any) => ({
+                                ...prev,
+                                digest: summary,
+                                summary_markdown: summary
+                            }));
+                        }}
                         onShare={() => {
-                            if (activeDigest.public_slug) {
-                                const link = `${window.location.origin}/s/${activeDigest.public_slug}`;
+                            if (digestToRender.public_slug) {
+                                const link = `${window.location.origin}/s/${digestToRender.public_slug}`;
                                 navigator.clipboard.writeText(link);
                                 alert("Link copied to clipboard!");
                             }
