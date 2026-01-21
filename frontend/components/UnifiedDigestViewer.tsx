@@ -547,7 +547,7 @@ export default function UnifiedDigestViewer({
                             placeholder="# Write your intelligence report here..."
                         />
                     ) : (
-                        <div className="max-w-none">
+                        <div className="max-w-3xl mx-auto px-4 md:px-0">
                             {(() => {
                                 const rawContent = digestData?.digest || digestData?.summary_markdown || "";
                                 console.log("[UnifiedDigestViewer] Raw Digest Content:", rawContent.slice(0, 200));
@@ -594,7 +594,7 @@ export default function UnifiedDigestViewer({
                                             h2: ({ children }) => <h2 className="text-2xl font-bold mb-4 text-white mt-8">{children}</h2>,
                                             h3: ({ children }) => <h3 className="text-xl font-bold mb-3 text-blue-200 mt-6">{children}</h3>,
                                             // Text & Layout
-                                            p: ({ children }) => <div className="text-neutral-300 mb-4 leading-relaxed text-lg">{children}</div>,
+                                            p: ({ children }) => <div className="text-neutral-300 mb-4 leading-relaxed text-lg text-justify tracking-wide">{children}</div>,
                                             ul: ({ children }) => <ul className="list-disc list-inside mb-4 space-y-2 text-neutral-300 pl-4">{children}</ul>,
                                             ol: ({ children }) => <ol className="list-decimal list-inside mb-4 space-y-2 text-neutral-300 pl-4">{children}</ol>,
                                             li: ({ children }) => <li className="pl-1 marker:text-neutral-500">{children}</li>,

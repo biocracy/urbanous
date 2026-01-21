@@ -64,6 +64,40 @@ async def generate_digest_image(title: str, city: str, output_dir: str = "static
 
     except Exception as e:
         print(f"IMAGE GEN ERROR: {e}")
-        # Fallback/Mock for now if API fails (e.g. model access issues)
-        # In production this should be handled gracefully
-        raise e
+        # Fallback: Generate a local placeholder image using PIL
+        try:
+            from PIL import Image, ImageDraw, ImageFont
+            import random
+            
+            # Create a cool abstract gradient or dark background
+            width, height = 1024, 576
+            img = Image.new('RGB', (width, height), color=(20, 20, 30))
+            draw = ImageDraw.Draw(img)
+            
+            # Draw some random architectural lines
+            for _ in range(10):
+                x1 = random.randint(0, width)
+                y1 = random.randint(0, height)
+                x2 = random.randint(x1, width)
+                y2 = random.randint(y1, height)
+                draw.line([(x1, y1), (x2, y2)], fill=(50, 50, 80), width=2)
+                
+            # Draw Title Text (Mock)
+            # We don't have a guaranteed font, so we'll just skip text or use default
+            # draw.text((50, 50), title[0:20], fill=(200, 200, 200))
+            
+            # Ensure directory
+            full_dir = os.path.join(os.getcwd(), output_dir)
+            if not os.path.exists(full_dir):
+                os.makedirs(full_dir)
+                
+            filename = f"fallback_{uuid.uuid4().hex[:8]}.png"
+            filepath = os.path.join(full_dir, filename)
+            img.save(filepath)
+            
+            print(f"Generated fallback image: {filename}")
+            return f"/{output_dir}/{filename}"
+            
+        except Exception as fallback_error:
+            print(f"FALLBACK GEN ERROR: {fallback_error}")
+            return "/static/placeholder_digest.png" # valid static file fallback
