@@ -17,11 +17,22 @@ import base64
 # we will mock the generation IF we can't hit the real API or use a standard placeholder logic if key fails.
 # OR, better: We assume the user has access to a model like "gemini-1.5-pro-latest" or "imagen-3.0-generate-001".
 
-async def generate_digest_image(title: str, city: str, output_dir: str = "static/digest_images", api_key: str = None) -> tuple[str, str]:
+async def generate_digest_image(title: str, city: str, output_dir: str = None, api_key: str = None) -> tuple[str, str]:
     """
     Generates an image for a digest and returns the relative path.
     Uses Imagen 4.0 Fast via REST API.
     """
+    # Determine output directory (Persistent or Local)
+    data_dir = os.getenv("DATA_DIR", ".")
+    # Ideally images go to DATA_DIR/static/digest_images or similar.
+    # But to keep URLs consistent (/static/...) we need to map it carefully.
+    
+    # If DATA_DIR is set (e.g. /app/data), we save to /app/data/static/digest_images
+    # Then main.py must mount /app/data/static as /static
+    
+    relative_path = "static/digest_images"
+    if output_dir is None:
+        output_dir = os.path.join(data_dir, relative_path)
     
     # Configure API Key per request
     final_key = api_key or os.getenv("GEMINI_API_KEY")
@@ -30,10 +41,10 @@ async def generate_digest_image(title: str, city: str, output_dir: str = "static
          print("WARNING: No Gemini API Key provided for Image Gen. Falling back to placeholder.")
     
     prompt = (
-        f"A line-drawing illustration with minimal pastel color washes. "
-        f"Background features a recognizable landmark in {city}. "
-        f"The scene conceptually represents: '{title}'. "
-        f"Low saturation, simple lines, editorial style."
+        f"{title}, "
+        f" while in the background is an iconic landmark of {city}."
+        f"Style: Architectural sketch, black ink lines, pastel marker highlights."
+        f"Industrial design feel. Minimalist."
     )
 
     try:

@@ -81,9 +81,18 @@ from fastapi.staticfiles import StaticFiles
 
 # Mount Static Files for Clusters
 # Ensure directory exists to prevent startup error
-static_dir = os.path.join(os.path.dirname(__file__), "static")
+# Mount Static Files for Clusters & Images
+# Support for Persistent Volume (DATA_DIR)
+DATA_DIR = os.getenv("DATA_DIR", ".")
+static_dir = os.path.join(DATA_DIR, "static")
+
+# Ensure directory exists to prevent startup error
 if not os.path.exists(static_dir):
     os.makedirs(static_dir)
+
+# Also ensure specific subdirs exist if volume was just created
+if not os.path.exists(os.path.join(static_dir, "digest_images")):
+    os.makedirs(os.path.join(static_dir, "digest_images"))
 
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
