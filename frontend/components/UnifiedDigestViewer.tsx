@@ -156,23 +156,17 @@ export default function UnifiedDigestViewer({
         if (!digestData?.id) return;
         setIsGeneratingImage(true);
 
-        // Inject Loader Placeholder
-        // We inject HTML directly because rehypeRaw is enabled
-        const loaderHtml = `<div id="gen-loader" class="my-8 p-8 border border-fuchsia-500/30 rounded-lg bg-fuchsia-900/10 flex flex-col items-center justify-center gap-3 animate-pulse">
-            <div class="w-8 h-8 border-2 border-fuchsia-500 border-t-transparent rounded-full animate-spin"></div>
-            <span class="text-fuchsia-300 font-mono text-xs uppercase">Rendering Architectural Sketch...</span>
-        </div>`;
+        const TOKEN = "[[GENERATING_SKETCH]]";
 
-        // Insert after first paragraph (naive split by double newline)
+        // Insert Token at top or after first break
         let currentText = digestData.digest || digestData.summary_markdown || "";
         const parts = currentText.split('\n\n');
         if (parts.length > 1) {
-            parts.splice(1, 0, loaderHtml);
+            parts.splice(1, 0, TOKEN);
             const newText = parts.join('\n\n');
             if (setDigestSummary) setDigestSummary(newText);
         } else {
-            // If text is too short, append to top
-            if (setDigestSummary) setDigestSummary(loaderHtml + "\n\n" + currentText);
+            if (setDigestSummary) setDigestSummary(TOKEN + "\n\n" + currentText);
         }
 
         try {
@@ -186,7 +180,7 @@ export default function UnifiedDigestViewer({
 
             if (res.ok) {
                 const data = await res.json();
-                const imageUrl = data.image_url; // Relative Path
+                const imageUrl = data.image_url;
 
                 let finalUrl = imageUrl;
                 if (imageUrl.startsWith('/')) {
@@ -198,14 +192,17 @@ export default function UnifiedDigestViewer({
 
                 if (setDigestSummary) {
                     setTimeout(() => {
+                        // Use Ref to get latest text state
                         const latestText = digestDataRef.current?.digest || document.querySelector('textarea')?.value || "";
-                        console.log(`[Gen] Replacing loader in text length: ${latestText.length}`);
-                        if (latestText.includes('Rendering Architectural Sketch') || latestText.includes('id="gen-loader"')) {
-                            const newText = latestText.replace(loaderHtml, imageMd);
+
+                        // Robustly replace the token
+                        if (latestText.includes(TOKEN)) {
+                            const newText = latestText.replace(TOKEN, imageMd);
                             setDigestSummary(newText);
-                            console.log("[Gen] Replacement Success!");
                         } else {
-                            console.warn("[Gen] Loader not found in latest text! Appending image instead.");
+                            // Fallback: If token lost (rare), append to top/bottom logic? 
+                            // Textarea focus might have cleared it?
+                            // Just append to top + original text
                             setDigestSummary(imageMd + "\n\n" + latestText);
                         }
                     }, 100);
@@ -213,23 +210,23 @@ export default function UnifiedDigestViewer({
 
             } else {
                 console.error("Gen failed");
-                alert("Failed to generate image.");
                 if (setDigestSummary) {
                     const text = digestDataRef.current?.digest || "";
-                    setDigestSummary(text.replace(loaderHtml, ""));
+                    setDigestSummary(text.replace(TOKEN, ""));
                 }
             }
         } catch (e) {
             console.error(e);
-            alert("Error generating image");
             if (setDigestSummary) {
                 const text = digestDataRef.current?.digest || "";
-                setDigestSummary(text.replace(loaderHtml, ""));
+                setDigestSummary(text.replace(TOKEN, ""));
             }
         } finally {
             setIsGeneratingImage(false);
         }
     };
+
+
 
     // Use prop if available (controlled), else local state
     const viewMode = analyticsViewMode || internalAnalyticsViewMode;
