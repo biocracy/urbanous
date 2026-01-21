@@ -44,7 +44,7 @@ async def generate_digest_image(title: str, city: str, output_dir: str = None, a
         f"An illustration capturing '{title}'. "
         f"The background shows an iconic landmark of {city}."
         f"Style: Architectural sketch, black ink lines, pastel marker highlights."
-        f"Industrial design feel. Minimalist."
+        f"Industrial design feel. Minimalist. Text should appear only if strictly necessary, and only within a valid illustrative context."
     )
 
     try:

@@ -71,5 +71,84 @@ async def run_migrations():
             except Exception as e: log(f"Error {e}")
 
 
+
     log("MIGRATION: Schema check complete.")
+    
+    # --- CLEANUP TASK: BROKEN IMAGES ---
+    # Because of the Ephemeral Storage migration, many old IDs point to files that don't exist in the new Volume.
+    # We should detect these and NULL them so the UI doesn't show broken images (and allows regeneration).
+    import os
+    DATA_DIR = os.getenv("DATA_DIR", ".")
+    
+    log("CLEANUP: Checking for orphaned images to facilitate regeneration...")
+    
+    # We need to run a SELECT, check file, then UPDATE.
+    # Since we are in an `async with engine.begin() as conn` context above, we can't easily do complex logic with mapped objects.
+    # But we can open a new session or just use raw SQL for the IDs.
+    
+    # Let's do it in a separate block to avoid transaction mess
     return logs
+
+async def cleanup_broken_images():
+    """
+    Scans for digests with image_urls that do not exist on disk.
+    Resets them to NULL.
+    """
+    from sqlalchemy.future import select
+    from database import AsyncSessionLocal
+    from models import NewsDigest
+    import os
+    
+    DATA_DIR = os.getenv("DATA_DIR", ".")
+    STATIC_ROOT = os.path.join(DATA_DIR, "static") # e.g. /app/data/static
+    
+    logs = []
+    print("CLEANUP: Starting image verification...")
+    
+    async with AsyncSessionLocal() as db:
+        try:
+            stmt = select(NewsDigest).where(NewsDigest.image_url != None)
+            result = await db.execute(stmt)
+            digests = result.scalars().all()
+            
+            count_fixed = 0
+            count_total = 0
+            
+            for digest in digests:
+                count_total += 1
+                if not digest.image_url: continue
+                
+                # Parse URL to File Path
+                # URL: /static/digest_images/filename.png (or full url, or relative)
+                # We expect: /static/digest_images/...
+                
+                url = digest.image_url
+                filepath = None
+                
+                if "static/" in url:
+                    # simplistic parsing: take everything after static/
+                    # path join with STATIC_ROOT
+                    rel_part = url.split("static/")[-1] 
+                    filepath = os.path.join(STATIC_ROOT, rel_part)
+                else:
+                    # Unknown format, maybe absolute path from older bug?
+                    # If it starts with /app/data, check that.
+                    if url.startswith("/"):
+                         # Try removing leading slash
+                         filepath = os.path.join(DATA_DIR, url.lstrip("/"))
+                
+                if filepath:
+                    if not os.path.exists(filepath):
+                        print(f"CLEANUP: Broken Image Found (ID {digest.id}): URL={url}, Path={filepath} (Miss)")
+                        digest.image_url = None
+                        count_fixed += 1
+                
+            if count_fixed > 0:
+                await db.commit()
+                print(f"CLEANUP: Fixed {count_fixed} broken images (out of {count_total}).")
+            else:
+                print(f"CLEANUP: No broken images found (out of {count_total}).")
+                
+        except Exception as e:
+            print(f"CLEANUP ERROR: {e}") 
+

@@ -44,6 +44,11 @@ async def startup():
         # Run Schema Updates (Add missing columns)
         print("STARTUP: Running Auto-Migrations...")
         await run_migrations()
+        
+        # Run Data Cleanup (Broken Images)
+        from auto_migrate import cleanup_broken_images
+        await cleanup_broken_images()
+        
         print("STARTUP: Complete.")
     except Exception as e:
         # CRITICAL: Do NOT crash. Log and continue so /debug endpoint works.
