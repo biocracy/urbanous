@@ -13,6 +13,30 @@ const NewsGlobe = dynamic(() => import('@/components/NewsGlobe'), {
 import { Settings } from 'lucide-react';
 import SettingsModal from '@/components/SettingsModal';
 import FeedLayout from '@/components/FeedLayout'; // NEW MOCK FEED
+import React from 'react';
+
+class ErrorBoundary extends React.Component<{ children: React.ReactNode, fallback: React.ReactNode }, { hasError: boolean, error: Error | null }> {
+    constructor(props: any) {
+        super(props);
+        this.state = { hasError: false, error: null };
+    }
+    static getDerivedStateFromError(error: any) {
+        return { hasError: true, error };
+    }
+    render() {
+        if (this.state.hasError) {
+            return (
+                <div className="p-8 text-center">
+                    <h2 className="text-xl font-bold text-red-400 mb-2">Something went wrong.</h2>
+                    <pre className="text-xs text-left bg-neutral-900 p-4 overflow-auto max-w-lg mx-auto border border-neutral-800 rounded text-neutral-400">
+                        {this.state.error?.toString()}
+                    </pre>
+                </div>
+            );
+        }
+        return this.props.children;
+    }
+}
 
 function HomeContent() {
     const { isAuthenticated, logout } = useAuthStore();
@@ -134,10 +158,12 @@ function HomeContent() {
                 id="feed-section"
                 className="min-h-screen w-full bg-neutral-950 border-t border-neutral-800 relative z-20 shadow-[0_-20px_40px_rgba(0,0,0,0.8)]"
             >
-                <FeedLayout
-                    activeDigest={activeDigest}
-                    onCloseDigest={closeDigestView}
-                />
+                <ErrorBoundary fallback={<div className="p-10 text-red-500 font-mono">Something went wrong loading the feed.</div>}>
+                    <FeedLayout
+                        activeDigest={activeDigest}
+                        onCloseDigest={closeDigestView}
+                    />
+                </ErrorBoundary>
             </div>
         </main>
     );
