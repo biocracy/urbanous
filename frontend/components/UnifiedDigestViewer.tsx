@@ -730,7 +730,8 @@ export default function UnifiedDigestViewer({
                                                 const removeThisImage = () => {
                                                     if (isReadOnly || !setDigestSummary) return;
                                                     if (confirm("Remove this image from the text?")) {
-                                                        const escapedSrc = src?.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                                                        const srcStr = String(src);
+                                                        const escapedSrc = srcStr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
                                                         const regex = new RegExp(`!\\[.*?\\]\\(${escapedSrc}\\)`, 'g');
                                                         const text = digestDataRef.current?.digest || "";
                                                         const newText = text.replace(regex, "");
