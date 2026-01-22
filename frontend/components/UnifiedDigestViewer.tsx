@@ -727,22 +727,41 @@ export default function UnifiedDigestViewer({
                                             th: ({ children, ...props }) => <th className="p-4 border-b border-neutral-700 whitespace-nowrap" {...props}>{children}</th>,
                                             // Images
                                             img: ({ src, alt, ...props }) => {
-                                                // console.log("[UnifiedDigestViewer] Rendering Image:", src);
+                                                const removeThisImage = () => {
+                                                    if (isReadOnly || !setDigestSummary) return;
+                                                    if (confirm("Remove this image from the text?")) {
+                                                        const escapedSrc = src?.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                                                        const regex = new RegExp(`!\\[.*?\\]\\(${escapedSrc}\\)`, 'g');
+                                                        const text = digestDataRef.current?.digest || "";
+                                                        const newText = text.replace(regex, "");
+                                                        setDigestSummary(newText);
+                                                    }
+                                                };
                                                 return (
-                                                    <span className="block my-8 relative group">
-                                                        <img
-                                                            src={src}
-                                                            alt={alt || "Digest Illustration"}
-                                                            className="w-full max-w-2xl mx-auto rounded-lg shadow-2xl border border-neutral-800 transition-transform group-hover:scale-[1.01] block"
-                                                            loading="lazy"
-                                                            onError={(e) => {
-                                                                console.error("[UnifiedDigestViewer] Image Load Failed:", src);
-                                                                e.currentTarget.style.display = 'none';
-                                                            }}
-                                                            {...props}
-                                                        />
+                                                    <div className="relative group my-8 flex flex-col items-center">
+                                                        <div className="relative">
+                                                            <img
+                                                                src={src}
+                                                                alt={alt || "Digest Illustration"}
+                                                                className="w-full max-w-2xl mx-auto rounded-lg shadow-2xl border border-neutral-800 transition-transform block"
+                                                                loading="lazy"
+                                                                onError={(e) => {
+                                                                    e.currentTarget.style.display = 'none';
+                                                                }}
+                                                                {...props}
+                                                            />
+                                                            {!isReadOnly && (
+                                                                <button
+                                                                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); removeThisImage(); }}
+                                                                    className="absolute top-2 right-2 p-1.5 bg-black/60 hover:bg-red-600/90 text-white rounded-full transition-all duration-200 backdrop-blur-sm opacity-0 group-hover:opacity-100 z-20"
+                                                                    title="Remove from text"
+                                                                >
+                                                                    <X className="w-4 h-4" />
+                                                                </button>
+                                                            )}
+                                                        </div>
                                                         {alt && <span className="block text-center text-xs text-neutral-500 mt-2 italic">{alt}</span>}
-                                                    </span>
+                                                    </div>
                                                 );
                                             },
                                             td: ({ children, ...props }) => <td className="p-4 text-neutral-300 align-top" {...props}>{children}</td>,

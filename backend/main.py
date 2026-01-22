@@ -139,7 +139,7 @@ app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 @app.get("/")
 def read_root():
-    return {"message": "Welcome to Urbanous API", "version": "v0.129 (Viz Settings Enabled)"}
+    return {"message": "Welcome to Urbanous API", "version": "v0.130 (Viz Settings Enabled)"}
 
 @app.get("/fix-db")
 async def manual_migration():
