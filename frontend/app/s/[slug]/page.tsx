@@ -113,15 +113,22 @@ export async function generateMetadata(
             title: digest.title || 'Urbanous News Digest',
             description: `${digest.city} | ${period} | ${digest.category || 'General'}`,
             type: 'article',
+            url: `https://urbanous-production.up.railway.app/s/${slug}`, // Canonical URL help
             images: [
                 {
                     url: imageUrl,
-                    width: 800,
-                    height: 600,
+                    width: 1200, // Standardize to larger FB/Twitter recommendation
+                    height: 630,
                     alt: digest.title || "News Digest Illustration"
                 }
             ]
         },
+        twitter: {
+            card: 'summary_large_image',
+            title: digest.title || 'Urbanous News Digest',
+            description: `${digest.city} | ${period} | ${digest.category || 'General'}`,
+            images: [imageUrl], // Twitter expects simple array or object
+        }
     };
 }
 
