@@ -629,7 +629,7 @@ export default function UnifiedDigestViewer({
                                 {!isReadOnly && !imageError && (
                                     <button
                                         onClick={(e) => { e.stopPropagation(); handleDeleteImage(); }}
-                                        className="absolute top-2 right-2 p-1.5 bg-black/60 hover:bg-red-600/90 text-white rounded-full opacity-0 group-hover:opacity-100 transition-all duration-200 backdrop-blur-sm"
+                                        className="absolute top-2 right-2 p-1.5 bg-black/60 hover:bg-red-600/90 text-white rounded-full opacity-0 group-hover:opacity-100 transition-all duration-200 backdrop-blur-sm z-20"
                                         title="Remove Image"
                                     >
                                         <X className="w-4 h-4" />
