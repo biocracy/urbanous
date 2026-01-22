@@ -303,43 +303,84 @@ export default function FeedLayout({ activeDigest, onCloseDigest }: FeedLayoutPr
 
 // Sub-Component for individual cards
 function NewsCard({ item, onClick }: { item: DigestFeedItem, onClick: () => void }) {
-    // Determine Image: flag_url OR city map OR default
-    let imageUrl = item.image_url // Coat of Arms
-        || CITY_IMAGES[item.city || ""]
-        || DEFAULT_IMAGE;
+    // 1. Determine Initial Image Candidate
+    // Priority: items.image_url > CITY_IMAGES > DEFAULT_IMAGE
+    const initialImage = item.image_url || CITY_IMAGES[item.city || ""] || DEFAULT_IMAGE;
 
-    // Fix relative paths from backend (e.g. /static/...) UNLESS it's the default local image
-    if (imageUrl && imageUrl.startsWith('/') && !imageUrl.startsWith('http') && imageUrl !== DEFAULT_IMAGE) {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-        const cleanApiUrl = apiUrl.endsWith('/') ? apiUrl.slice(0, -1) : apiUrl;
-        imageUrl = `${cleanApiUrl}${imageUrl}`;
-    }
+    // State to handle image load errors (fallback to default)
+    const [displayImage, setDisplayImage] = useState(initialImage);
 
-    // console.log(`[DEBUG] Image for ${item.slug}:`, { original: item.image_url, final: imageUrl });
+    // Effect to handle "intelligent" path fixing for the display image
+    // Only if it's a relative path and NOT the default one (which we assume is valid)
+    const processedImage = useMemo(() => {
+        let img = displayImage;
+        if (img && img.startsWith('/') && !img.startsWith('http') && img !== DEFAULT_IMAGE) {
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+            const cleanApiUrl = apiUrl.endsWith('/') ? apiUrl.slice(0, -1) : apiUrl;
+            img = `${cleanApiUrl}${img}`;
+        }
+        return img;
+    }, [displayImage]);
 
-    // Determine Source Text (user name? or generic?)
-    // User requested "freshest first".
+
+    // 2. Smart Summary Extraction
+    const summaryPreview = useMemo(() => {
+        const rawText = item.summary || "";
+        if (!rawText) return "Reading report summary...";
+
+        // Split into lines to find the first "real" paragraph
+        const lines = rawText.split('\n');
+        let chosenParagraph = "";
+
+        for (const line of lines) {
+            const trimmed = line.trim();
+            // Skip empty lines, images, headers, horizontal rules, or very short labels
+            if (!trimmed) continue;
+            if (trimmed.startsWith('!')) continue; // Images
+            if (trimmed.startsWith('#')) continue; // Headers
+            if (trimmed.startsWith('---')) continue; // HR
+            if (trimmed.match(/^(Summary|Digest|Report|Brief):?/i)) continue; // Labels
+
+            // If we find a decent chunk of text, use it
+            if (trimmed.length > 40) {
+                chosenParagraph = trimmed;
+                break;
+            }
+        }
+
+        // Fallback: If no good paragraph found, strip everything from raw text
+        if (!chosenParagraph) {
+            chosenParagraph = rawText
+                .replace(/!\[.*?\]\(.*?\)/g, '')
+                .replace(/^#+\s.*$/gm, '')
+                .replace(/\n/g, ' ')
+                .trim();
+        }
+
+        // Clean internal markdown inside the chosen paragraph
+        let clean = chosenParagraph
+            .replace(/\(citation:\d+\)/g, '') // Remove citations
+            .replace(/\[(.*?)\]\(.*?\)/g, '$1') // flatten links: [text](url) -> text
+            .replace(/[*_`]/g, '') // remove bold/italic/code
+            .trim();
+
+        // Remove redundant title
+        if (item.title && clean.startsWith(item.title)) {
+            clean = clean.substring(item.title.length).trim();
+        }
+
+        // Truncate to ~30 words
+        const words = clean.split(/\s+/);
+        if (words.length > 35) {
+            return words.slice(0, 35).join(' ') + '...';
+        }
+        return clean;
+    }, [item.summary, item.title]);
+
+
     const dateStr = new Date(item.created_at).toLocaleDateString(undefined, {
         month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
     });
-
-    // Cleaning Summary Logic
-    let cleanSummary = (item.summary || "")
-        .replace(/!\[.*?\]\(.*?\)/g, '') // Remove images
-        .replace(/^#+\s.*$/gm, '') // Remove headers
-        .replace(/\(citation:\d+\)/g, '') // Remove citations
-        .replace(/\[.*?\]\(.*?\)/g, '$1') // Keep link text, remove URL
-        .replace(/[*_`]/g, '') // Remove formatting chars
-        .trim();
-
-    // Remove redundant title if present at start
-    if (item.title && cleanSummary.startsWith(item.title)) {
-        cleanSummary = cleanSummary.substring(item.title.length).trim();
-    }
-    // Remove leading "Summary" or "Digest" labels if any
-    cleanSummary = cleanSummary.replace(/^(Summary|Digest|Report):?\s*/i, "");
-
-    const summaryPreview = cleanSummary.split(' ').slice(0, 30).join(' ') + (cleanSummary.split(' ').length > 30 ? '...' : '');
 
     return (
         <div
@@ -348,17 +389,24 @@ function NewsCard({ item, onClick }: { item: DigestFeedItem, onClick: () => void
         >
 
             {/* Label Badge */}
-            <div className="absolute top-4 left-4 z-10">
-                <span className="px-2 py-1 text-xs font-bold uppercase tracking-wider text-black bg-white/90 backdrop-blur rounded-sm">
+            <div className="absolute top-4 left-4 z-20">
+                <span className="px-2 py-1 text-xs font-bold uppercase tracking-wider text-black bg-white/90 backdrop-blur rounded-sm shadow-lg">
                     {item.category}
                 </span>
             </div>
 
-            <div className="h-48 overflow-hidden relative">
-                {/* Image Hover Zoom Effect */}
-                <div
-                    className="absolute inset-0 bg-cover bg-center group-hover:scale-105 transition-transform duration-700 ease-out"
-                    style={{ backgroundImage: `url(${imageUrl})` }}
+            <div className="h-48 overflow-hidden relative bg-neutral-900">
+                {/* Real Image Tag for better error handling */}
+                <img
+                    src={processedImage}
+                    onError={() => {
+                        // If current image fails (and it's not already default), switch to default
+                        if (displayImage !== DEFAULT_IMAGE) {
+                            setDisplayImage(DEFAULT_IMAGE);
+                        }
+                    }}
+                    alt={item.title}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-neutral-900 via-transparent to-transparent opacity-80" />
             </div>
@@ -375,7 +423,7 @@ function NewsCard({ item, onClick }: { item: DigestFeedItem, onClick: () => void
                 </h3>
 
                 <p className="text-neutral-400 text-sm leading-relaxed mb-6 line-clamp-3">
-                    {summaryPreview || "Reading report summary..."}
+                    {summaryPreview || "No summary available."}
                 </p>
 
                 <div className="mt-auto flex items-center justify-between border-t border-neutral-800 pt-4">
