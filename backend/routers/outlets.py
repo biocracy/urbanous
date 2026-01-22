@@ -1923,8 +1923,8 @@ async def get_public_digests_feed(limit: int = 6, offset: int = 0, db: Session =
             db.add(digest)
             need_commit = True
         
-        # Truncate summary for preview
-        summary_preview = digest.summary_markdown[:200] + "..." if digest.summary_markdown else "No summary available."
+        # Truncate summary for preview (Increased limit to avoid breaking regex/markdown)
+        summary_preview = digest.summary_markdown[:5000] + "..." if digest.summary_markdown else "No summary available."
 
         feed.append(DigestFeedItem(
             id=digest.id,
