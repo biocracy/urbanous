@@ -34,10 +34,10 @@ async def generate_digest_image(title: str, city: str, output_dir: str = None, a
     final_key = api_key or os.getenv("GEMINI_API_KEY")
     
     prompt = (
-        f"An illustration capturing '{title}'. "
-        f"The background shows an iconic landmark of {city}."
+        f"A newspaper illustration showing '{title}', "
+        f"also including a landmark of {city}."
         f"Style: Architectural sketch, black ink lines, pastel marker highlights."
-        f"Industrial design feel. Minimalist. Text should appear only if strictly necessary, and only within a valid illustrative context."
+        f"Industrial design feel. Minimalist. No text and/or labels!"
     )
 
     try:
