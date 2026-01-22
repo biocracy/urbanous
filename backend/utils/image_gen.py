@@ -1,17 +1,26 @@
 import os
 
-# ... (omitted comments)
-
-# ... (omitted comments)
+# Configure Gemini
+# Assuming GEMINI_API_KEY is already loaded in environment
 
 async def generate_digest_image(title: str, city: str, output_dir: str = None, api_key: str = None) -> tuple[str, str]:
     """
     Generates an image for a digest and returns the relative path.
     Uses Imagen 4.0 Fast via REST API (Async).
+    Safely handles imports to prevent module-level 500 errors.
     """
+    # Imports moved inside to prevent Module/Import Errors causing 500s at startup/loading
+    try:
+        import httpx
+        import uuid
+        import base64
+    except ImportError:
+        pass # Let the main try block catch it or fail gracefully later
+
     # Determine output directory (Persistent or Local)
     data_dir = os.getenv("DATA_DIR")
     if not data_dir:
+        # Auto-detect Railway Volume
         if os.path.exists("/app/data"):
             data_dir = "/app/data"
         else:
@@ -32,6 +41,10 @@ async def generate_digest_image(title: str, city: str, output_dir: str = None, a
     )
 
     try:
+        import httpx
+        import uuid
+        import base64
+        
         if not final_key:
              # Just raise to trigger fallback
              raise Exception("Missing API Key")
@@ -62,6 +75,7 @@ async def generate_digest_image(title: str, city: str, output_dir: str = None, a
         image_data = base64.b64decode(b64_data)
         
         # Ensure directory
+        # Fix: If output_dir is absolute (e.g. /app/data/...), do not join with cwd.
         if os.path.isabs(output_dir):
             full_dir = output_dir
         else:

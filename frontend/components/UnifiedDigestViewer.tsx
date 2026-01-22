@@ -221,8 +221,18 @@ export default function UnifiedDigestViewer({
                     }, 100);
                 }
 
+                // Update local digest
+                setLocalDigest(prev => ({
+                    ...prev,
+                    image_url: imageUrl
+                }));
+                setImageError(false);
+
             } else {
-                console.error("Gen failed");
+                const errorText = await res.text();
+                console.error("Gen failed:", errorText);
+                alert(`Generation Failed: ${errorText}`);
+
                 if (setDigestSummary) {
                     const text = digestDataRef.current?.digest || "";
                     setDigestSummary(text.replace(TOKEN, ""));
