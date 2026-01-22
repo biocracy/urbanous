@@ -1575,10 +1575,9 @@ async def save_digest(
     
     # AI TITLE GENERATION
     final_title = digest.title
-    # If the default title is generic "Digest", try to improve it
-    # If the default title is generic "Digest", try to improve it
-    # We check if title is None, or contains "digest" (case insensitive)
-    if current_user.gemini_api_key and (not final_title or "digest" in final_title.lower()) and len(digest.summary_markdown) > 50:
+    # If the default title is generic "Digest" or "Report", try to improve it
+    # We check if title is None, or contains "digest" or "report" (case insensitive)
+    if current_user.gemini_api_key and (not final_title or "digest" in final_title.lower() or "report" in final_title.lower()) and len(digest.summary_markdown) > 50:
         try:
             print(f"DEBUG: Generating AI Title for digest...")
             import google.generativeai as genai # Ensure import

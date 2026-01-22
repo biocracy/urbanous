@@ -835,7 +835,7 @@ export default function UnifiedDigestViewer({
             </div>
 
             {/* TAB 3: ANALYTICS */}
-            <div className={`p-6 max-w-6xl mx-auto w-full transition-opacity duration-300 ${activeTab === 'analytics' ? 'opacity-100 flex' : 'hidden opacity-0'}`}>
+            <div className={`h-full overflow-y-auto custom-scrollbar p-6 max-w-6xl mx-auto w-full transition-opacity duration-300 ${activeTab === 'analytics' ? 'opacity-100 flex flex-col' : 'hidden opacity-0'}`}>
                 <div className="w-full">
                     <div className="flex justify-between items-center mb-6">
                         {/* Left: View Controls */}
