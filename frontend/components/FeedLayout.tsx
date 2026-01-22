@@ -29,7 +29,7 @@ const CITY_IMAGES: Record<string, string> = {
     "Berlin": "https://images.unsplash.com/photo-1560969184-10fe8719e047?auto=format&fit=crop&w=800&q=80",
     "Tokyo": "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?auto=format&fit=crop&w=800&q=80",
 };
-const DEFAULT_IMAGE = "https://images.unsplash.com/photo-1495020689067-958852a7765e?auto=format&fit=crop&w=800&q=80"; // Generic News
+const DEFAULT_IMAGE = "/static/digest_images/placeholder.png";
 
 const formatDateRange = (createdDateStr: string, timeframeStr: string = "24h") => {
     const createdDate = new Date(createdDateStr);

@@ -1773,6 +1773,28 @@ async def delete_digest(
     await db.commit()
     return {"status": "success", "message": "Digest deleted"}
 
+@router.delete("/digests/{digest_id}/image")
+async def delete_digest_image(
+    digest_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Remove the generated image from a digest."""
+    stmt = select(NewsDigest).where(NewsDigest.id == digest_id)
+    result = await db.execute(stmt)
+    digest = result.scalar_one_or_none()
+    
+    if not digest:
+        raise HTTPException(status_code=404, detail="Digest not found")
+        
+    if digest.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    # Just nullify the field, don't delete file for safety (preserves history/backup)
+    digest.image_url = None
+    await db.commit()
+    return {"status": "success", "message": "Image removed"}
+
 def generate_slug(length=8):
     alphabet = string.ascii_lowercase + string.digits
     return ''.join(secrets.choice(alphabet) for i in range(length))
