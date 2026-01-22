@@ -75,5 +75,10 @@ master_timeline.html
 !backend/data/cities500.json
 
 # Generated Flags
+# Generated Flags
 backend/static/flags/
-.env.backup
+
+# Allow static assets
+!backend/static/digest_images/*.png
+!frontend/public/assets/digest_images/*.png
+!frontend/public/static/*.png

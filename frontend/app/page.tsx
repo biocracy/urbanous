@@ -36,16 +36,60 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
     const title = data.title || `${data.city} Headlines`;
     const description = `${data.category || 'News'} Digest • ${data.timeframe || 'Recent'} • Read local insights from ${data.city}.`;
 
+    // --- Image Logic (Mirroring NewsCard & Share Page) ---
+    const CITY_IMAGES: Record<string, string> = {
+      "Tbilisi": "https://images.unsplash.com/photo-1565008447742-97f6f38c985c?auto=format&fit=crop&w=800&q=80",
+      "Kyiv": "https://images.unsplash.com/photo-1561542320-9a18cd340469?auto=format&fit=crop&w=800&q=80",
+      "Kiev": "https://images.unsplash.com/photo-1561542320-9a18cd340469?auto=format&fit=crop&w=800&q=80",
+      "London": "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?auto=format&fit=crop&w=800&q=80",
+      "New York": "https://images.unsplash.com/photo-1496442226666-8d4a0e62e6e9?auto=format&fit=crop&w=800&q=80",
+      "Paris": "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=800&q=80",
+      "Berlin": "https://images.unsplash.com/photo-1560969184-10fe8719e047?auto=format&fit=crop&w=800&q=80",
+      "Tokyo": "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?auto=format&fit=crop&w=800&q=80",
+    };
+    const DEFAULT_IMAGE = "/static/digest_images/placeholder.png";
+
+    // Select Image
+    let imageUrl = data.image_url || CITY_IMAGES[data.city || ""] || DEFAULT_IMAGE;
+
+    // Resolve Relative Paths to Absolute Backend URL (CRITICAL for Social Cards)
+    if (imageUrl && imageUrl.startsWith('/')) {
+      // Use Production Backend URL for cards to ensure images are reachable
+      // Even if running local frontend, the card needs a public URL.
+      const baseUrl = process.env.NODE_ENV === 'production'
+        ? 'https://urbanous-production.up.railway.app'
+        // If local, we can't really share localhost images 
+        // but we'll fallback to dev behavior
+        : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000');
+
+      const cleanBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+      imageUrl = `${cleanBase}${imageUrl}`;
+    }
+
+    // fallback to hero if everything failed? No, imageUrl should be set.
+
     return {
       title: `${title} | Urbanous`,
       description: description,
       openGraph: {
         title: title,
         description: description,
-        // If the digest has a specific image (e.g. flag or city), use it? 
-        // Currently data might not have a public image URL easily accessible, 
-        // but we can fallback to the default or a specific implementation later.
-        images: ['/about/hero.png'],
+        url: `https://urbanous-production.up.railway.app/?view_digest=${viewDigestSlug}`,
+        images: [
+          {
+            url: imageUrl,
+            width: 1200,
+            height: 630,
+            alt: title
+          }
+        ],
+        type: 'article'
+      },
+      twitter: {
+        card: 'summary_large_image',
+        title: title,
+        description: description,
+        images: [imageUrl],
       }
     };
 
