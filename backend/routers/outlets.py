@@ -1958,10 +1958,8 @@ async def generate_digest_image_endpoint(digest_id: int, db: Session = Depends(g
             image_md = f"![{digest.city} Illustration]({image_path})"
             digest.summary_markdown = f"{image_md}\n\n{cleaned_md}"
             
-            # Update the Digest column too if it differs
-            if digest.digest:
-                 cleaned_digest = re.sub(r'!\[.*?\]\(.*?\)', '', digest.digest).strip()
-                 digest.digest = f"{image_md}\n\n{cleaned_digest}"
+            # Note: NewsDigest does not have a 'digest' field, only 'summary_markdown'.
+            # The UI might map 'digest' prop to 'summary_markdown', but backend model must be strict.
 
         db.add(digest)
         await db.commit()
