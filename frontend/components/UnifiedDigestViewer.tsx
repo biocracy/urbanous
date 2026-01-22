@@ -222,10 +222,9 @@ export default function UnifiedDigestViewer({
                 }
 
                 // Update local digest
-                setLocalDigest(prev => ({
-                    ...prev,
-                    image_url: imageUrl
-                }));
+                // digestData is a prop, so we can't set it directly. 
+                // The image URL will update when the parent component refetches or if the Markdown contains the image link.
+                // setLocalDigest(...) <- REMOVED to fix build error
                 setImageError(false);
 
             } else {
