@@ -308,22 +308,38 @@ function NewsCard({ item, onClick }: { item: DigestFeedItem, onClick: () => void
         || CITY_IMAGES[item.city || ""]
         || DEFAULT_IMAGE;
 
-    // Fix relative paths from backend (e.g. /static/...)
-    // Fix relative paths from backend (e.g. /static/...)
-    if (imageUrl && imageUrl.startsWith('/') && !imageUrl.startsWith('http')) {
+    // Fix relative paths from backend (e.g. /static/...) UNLESS it's the default local image
+    if (imageUrl && imageUrl.startsWith('/') && !imageUrl.startsWith('http') && imageUrl !== DEFAULT_IMAGE) {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-        // Remove trailing slash from API URL if present to avoid double slash
         const cleanApiUrl = apiUrl.endsWith('/') ? apiUrl.slice(0, -1) : apiUrl;
         imageUrl = `${cleanApiUrl}${imageUrl}`;
     }
 
-    console.log(`[DEBUG] Image for ${item.slug}:`, { original: item.image_url, final: imageUrl, apiUrl: process.env.NEXT_PUBLIC_API_URL });
+    // console.log(`[DEBUG] Image for ${item.slug}:`, { original: item.image_url, final: imageUrl });
 
     // Determine Source Text (user name? or generic?)
     // User requested "freshest first".
     const dateStr = new Date(item.created_at).toLocaleDateString(undefined, {
         month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
     });
+
+    // Cleaning Summary Logic
+    let cleanSummary = (item.summary || "")
+        .replace(/!\[.*?\]\(.*?\)/g, '') // Remove images
+        .replace(/^#+\s.*$/gm, '') // Remove headers
+        .replace(/\(citation:\d+\)/g, '') // Remove citations
+        .replace(/\[.*?\]\(.*?\)/g, '$1') // Keep link text, remove URL
+        .replace(/[*_`]/g, '') // Remove formatting chars
+        .trim();
+
+    // Remove redundant title if present at start
+    if (item.title && cleanSummary.startsWith(item.title)) {
+        cleanSummary = cleanSummary.substring(item.title.length).trim();
+    }
+    // Remove leading "Summary" or "Digest" labels if any
+    cleanSummary = cleanSummary.replace(/^(Summary|Digest|Report):?\s*/i, "");
+
+    const summaryPreview = cleanSummary.split(' ').slice(0, 30).join(' ') + (cleanSummary.split(' ').length > 30 ? '...' : '');
 
     return (
         <div
@@ -359,9 +375,7 @@ function NewsCard({ item, onClick }: { item: DigestFeedItem, onClick: () => void
                 </h3>
 
                 <p className="text-neutral-400 text-sm leading-relaxed mb-6 line-clamp-3">
-                    {item.summary
-                        ? item.summary.replace(/[#*`\[\]]/g, '').replace(/\(citation:\d+\)/g, '').split(' ').slice(0, 30).join(' ') + '...'
-                        : "Reading report summary..."}
+                    {summaryPreview || "Reading report summary..."}
                 </p>
 
                 <div className="mt-auto flex items-center justify-between border-t border-neutral-800 pt-4">
