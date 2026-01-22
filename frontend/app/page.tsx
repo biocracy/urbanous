@@ -47,7 +47,7 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
       "Berlin": "https://images.unsplash.com/photo-1560969184-10fe8719e047?auto=format&fit=crop&w=800&q=80",
       "Tokyo": "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?auto=format&fit=crop&w=800&q=80",
     };
-    const DEFAULT_IMAGE = "/static/digest_images/placeholder.png";
+    const DEFAULT_IMAGE = "https://www.urbanous.net/about/hero.png";
 
     // Select Image
     let imageUrl = data.image_url || CITY_IMAGES[data.city || ""] || DEFAULT_IMAGE;
