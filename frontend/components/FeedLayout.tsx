@@ -311,10 +311,10 @@ function NewsCard({ item, onClick }: { item: DigestFeedItem, onClick: () => void
     const [displayImage, setDisplayImage] = useState(initialImage);
 
     // Effect to handle "intelligent" path fixing for the display image
-    // Only if it's a relative path and NOT the default one (which we assume is valid)
+    // Only if it's a relative path. We allow DEFAULT_IMAGE to be prepended too if it starts with /static
     const processedImage = useMemo(() => {
         let img = displayImage;
-        if (img && img.startsWith('/') && !img.startsWith('http') && img !== DEFAULT_IMAGE) {
+        if (img && img.startsWith('/') && !img.startsWith('http')) {
             const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
             const cleanApiUrl = apiUrl.endsWith('/') ? apiUrl.slice(0, -1) : apiUrl;
             img = `${cleanApiUrl}${img}`;
