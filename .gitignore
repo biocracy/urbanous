@@ -82,3 +82,6 @@ backend/static/flags/
 !backend/static/digest_images/*.png
 !frontend/public/assets/digest_images/*.png
 !frontend/public/static/*.png
+
+# Security
+.env.backup
