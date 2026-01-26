@@ -257,13 +257,13 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
     const [spotlightQuery, setSpotlightQuery] = useState('');
     const [spotlightSelectedIndex, setSpotlightSelectedIndex] = useState(0);
 
-    const handleToggleSelection = (url: string) => {
+    const handleToggleSelection = useCallback((url: string) => {
         setIsReportSaved(false); // Mark as modified
         const newSet = new Set(selectedArticleUrls);
         if (newSet.has(url)) newSet.delete(url);
         else newSet.add(url);
         setSelectedArticleUrls(newSet);
-    };
+    }, [selectedArticleUrls]);
 
     // Stable list of selected articles for Index-based citation
     const selectedArticlesList = useMemo(() => {

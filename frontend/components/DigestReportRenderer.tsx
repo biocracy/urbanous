@@ -59,7 +59,7 @@ export default function DigestReportRenderer({ articles, category, isTranslated 
                 };
             })
             .sort((a, b) => b.maxScore - a.maxScore);
-    }, [articles, excludedArticles, spamUrls, selectedUrls]);
+    }, [articles, excludedArticles, spamUrls]); // Removed selectedUrls to prevent re-grouping on toggle!
 
     const visibleGroups = groupedArticles.slice(0, displayCount);
 
