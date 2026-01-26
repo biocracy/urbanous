@@ -158,7 +158,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
     }
 
     // Use centralized version constant
-    const APP_VERSION = "v0.276";
+    const APP_VERSION = "v0.277";
 
     // Debugging State Reset
     // useEffect(() => console.log("[NewsGlobe] Mount/Render"), []);
@@ -259,11 +259,13 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
 
     const handleToggleSelection = useCallback((url: string) => {
         setIsReportSaved(false); // Mark as modified
-        const newSet = new Set(selectedArticleUrls);
-        if (newSet.has(url)) newSet.delete(url);
-        else newSet.add(url);
-        setSelectedArticleUrls(newSet);
-    }, [selectedArticleUrls]);
+        setSelectedArticleUrls((prev) => {
+            const newSet = new Set(prev);
+            if (newSet.has(url)) newSet.delete(url);
+            else newSet.add(url);
+            return newSet;
+        });
+    }, []);
 
     // Stable list of selected articles for Index-based citation
     const selectedArticlesList = useMemo(() => {
@@ -508,20 +510,22 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
             setDigestFetchStatus(`error: ${err.message}`);
         }
     };
+
+
     // Scraper Debugger State
     const [scraperDebuggerOpen, setScraperDebuggerOpen] = useState(false);
     const [debugTarget, setDebugTarget] = useState<{ url: string, domain: string } | null>(null);
 
+
+
     const handleOpenDebugger = (url: string) => {
         try {
             const domain = new URL(url).hostname.replace('www.', '');
-            setDebugTarget({ url, domain });
             setScraperDebuggerOpen(true);
         } catch (e) {
             console.error("Invalid URL for debugger", url);
         }
     };
-
 
 
 
@@ -680,12 +684,12 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
                     <span class="cloud-tag ${colorClass}" style="font-size: ${size}rem; color: ${colorStyle}; border-color: ${colorStyle}40;">
                         ${kw.word}
                         <span class="tooltip">
-                           <strong>${kw.translation || kw.word}</strong><br/>
-                           Imp: ${kw.importance}<br/>
-                           Sources: ${kw.sources?.length || 0}
+                            <strong>${kw.translation || kw.word}</strong><br />
+                            Imp: ${kw.importance}<br />
+                            Sources: ${kw.sources?.length || 0}
                         </span>
                     </span>
-                 `;
+                    `;
             });
             wordcloudHtml += `</div>`;
         }
@@ -716,27 +720,27 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
                 const aiVerdict = art.ai_verdict === 'VERIFIED' ? '✅' : (art.ai_verdict === 'REJECTED' ? '❌' : '❓');
 
                 tableHtml += `
-                    <tr id="${id}" class="hover:bg-slate-800/50 transition-colors border-b border-slate-800/50">
-                        <td class="p-3 align-top">
-                            <span class="inline-flex items-center gap-1 px-2 py-1 rounded border border-slate-700 bg-slate-800 text-slate-400 text-xs font-bold select-none cursor-not-allowed">
-                                🤖 Assess
-                            </span>
-                        </td>
-                        <td class="p-3 align-top text-center">${aiVerdict}</td>
-                        <td class="p-3 align-top whitespace-nowrap ${dateColor} font-mono text-sm">${art.date_str || 'N/A'}</td>
-                        <td class="p-3 align-top text-center ${scoreColor} font-bold">${art.relevance_score}</td>
-                        <td class="p-3 align-top">
-                            <a href="${art.url}" target="_blank" class="text-blue-400 hover:text-blue-300 hover:underline font-medium block mb-1">
-                                [${idx + 1}] ${art.title}
-                            </a>
-                            <div class="text-slate-500 text-xs flex items-center gap-2">
-                                <span class="uppercase tracking-wider font-semibold">${art.source}</span>
-                            </div>
-                        </td>
-                    </tr>
-                 `;
+                <tr id="${id}" class="hover:bg-slate-800/50 transition-colors border-b border-slate-800/50">
+                    <td class="p-3 align-top">
+                        <span class="inline-flex items-center gap-1 px-2 py-1 rounded border border-slate-700 bg-slate-800 text-slate-400 text-xs font-bold select-none cursor-not-allowed">
+                            🤖 Assess
+                        </span>
+                    </td>
+                    <td class="p-3 align-top text-center">${aiVerdict}</td>
+                    <td class="p-3 align-top whitespace-nowrap ${dateColor} font-mono text-sm">${art.date_str || 'N/A'}</td>
+                    <td class="p-3 align-top text-center ${scoreColor} font-bold">${art.relevance_score}</td>
+                    <td class="p-3 align-top">
+                        <a href="${art.url}" target="_blank" class="text-blue-400 hover:text-blue-300 hover:underline font-medium block mb-1">
+                            [${idx + 1}] ${art.title}
+                        </a>
+                        <div class="text-slate-500 text-xs flex items-center gap-2">
+                            <span class="uppercase tracking-wider font-semibold">${art.source}</span>
+                        </div>
+                    </td>
+                </tr>
+                `;
             });
-            tableHtml += `</tbody></table></div>`;
+            tableHtml += `</tbody></table ></div > `;
         } else {
             // Fallback to existing if available
             if (digestData.digest && digestData.digest !== digestSummary) {
@@ -745,74 +749,74 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
         }
 
         const htmlContent = `
-            <!DOCTYPE html>
-            <html class="dark">
-            <head>
-                <meta charset="utf-8">
-                <title>${title}</title>
-                <script src="https://cdn.tailwindcss.com"></script>
-                <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-                <style>
-                    body { background-color: #020617; color: #e2e8f0; font-family: 'Segoe UI', system-ui, sans-serif; padding: 2rem; max-width: 1000px; margin: 0 auto; line-height: 1.6; }
-                    
-                    /* Typography */
-                    h1, h2, h3 { color: #f8fafc; margin-top: 1.5em; margin-bottom: 0.5em; line-height: 1.2; }
-                    h1 { font-size: 2.5rem; font-weight: 800; border-bottom: 2px solid #3b82f6; padding-bottom: 0.5rem; }
-                    h2 { font-size: 1.8rem; font-weight: 700; border-bottom: 1px solid #1e293b; padding-bottom: 0.5rem; }
-                    h3 { font-size: 1.4rem; font-weight: 600; color: #cbd5e1; }
-                    p { margin-bottom: 1em; }
-                    a { color: #60a5fa; text-decoration: none; transition: color 0.2s; }
-                    a:hover { color: #93c5fd; text-decoration: underline; }
-                    blockquote { border-left: 4px solid #3b82f6; padding-left: 1rem; color: #94a3b8; font-style: italic; background: #1e293b50; padding: 1rem; border-radius: 0 8px 8px 0; }
-                    ul, ol { margin-bottom: 1em; padding-left: 2em; }
-                    li { margin-bottom: 0.5em; }
-                    code { background: #1e293b; padding: 0.2em 0.4em; rounded: 4px; font-family: monospace; font-size: 0.9em; color: #e2e8f0; }
+                    < !DOCTYPE html >
+                        <html class="dark">
+                            <head>
+                                <meta charset="utf-8">
+                                    <title>${title}</title>
+                                    <script src="https://cdn.tailwindcss.com"></script>
+                                    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+                                    <style>
+                                        body {background - color: #020617; color: #e2e8f0; font-family: 'Segoe UI', system-ui, sans-serif; padding: 2rem; max-width: 1000px; margin: 0 auto; line-height: 1.6; }
 
-                    /* Wordcloud */
-                    .wordcloud-section { margin: 3rem 0; padding: 2rem; background: #0f172a; border: 1px solid #1e293b; border-radius: 12px; }
-                    .wordcloud-container { display: flex; flex-wrap: wrap; gap: 0.8rem; justify-content: center; align-items: center; }
-                    .cloud-tag { 
-                        display: inline-block; padding: 0.3rem 0.8rem; border: 1px solid transparent; border-radius: 20px; 
-                        background: #1e293b; cursor: default; position: relative; transition: all 0.2s;
+                                        /* Typography */
+                                        h1, h2, h3 {color: #f8fafc; margin-top: 1.5em; margin-bottom: 0.5em; line-height: 1.2; }
+                                        h1 {font - size: 2.5rem; font-weight: 800; border-bottom: 2px solid #3b82f6; padding-bottom: 0.5rem; }
+                                        h2 {font - size: 1.8rem; font-weight: 700; border-bottom: 1px solid #1e293b; padding-bottom: 0.5rem; }
+                                        h3 {font - size: 1.4rem; font-weight: 600; color: #cbd5e1; }
+                                        p {margin - bottom: 1em; }
+                                        a {color: #60a5fa; text-decoration: none; transition: color 0.2s; }
+                                        a:hover {color: #93c5fd; text-decoration: underline; }
+                                        blockquote {border - left: 4px solid #3b82f6; padding-left: 1rem; color: #94a3b8; font-style: italic; background: #1e293b50; padding: 1rem; border-radius: 0 8px 8px 0; }
+                                        ul, ol {margin - bottom: 1em; padding-left: 2em; }
+                                        li {margin - bottom: 0.5em; }
+                                        code {background: #1e293b; padding: 0.2em 0.4em; rounded: 4px; font-family: monospace; font-size: 0.9em; color: #e2e8f0; }
+
+                                        /* Wordcloud */
+                                        .wordcloud-section {margin: 3rem 0; padding: 2rem; background: #0f172a; border: 1px solid #1e293b; border-radius: 12px; }
+                                        .wordcloud-container {display: flex; flex-wrap: wrap; gap: 0.8rem; justify-content: center; align-items: center; }
+                                        .cloud-tag {
+                                            display: inline-block; padding: 0.3rem 0.8rem; border: 1px solid transparent; border-radius: 20px;
+                                        background: #1e293b; cursor: default; position: relative; transition: all 0.2s;
                     }
-                    .cloud-tag:hover { transform: scale(1.1); z-index: 10; background: #334155; }
-                    .cloud-tag .tooltip {
-                        visibility: hidden; opacity: 0; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
-                        background: #020617; border: 1px solid #475569; padding: 0.5rem; border-radius: 6px;
-                        font-size: 0.8rem; white-space: nowrap; z-index: 20; transition: opacity 0.2s;
-                        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5); pointer-events: none; margin-bottom: 0.5rem;
+                                        .cloud-tag:hover {transform: scale(1.1); z-index: 10; background: #334155; }
+                                        .cloud-tag .tooltip {
+                                            visibility: hidden; opacity: 0; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
+                                        background: #020617; border: 1px solid #475569; padding: 0.5rem; border-radius: 6px;
+                                        font-size: 0.8rem; white-space: nowrap; z-index: 20; transition: opacity 0.2s;
+                                        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5); pointer-events: none; margin-bottom: 0.5rem;
                     }
-                    .cloud-tag:hover .tooltip { visibility: visible; opacity: 1; }
-                    
-                    /* Custom Scrollbar for Pre blocks if any */
-                    ::-webkit-scrollbar { width: 8px; height: 8px; }
-                    ::-webkit-scrollbar-track { background: #0f172a; }
-                    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
-                    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+                                        .cloud-tag:hover .tooltip {visibility: visible; opacity: 1; }
 
-                    /* Tables (Inherited from Stream) */
-                    table { width: 100%; border-collapse: separate; border-spacing: 0; margin: 2rem 0; border: 1px solid #334155; border-radius: 8px; overflow: hidden; }
-                    th { background: #1e293b; color: #94a3b8; font-weight: 600; text-align: left; padding: 1rem; }
-                    td { border-top: 1px solid #334155; padding: 1rem; }
-                    tr:hover td { background: #1e293b50; }
-                    
-                    .section-label { text-transform: uppercase; font-size: 0.85rem; letter-spacing: 1px; color: #64748b; font-weight: 700; margin-bottom: 1rem; display: block; border-left: 3px solid #3b82f6; padding-left: 10px; }
-                    .citation-link { color: #facc15; font-weight: bold; background: #422006; padding: 0 4px; rounded: 4px; font-size: 0.9em; }
-                    .citation-link:hover { background: #a16207; color: white; text-decoration: none; }
-                </style>
-            </head>
-            <body>
-                <header style="text-align: center; margin-bottom: 4rem; border-bottom: 1px solid #1e293b; padding-bottom: 2rem;">
-                    <h1 style="border:none; margin: 0 0 1rem 0; font-size: 3rem; background: linear-gradient(to right, #60a5fa, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
-                        ${title}
-                    </h1>
-                    <div style="color: #94a3b8; font-family: monospace; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 3px;">
-                        OpenNews Intelligence • ${new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-                    </div>
-                </header>
+                                        /* Custom Scrollbar for Pre blocks if any */
+                                        ::-webkit-scrollbar {width: 8px; height: 8px; }
+                                        ::-webkit-scrollbar-track {background: #0f172a; }
+                                        ::-webkit-scrollbar-thumb {background: #334155; border-radius: 4px; }
+                                        ::-webkit-scrollbar-thumb:hover {background: #475569; }
 
-                <!-- I. DIGEST REPORT -->
-                ${summaryRaw ? `
+                                        /* Tables (Inherited from Stream) */
+                                        table {width: 100%; border-collapse: separate; border-spacing: 0; margin: 2rem 0; border: 1px solid #334155; border-radius: 8px; overflow: hidden; }
+                                        th {background: #1e293b; color: #94a3b8; font-weight: 600; text-align: left; padding: 1rem; }
+                                        td {border - top: 1px solid #334155; padding: 1rem; }
+                                        tr:hover td {background: #1e293b50; }
+
+                                        .section-label {text - transform: uppercase; font-size: 0.85rem; letter-spacing: 1px; color: #64748b; font-weight: 700; margin-bottom: 1rem; display: block; border-left: 3px solid #3b82f6; padding-left: 10px; }
+                                        .citation-link {color: #facc15; font-weight: bold; background: #422006; padding: 0 4px; rounded: 4px; font-size: 0.9em; }
+                                        .citation-link:hover {background: #a16207; color: white; text-decoration: none; }
+                                    </style>
+                            </head>
+                            <body>
+                                <header style="text-align: center; margin-bottom: 4rem; border-bottom: 1px solid #1e293b; padding-bottom: 2rem;">
+                                    <h1 style="border:none; margin: 0 0 1rem 0; font-size: 3rem; background: linear-gradient(to right, #60a5fa, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                                        ${title}
+                                    </h1>
+                                    <div style="color: #94a3b8; font-family: monospace; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 3px;">
+                                        OpenNews Intelligence • ${new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                                    </div>
+                                </header>
+
+                                <!-- I. DIGEST REPORT -->
+                                ${summaryRaw ? `
                 <section id="digest-report">
                     <span class="section-label">Part I: Intelligence Report</span>
                     <div id="markdown-content"></div>
@@ -825,8 +829,8 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
                 <hr style="border-color: #334155; margin: 4rem 0;" />
                 ` : ''}
 
-                <!-- II. WORDCLOUD -->
-                ${wordcloudHtml ? `
+                                <!-- II. WORDCLOUD -->
+                                ${wordcloudHtml ? `
                 <section id="analytics-cloud">
                     <span class="section-label">Part II: Key Entities & Sentiment</span>
                     <div class="wordcloud-section">
@@ -836,20 +840,20 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
                 <hr style="border-color: #334155; margin: 4rem 0;" />
                 ` : ''}
 
-                <!-- III. SOURCE TABLES -->
-                ${tableHtml ? `
+                                <!-- III. SOURCE TABLES -->
+                                ${tableHtml ? `
                 <section id="source-tables">
                     <span class="section-label">Part III: Source Data Verification</span>
                     ${tableHtml}
                 </section>
                 ` : ''}
 
-                <footer style="margin-top: 5rem; padding-top: 2rem; border-top: 1px solid #1e293b; color: #64748b; font-size: 0.875rem; text-align: center;">
-                    Generated by OpenNews • ${new Date().toLocaleString()}
-                </footer>
-            </body>
-            </html>
-        `;
+                                <footer style="margin-top: 5rem; padding-top: 2rem; border-top: 1px solid #1e293b; color: #64748b; font-size: 0.875rem; text-align: center;">
+                                    Generated by OpenNews • ${new Date().toLocaleString()}
+                                </footer>
+                            </body>
+                        </html>
+    `;
 
         const blob = new Blob([htmlContent], { type: 'text/html' });
         const url = URL.createObjectURL(blob);
@@ -886,7 +890,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
             setErrorMessage("Please select at least one outlet.");
             return;
         }
-        console.log(`DIGEST_DEBUG: Starting generation. Category=${selectedCategory}, Timeframe=${selectedTimeframe}, Outlets=${selectedOutletIds.length}`);
+        console.log(`DIGEST_DEBUG: Starting generation.Category = ${selectedCategory}, Timeframe = ${selectedTimeframe}, Outlets = ${selectedOutletIds.length} `);
 
         setIsGeneratingDigest(true);
         setErrorMessage(null);
@@ -912,11 +916,11 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
             abortControllerRef.current = new AbortController();
 
             console.log("DIGEST_DEBUG: Initiating fetch to /outlets/digest/stream");
-            const response = await fetch(`${api.defaults.baseURL}/outlets/digest/stream`, {
+            const response = await fetch(`${api.defaults.baseURL} /outlets/digest / stream`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
+                    'Authorization': `Bearer ${token} `
                 },
                 body: JSON.stringify({
                     outlet_ids: selectedOutletIds,
@@ -957,7 +961,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
                 done = doneReading;
                 const chunkValue = decoder.decode(value || new Uint8Array(), { stream: !done });
 
-                // console.log(`DIGEST_DEBUG: Chunk received. Done=${done}, Size=${chunkValue.length}`);
+                // console.log(`DIGEST_DEBUG: Chunk received.Done = ${ done }, Size = ${ chunkValue.length } `);
 
                 buffer += chunkValue;
                 const lines = buffer.split('\n');
@@ -976,7 +980,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
                             // Throttle log updates to prevent UI/WebGL thrashing (max 5fps)
                             const now = Date.now();
                             if (now - lastLogUpdate > 200 || msg.message.includes("Done") || msg.message.includes("Error")) {
-                                setProgressLog(`> ${msg.message}`);
+                                setProgressLog(`> ${msg.message} `);
                                 lastLogUpdate = now;
                                 console.log("DIGEST_DEBUG: Log:", msg.message);
                             }
@@ -1014,14 +1018,14 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
                             setDigestData({ ...currentDigestState });
                         }
                         else if (msg.type === 'partial_articles') {
-                            console.log(`DIGEST_DEBUG: Received partial_articles (${msg.articles.length})`);
+                            console.log(`DIGEST_DEBUG: Received partial_articles(${msg.articles.length})`);
 
                             // FRONTEND DEDUPLICATION SAFETY NET
                             const newUniqueArticles = msg.articles.filter((newArt: any) => {
                                 // Check if URL already exists in current state
                                 const exists = currentDigestState.articles.some((existing: any) => existing.url === newArt.url);
                                 if (exists) {
-                                    console.log(`DIGEST_DEBUG: Frontend filtered duplicate: ${newArt.title}`);
+                                    console.log(`DIGEST_DEBUG: Frontend filtered duplicate: ${newArt.title} `);
                                 }
                                 return !exists;
                             });
@@ -1238,7 +1242,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
         setSearchResults(results);
     }, [searchQuery, cities]);
 
-    const handleDebugArticle = (article: any) => {
+    const handleDebugArticle = useCallback((article: any) => {
         let domain = article.source;
         // CRITICAL: Backend matches rules by DOMAIN (e.g. "g4media.ro"), not Outlet Name (e.g. "G4Media").
         // We must extract the actual hostname from the URL for the rule to be effective.
@@ -1256,7 +1260,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
             url: article.url,
             domain: domain
         });
-    };
+    }, []);
 
     const handleSearchSelect = (city: any) => {
         setSearchQuery('');
@@ -1371,7 +1375,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
                 const r = parseInt(c.slice(1, 3), 16);
                 const g = parseInt(c.slice(3, 5), 16);
                 const b = parseInt(c.slice(5, 7), 16);
-                return `rgba(${r},${g},${b},${d.opacity})`;
+                return `rgba(${r}, ${g}, ${b}, ${d.opacity})`;
             }
             return d.color;
         }
@@ -1449,7 +1453,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
         );
 
         console.log(`Loading clusters for radius: ${radius} (requested: ${clusterThreshold})`);
-        const url = `/static/clusters/cities_${radius.toFixed(1)}.json?v=120.73`; // e.g. cities_0.7.json
+        const url = `/ static / clusters / cities_${radius.toFixed(1)}.json ? v = 120.73`; // e.g. cities_0.7.json
 
         // Use api (axios) or fetch. Since it's valid static file, fetch is fine/faster? 
         // Using api to keep baseURL consistent if set.
@@ -1862,21 +1866,21 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
 
         if (isMultiCity && !d.isSpider) {
             return `
-            <div class="px-2 py-1 bg-amber-500/90 text-black font-bold rounded text-xs border border-amber-300 z-50 shadow-xl">
+        < div class="px-2 py-1 bg-amber-500/90 text-black font-bold rounded text-xs border border-amber-300 z-50 shadow-xl" >
                 <div class="flex items-center gap-2 mb-0.5 border-b border-black/10 pb-0.5">
                     <span class="text-[10px] uppercase opacity-80 tracking-wider">Media Hub</span>
                     <span class="text-[9px] bg-black/20 px-1 rounded-full">+${d.subPoints.length}</span>
                 </div>
                 <div class="text-sm font-extrabold leading-tight">${d.name}</div>
                 <div class="text-[10px] opacity-90 font-mono mt-0.5">Pop: ${parseInt(d.pop || 0).toLocaleString()}</div>
-            </div>
-            `;
+            </div >
+        `;
         }
         return `
-            <div style="background: rgba(0,0,0,0.9); color: ${d.color}; padding: 4px 8px; border-radius: 4px; font-family: sans-serif; font-weight: bold; font-size: 12px; border: 1px solid ${d.color}; pointer-events: none;">
-                ${d.name} <span style="opacity:0.7">(${parseInt(d.pop || 0).toLocaleString()})</span>
-            </div>
-            `;
+        < div style = "background: rgba(0,0,0,0.9); color: ${d.color}; padding: 4px 8px; border-radius: 4px; font-family: sans-serif; font-weight: bold; font-size: 12px; border: 1px solid ${d.color}; pointer-events: none;" >
+            ${d.name} <span style="opacity:0.7">(${parseInt(d.pop || 0).toLocaleString()})</span>
+            </div >
+        `;
     }, []);
 
     const handleCityClick = useCallback((d: any) => {
@@ -1912,7 +1916,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
             lng: parseFloat(d.lng || d.lon || d.longitude || '0')
         })
         */
-        api.get(`/outlets/discover_city_debug?city=${encodeURIComponent(d.name)}&country=${encodeURIComponent(countryName)}&lat=${parseFloat(d.lat || 0)}&lng=${parseFloat(d.lng || d.lon || 0)}&force_refresh=${forceRefresh}`)
+        api.get(`/ outlets / discover_city_debug ? city = ${encodeURIComponent(d.name)}& country=${encodeURIComponent(countryName)}& lat=${parseFloat(d.lat || 0)}& lng=${parseFloat(d.lng || d.lon || 0)}& force_refresh=${forceRefresh} `)
             .then(res => {
                 const data = res.data;
                 if (Array.isArray(data)) {
@@ -1926,14 +1930,14 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
             .catch(err => {
                 const msg = err.response?.data?.detail || err.message || "Discovery Failed";
                 console.error("Discovery failed", err);
-                setErrorMessage(`Error: ${msg}`);
+                setErrorMessage(`Error: ${msg} `);
                 if (err.response?.status === 429) setQuotaError(true);
             })
             .finally(() => setIsDiscovering(false));
 
         // Get City Info
         setCityInfo(null);
-        api.get(`/outlets/city_info?city=${d.name}&country=${countryName}`)
+        api.get(`/ outlets / city_info ? city = ${d.name}& country=${countryName} `)
             .then(res => setCityInfo(res.data))
             .catch(err => console.error("City Info failed", err));
     }, [discoveredCities]);
@@ -1989,7 +1993,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
         const countryCode = d.country || "XX";
         const countryName = countryMap.current[countryCode] || countryCode;
 
-        api.get(`/outlets/discover_city_debug?city=${encodeURIComponent(d.name)}&country=${encodeURIComponent(countryName)}&lat=${parseFloat(d.lat)}&lng=${parseFloat(d.lon)}&force_refresh=true`)
+        api.get(`/ outlets / discover_city_debug ? city = ${encodeURIComponent(d.name)}& country=${encodeURIComponent(countryName)}& lat=${parseFloat(d.lat)}& lng=${parseFloat(d.lon)}& force_refresh=true`)
             .then(res => {
                 const data = res.data;
                 if (Array.isArray(data)) {
@@ -2014,21 +2018,21 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
     const handleDeleteOutlet = (e: any, outletId: number) => {
         e.stopPropagation();
         if (!confirm('Are you sure you want to delete this outlet?')) return;
-        api.delete(`/outlets/${outletId}`)
+        api.delete(`/ outlets / ${outletId} `)
             .then(() => {
                 setSelectedCityOutlets(prev => prev.filter(o => o.id !== outletId));
             })
-            .catch(err => alert(`Failed to delete: ${err.message}`));
+            .catch(err => alert(`Failed to delete: ${err.message} `));
     };
 
     const handleUpdateOutlet = (outletId: number) => {
         if (!editUrl) return;
-        api.put(`/outlets/${outletId}`, { url: editUrl })
+        api.put(`/ outlets / ${outletId} `, { url: editUrl })
             .then(res => {
                 setSelectedCityOutlets(prev => prev.map(o => o.id === outletId ? { ...o, url: res.data.url } : o));
                 setEditingOutletId(null);
             })
-            .catch(err => alert(`Failed to update: ${err.message}`));
+            .catch(err => alert(`Failed to update: ${err.message} `));
     };
 
     const handleImportUrl = (e: React.FormEvent) => {
@@ -2137,7 +2141,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
             // Determine active target URL from either debugger state
             const targetUrl = debuggerConfig?.url || debugTarget?.url;
 
-            console.log(`handleRulesUpdated: Scanning ${updatedList.length} articles target=${targetUrl}`);
+            console.log(`handleRulesUpdated: Scanning ${updatedList.length} articles target = ${targetUrl} `);
 
             for (let i = 0; i < updatedList.length; i++) {
                 const art = updatedList[i];
@@ -2160,7 +2164,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
 
                 if (!shouldUpdate) continue;
 
-                console.log(`handleRulesUpdated: Updating ${art.url} (Target=${isDebugTarget})`);
+                console.log(`handleRulesUpdated: Updating ${art.url} (Target = ${isDebugTarget})`);
 
                 try {
                     let responseData;
@@ -2302,7 +2306,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
         }
     };
 
-    const handleAssessArticle = async (article: any) => {
+    const handleAssessArticle = useCallback(async (article: any) => {
         setIsReportSaved(false); // Mark as modified
         if (!article.url || !article.title) return null;
 
@@ -2334,30 +2338,59 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
                     if (a.url === article.url) return { ...a, ai_verdict: verdict };
                     return a;
                 });
-                return { ...prev, articles: newArgs, excluded_articles: newExcl };
+                const newSpam = (prev.spam_articles || []).map((a: any) => {
+                    if (a.url === article.url) return { ...a, ai_verdict: verdict };
+                    return a;
+                });
+                return { ...prev, articles: newArgs, excluded_articles: newExcl, spam_articles: newSpam };
             });
 
             return verdict;
         } catch (err: any) {
             console.error(err);
-            alert(`Assessment process failed: ${err.response?.data?.detail || err.message}`);
+            alert(`Assessment process failed: ${err.response?.data?.detail || err.message} `);
             return null;
         }
-    };
+    }, []);
 
-    const handleReportSpam = async (article: any) => {
+    const handleReportSpam = useCallback(async (article: any) => {
         setIsReportSaved(false); // Mark as modified
         if (!article.url) return;
         const url = article.url;
 
         // Toggle Logic
+        // access state via refs or just let it depend on spamUrls?
+        // Actually, preventing re-render of ALL rows when 1 row is spam-flagged is hard if we depend on spamUrls.
+        // Better to use functional updates for setSpamUrls too?
+        // But we need to know if it is CURRENTLY in spamUrls to toggle.
+        // We can pass `isSpam` as arg? Or just trust the functional update?
+        // Let's use functional update for setSpamUrls, but we need to know IF it was spam to decide whether to call delete or post API.
+        // Wait, the API call happens BEFORE the state update in the original code.
+        // We need the current state.
+        // If we include `spamUrls` in dependency, it re-renders all rows on every spam toggle.
+        // To avoid that, we can use a Ref for spamUrls OR accept that spam toggling is rare and re-rendering is okay-ish,
+        // BUT `handleReportSpam` is passed to every row.
+
+        // BETTER APPROACH: The `ArticleRow` component knows if it is spam (passed as prop).
+        // Maybe we change the signature to `handleReportSpam(article, isCurrentlySpam)`.
+        // But that changes the prop signature.
+
+        // Let's stick to `useCallback` with `[spamUrls, selectedArticleUrls]` for now. 
+        // Changing it to functional often requires changing logic which is risky without testing.
+        // However, `selectedArticleUrls` is also a dependency.
+
+        // Refactoring to use refs for current state is safest for pure stability, but let's just use useCallback for now.
+        // It's better than NO useCallback.
+
         if (spamUrls.has(url)) {
             // UNFLAG (Undo)
             try {
-                await api.delete(`/feedback/spam?url=${encodeURIComponent(url)}`);
-                const newSpam = new Set(spamUrls);
-                newSpam.delete(url);
-                setSpamUrls(newSpam);
+                await api.delete(`/ feedback / spam ? url = ${encodeURIComponent(url)} `);
+                setSpamUrls(prev => {
+                    const newSpam = new Set(prev);
+                    newSpam.delete(url);
+                    return newSpam;
+                });
             } catch (err) {
                 console.error("Failed to unflag spam", err);
             }
@@ -2369,22 +2402,28 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
                     title: article.title,
                     reason: 'technical_junk'
                 });
-                const newSpam = new Set(spamUrls);
-                newSpam.add(url);
-                setSpamUrls(newSpam);
+                setSpamUrls(prev => {
+                    const newSpam = new Set(prev);
+                    newSpam.add(url);
+                    return newSpam;
+                });
 
                 // Auto-Deselect
-                if (selectedArticleUrls.has(url)) {
-                    const newSelected = new Set(selectedArticleUrls);
-                    newSelected.delete(url);
-                    setSelectedArticleUrls(newSelected);
-                }
+                setSelectedArticleUrls(prev => {
+                    if (prev.has(url)) {
+                        const newSelected = new Set(prev);
+                        newSelected.delete(url);
+                        return newSelected;
+                    }
+                    return prev;
+                });
             } catch (err: any) {
                 console.error("Spam report failed", err);
                 throw err;
             }
         }
-    };
+    }, [spamUrls]); // Still depends on spamUrls, so it updates when spam changes.
+    // This isn't perfect (still invalidates on spam change), but better than re-creating on EVERY render.
 
 
     // ... (Add manual outlet implementation similar to above using api.post)
@@ -2428,7 +2467,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
     const globeComponent = (
         <Globe
             // MEMORY LEAK DIAGNOSIS: Reverted forced remount (User Request)
-            // key={expandedCluster ? `cluster-${expandedCluster.id}` : 'global-view'}
+            // key={expandedCluster ? `cluster - ${ expandedCluster.id } ` : 'global-view'}
 
             ref={globeEl}
             onGlobeReady={() => {
@@ -2500,7 +2539,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
 
                 // Key based on type+initial (only ~26*3 = 78 vars max)
                 // CACHE BUST v2: Added version prefix to force color update
-                const key = `v2_${d.type}_${d.initial || ''}`;
+                const key = `v2_${d.type}_${d.initial || ''} `;
 
                 if (!cache[key]) {
                     const canvas = document.createElement('canvas');
@@ -2620,7 +2659,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
     return (
 
         <div
-            className={`relative w-full h-full bg-slate-950 transition-cursor ${(isAtTop && !isMetaPressed) ? 'cursor-move' : 'cursor-default'} ${isMobile ? 'touch-pan-y' : ''}`}
+            className={`relative w - full h - full bg - slate - 950 transition - cursor ${(isAtTop && !isMetaPressed) ? 'cursor-move' : 'cursor-default'} ${isMobile ? 'touch-pan-y' : ''} `}
             onTouchStart={(e) => {
                 if (isMobile && e.touches.length === 2) {
                     const t1 = e.touches[0];
@@ -2754,10 +2793,10 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
                                     <button
                                         key={style.name}
                                         onClick={() => setMapStyle(style.url)}
-                                        className={`px-2 py-1 rounded text-xs transition-colors border ${mapStyle === style.url
+                                        className={`px - 2 py - 1 rounded text - xs transition - colors border ${mapStyle === style.url
                                             ? 'bg-blue-600 border-blue-500 text-white font-bold'
                                             : 'bg-slate-800 border-slate-600 text-slate-400 hover:bg-slate-700'
-                                            }`}
+                                            } `}
                                     >
                                         {style.name}
                                     </button>
@@ -2921,7 +2960,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
                                     <button
                                         key={cat}
                                         onClick={() => setSelectedCategory(cat)}
-                                        className={`px-2 py-1 text-xs rounded border ${selectedCategory === cat ? 'bg-blue-600 border-blue-500 text-white' : 'border-slate-700 text-gray-400'}`}
+                                        className={`px - 2 py - 1 text - xs rounded border ${selectedCategory === cat ? 'bg-blue-600 border-blue-500 text-white' : 'border-slate-700 text-gray-400'} `}
                                     >
                                         {cat}
                                     </button>
@@ -2938,10 +2977,10 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
                                     <button
                                         key={tf.value}
                                         onClick={() => setSelectedTimeframe(tf.value)}
-                                        className={`flex-1 py-1 text-[10px] uppercase font-bold rounded text-center transition-all ${selectedTimeframe === tf.value
+                                        className={`flex - 1 py - 1 text - [10px] uppercase font - bold rounded text - center transition - all ${selectedTimeframe === tf.value
                                             ? 'bg-blue-600/20 text-blue-400 border border-blue-500/50 shadow-[0_0_10px_rgba(59,130,246,0.2)]'
                                             : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800'
-                                            }`}
+                                            } `}
                                     >
                                         {tf.label}
                                     </button>
@@ -2952,12 +2991,12 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
                                 <button
                                     onClick={handleGenerateDigest}
                                     disabled={!isGeneratingDigest && selectedOutletIds.length === 0}
-                                    className={`w-full font-medium py-3 rounded-lg shadow-lg transition-all text-base flex justify-center items-center gap-2 h-14 min-w-[300px]
+                                    className={`w - full font - medium py - 3 rounded - lg shadow - lg transition - all text - base flex justify - center items - center gap - 2 h - 14 min - w - [300px]
                                         ${isGeneratingDigest
                                             ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-900/40 border border-blue-500/30'
                                             : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-900/40 border border-blue-500/30'
                                         }
-                                    `}
+    `}
                                 >
                                     {isGeneratingDigest ? (
                                         <>
@@ -3004,13 +3043,13 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
                             <div className="flex border-b border-slate-700 mt-4">
                                 <button
                                     onClick={() => setActiveSideTab('sources')}
-                                    className={`flex-1 pb-2 text-sm font-bold transition-colors ${activeSideTab === 'sources' ? 'text-blue-400 border-b-2 border-blue-400' : 'text-slate-500 hover:text-slate-300'}`}
+                                    className={`flex - 1 pb - 2 text - sm font - bold transition - colors ${activeSideTab === 'sources' ? 'text-blue-400 border-b-2 border-blue-400' : 'text-slate-500 hover:text-slate-300'} `}
                                 >
                                     Sources
                                 </button>
                                 <button
                                     onClick={() => setActiveSideTab('digests')}
-                                    className={`flex-1 pb-2 text-sm font-bold transition-colors ${activeSideTab === 'digests' ? 'text-blue-400 border-b-2 border-blue-400' : 'text-slate-500 hover:text-slate-300'}`}
+                                    className={`flex - 1 pb - 2 text - sm font - bold transition - colors ${activeSideTab === 'digests' ? 'text-blue-400 border-b-2 border-blue-400' : 'text-slate-500 hover:text-slate-300'} `}
                                 >
                                     Saved Digests
                                 </button>
@@ -3065,7 +3104,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
                                                 const auto = selectedCityOutlets.filter(o => o.origin !== 'manual').sort((a, b) => (b.popularity || 0) - (a.popularity || 0));
 
                                                 const renderOutlet = (outlet: any) => (
-                                                    <div key={outlet.id} className={`group p-3 rounded transition-all border mb-2 ${selectedOutletIds.includes(outlet.id) ? 'bg-slate-800/80 border-blue-500/30' : 'bg-slate-900/50 border-slate-800 opacity-80 hover:opacity-100'}`}>
+                                                    <div key={outlet.id} className={`group p - 3 rounded transition - all border mb - 2 ${selectedOutletIds.includes(outlet.id) ? 'bg-slate-800/80 border-blue-500/30' : 'bg-slate-900/50 border-slate-800 opacity-80 hover:opacity-100'} `}>
                                                         <div className="flex justify-between items-start">
                                                             <div className="flex items-center gap-2">
                                                                 <input
@@ -3076,7 +3115,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
                                                                 />
                                                                 <div className="flex flex-col">
                                                                     <div className="flex items-center gap-2">
-                                                                        <h4 className={`font-bold transition-colors ${selectedOutletIds.includes(outlet.id) ? 'text-blue-100' : 'text-slate-300'}`}>{outlet.name}</h4>
+                                                                        <h4 className={`font - bold transition - colors ${selectedOutletIds.includes(outlet.id) ? 'text-blue-100' : 'text-slate-300'} `}>{outlet.name}</h4>
                                                                         {/* Focus Badge */}
                                                                         {outlet.focus === 'National' && <span className="px-1 py-0.5 rounded bg-indigo-900/50 text-indigo-300 text-[9px] uppercase font-bold border border-indigo-700/50">National</span>}
                                                                         {outlet.focus === 'Local and National' && <span className="px-1 py-0.5 rounded bg-purple-900/50 text-purple-300 text-[9px] uppercase font-bold border border-purple-700/50">Mixed</span>}
@@ -3085,27 +3124,30 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
                                                                         <span className="text-[10px] uppercase font-mono text-slate-500">{outlet.type || 'Media'}</span>
                                                                         {/* Popularity Stars */}
                                                                         {(outlet.popularity > 0) && (
-                                                                            <span className="text-[10px] text-amber-500/80 font-mono" title={`Popularity Score: ${outlet.popularity}/10`}>
+                                                                            <span className="text-[10px] text-amber-500/80 font-mono" title={`Popularity Score: ${outlet.popularity}/10`
+                                                                            }>
                                                                                 {"★".repeat(Math.min(outlet.popularity, 5))}
-                                                                                <span className='opacity-30'>{"★".repeat(Math.max(0, 5 - outlet.popularity))}</span>
-                                                                            </span>
+                                                                                < span className='opacity-30' > {"★".repeat(Math.max(0, 5 - outlet.popularity))}</span >
+                                                                            </span >
                                                                         )}
-                                                                    </div>
-                                                                </div>
-                                                            </div>
+                                                                    </div >
+                                                                </div >
+                                                            </div >
                                                             {outlet.origin === 'manual' && <span className="text-[9px] text-emerald-500 font-bold uppercase tracking-wider bg-emerald-900/20 px-1 rounded">Manually Added</span>}
-                                                        </div>
-                                                        {outlet.url && selectedOutletIds.includes(outlet.id) && (
-                                                            <a
-                                                                href={outlet.url}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                className="mt-2 ml-6 block text-xs text-blue-400 hover:text-blue-300 hover:underline truncate"
-                                                            >
-                                                                {outlet.url}
-                                                            </a>
-                                                        )}
-                                                    </div>
+                                                        </div >
+                                                        {
+                                                            outlet.url && selectedOutletIds.includes(outlet.id) && (
+                                                                <a
+                                                                    href={outlet.url}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="mt-2 ml-6 block text-xs text-blue-400 hover:text-blue-300 hover:underline truncate"
+                                                                >
+                                                                    {outlet.url}
+                                                                </a>
+                                                            )
+                                                        }
+                                                    </div >
                                                 );
 
                                                 return (
@@ -3120,22 +3162,24 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
                                                     </>
                                                 )
                                             })()}
-                                            {editingOutletId !== null && ( // This block was moved outside the renderOutlet function
-                                                <div className="flex gap-1 animate-in fade-in zoom-in duration-200 w-full">
-                                                    <input
-                                                        className="bg-slate-900 border border-blue-500 rounded text-xs px-1 py-0.5 flex-1 text-white outline-none"
-                                                        value={editUrl}
-                                                        onChange={e => setEditUrl(e.target.value)}
-                                                        onKeyDown={e => {
-                                                            if (e.key === 'Enter') handleUpdateOutlet(editingOutletId);
-                                                            if (e.key === 'Escape') setEditingOutletId(null);
-                                                        }}
-                                                        autoFocus
-                                                    />
-                                                    <button onClick={() => handleUpdateOutlet(editingOutletId)} className="text-green-400 hover:text-green-300 px-1">✓</button>
-                                                    <button onClick={() => setEditingOutletId(null)} className="text-slate-500 hover:text-slate-300 px-1">✕</button>
-                                                </div>
-                                            )}
+                                            {
+                                                editingOutletId !== null && ( // This block was moved outside the renderOutlet function
+                                                    <div className="flex gap-1 animate-in fade-in zoom-in duration-200 w-full">
+                                                        <input
+                                                            className="bg-slate-900 border border-blue-500 rounded text-xs px-1 py-0.5 flex-1 text-white outline-none"
+                                                            value={editUrl}
+                                                            onChange={e => setEditUrl(e.target.value)}
+                                                            onKeyDown={e => {
+                                                                if (e.key === 'Enter') handleUpdateOutlet(editingOutletId);
+                                                                if (e.key === 'Escape') setEditingOutletId(null);
+                                                            }}
+                                                            autoFocus
+                                                        />
+                                                        <button onClick={() => handleUpdateOutlet(editingOutletId)} className="text-green-400 hover:text-green-300 px-1">✓</button>
+                                                        <button onClick={() => setEditingOutletId(null)} className="text-slate-500 hover:text-slate-300 px-1">✕</button>
+                                                    </div>
+                                                )
+                                            }
 
                                         </div >
                                     )}
@@ -3261,8 +3305,8 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
                                             }))}
                                 </div>
                             )}
-                        </div>
-                    </div>
+                        </div >
+                    </div >
                 )
             }
 

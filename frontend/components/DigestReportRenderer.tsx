@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { Article, DigestReportRendererProps } from './digest/types';
 import { OutletGroup } from './digest/OutletGroup';
 import { SpamConfirmModal } from './digest/SpamConfirmModal';
@@ -71,7 +71,7 @@ export default function DigestReportRenderer({ articles, category, isTranslated 
     const [dontAskAgain, setDontAskAgain] = useState(false);
     const [spamCandidate, setSpamCandidate] = useState<Article | null>(null);
 
-    const handleReportRequest = (article: Article) => {
+    const handleReportRequest = useCallback((article: Article) => {
         // If undoing (already in spam), usually just do it
         if (spamUrls?.has(article.url)) {
             onReportSpam?.(article);
@@ -83,15 +83,15 @@ export default function DigestReportRenderer({ articles, category, isTranslated 
         } else {
             setSpamCandidate(article);
         }
-    };
+    }, [spamUrls, dontAskAgain, onReportSpam]);
 
-    const confirmSpam = (dontAsk: boolean) => {
+    const confirmSpam = useCallback((dontAsk: boolean) => {
         if (dontAsk) setDontAskAgain(true);
         if (spamCandidate) {
             onReportSpam?.(spamCandidate);
         }
         setSpamCandidate(null);
-    };
+    }, [spamCandidate, onReportSpam]);
 
     return (
         <div className="flex flex-col gap-8 pb-20">
