@@ -1013,7 +1013,9 @@ async def get_city_info(city: str, country: str, current_user: Optional[User] = 
         if db_country:
             # Localize Flag on Read if needed
             from utils.flag_utils import ensure_local_flag
-            if db_country.flag_url and not db_country.flag_url.startswith("/static/"):
+            # Localize Flag on Read (Check every time to ensure best quality/ISO match)
+            from utils.flag_utils import ensure_local_flag
+            if db_country.flag_url:
                  local_flag = await ensure_local_flag(db_country.flag_url, db_country.name)
                  if local_flag != db_country.flag_url:
                      db_country.flag_url = local_flag
