@@ -130,6 +130,10 @@ if os.path.exists(local_static):
                 shutil.copytree(src_path, dst_path, dirs_exist_ok=True)
             except Exception as e:
                 print(f"STORAGE ERROR: Failed to sync {item}: {e}")
+        
+        # Explicit check for flags to log success
+        if item == "flags":
+             print(f"STORAGE: Flags sync attempted. Exists in vol? {os.path.exists(dst_path)}")
 
         elif os.path.isfile(src_path):
             # Copy root static files (like placeholders)
@@ -141,7 +145,11 @@ app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 @app.get("/")
 def read_root():
-    return {"message": "Welcome to Urbanous API", "version": "v0.133 (Viz Settings Enabled)"}
+    return {
+        "message": "Welcome to Urbanous API", 
+        "version": "v0.276 (Flags Updated)",
+        "debug_url": "/debug/flags"
+    }
 
 @app.get("/fix-db")
 async def manual_migration():
