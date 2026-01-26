@@ -2167,9 +2167,12 @@ async def summarize_selected_articles(req: SummarizeRequest, current_user: User 
             # BUT the LLM needs to know WHICH [n] to use.
             context += f"SOURCE [{global_id}]: {txt} (from {src})\n\n"
             
+        user_lang = current_user.preferred_language or "English"
+        
         prompt = f"""
         You are writing a section of a MASSIVELY DETAILED INTELLIGENCE REPORT for {req.city}.
         This section covers Sources [{start_idx}] to [{end_idx}].
+        Your target audience speaks {user_lang}.
         
         SOURCE DATA:
         {context}
@@ -2182,6 +2185,8 @@ async def summarize_selected_articles(req: SummarizeRequest, current_user: User 
         6. **PROPAGANDA ANALYSIS**: Explicitly compare how different sources portray the SAME event. Highlight specific contradictions, omitted facts, or tonal bias between outlets (e.g., "While [Source A] verifies X, [Source B] frames it as Y").
         7. **FORMAT**: Use Markdown. Do NOT include a "Source Index" at the end (it is handled externally).
         8. **HEADLINE**: The very first line of your output MUST be a newspaper-style H1 Headline illustrating the major stories (e.g. # Mayor announces new budget).
+        9. **TRANSLATION**: If quoting text in a language other than {user_lang}, you MUST provide a translation in {user_lang} immediately following it. 
+           Format: "Original Non-English Quote" ({user_lang} Translation).
         
         Analyze the conflict, nuances, and details within this batch.
         """
@@ -2260,7 +2265,8 @@ async def summarize_selected_articles(req: SummarizeRequest, current_user: User 
         4. **COMPARATIVE LENS**: Highlight conflicting narratives. If Source A and Source B disagree on a key fact, note it explicitly.
         5. **STRUCTURE**: Start directly with the first section header (e.g. ## Executive Summary or ## Key Developments).
         6. **NO CHAT**: Do NOT output conversational filler. The output must start with the Headline.
-        6. **HEADLINE**: The very first line of your output MUST be a newspaper-style H1 Headline illustrating the key theme of the entire report (e.g. # Infrastructure Crisis Deepens in Kyiv).
+        7. **HEADLINE**: The very first line of your output MUST be a newspaper-style H1 Headline illustrating the key theme of the entire report (e.g. # Infrastructure Crisis Deepens in Kyiv).
+        8. **TRANSLATION**: Ensure all quotes are understandable to a {user_lang} speaker. If a quote is in a foreign language, append the translation in parentheses: "Original Quote" ({user_lang} Translation).
         
         Write the final consolidated report in Markdown.
         """
