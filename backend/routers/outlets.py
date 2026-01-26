@@ -1124,7 +1124,7 @@ async def get_city_info(city: str, country: str, current_user: Optional[User] = 
 
     except Exception as e:
         print(f"City Info Error: {e}")
-        return CityInfoResponse(population="Unknown", description=f"Automated data unavailable.", ruling_party="Unknown")
+        return CityInfoResponse(population="Unknown", description=f"Automated data unavailable: {str(e)}", ruling_party="Unknown")
 
 class DigestRequest(BaseModel):
     outlet_ids: List[int]
