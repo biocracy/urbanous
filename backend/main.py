@@ -102,7 +102,7 @@ if not os.path.exists(static_dir):
     os.makedirs(static_dir)
 
 # Also ensure specific subdirs exist if volume was just created
-for subdir in ["digest_images", "clusters"]:
+for subdir in ["digest_images", "clusters", "flags"]:
     s_path = os.path.join(static_dir, subdir)
     if not os.path.exists(s_path):
         os.makedirs(s_path)

@@ -18,7 +18,7 @@ function debounce<F extends (...args: any[]) => any>(func: F, waitFor: number) {
     return debounced as (...args: Parameters<F>) => void;
 }
 import * as turf from '@turf/turf';
-import api from '@/lib/api'; // Use the axios instance with Auth interceptor
+import api, { API_BASE_URL } from '@/lib/api'; // Use the axios instance with Auth interceptor
 import { useAuthStore } from '@/lib/store';
 import {
     Settings, X, Maximize2, Minimize2, ChevronRight, ChevronLeft,
@@ -61,6 +61,13 @@ const isDateCurrent = (extractedDate: string) => {
         // Fresh if within 72 hours (3 days)
         return diff < 72 * 60 * 60 * 1000;
     } catch { return false; }
+};
+
+const getFlagUrl = (url: string | null | undefined) => {
+    if (!url) return undefined;
+    if (url.startsWith('http')) return url;
+    if (url.startsWith('/')) return `${API_BASE_URL}${url}`;
+    return url;
 };
 
 
@@ -151,7 +158,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
     }
 
     // Use centralized version constant
-    const APP_VERSION = "v0.275";
+    const APP_VERSION = "v0.276";
 
     // Debugging State Reset
     // useEffect(() => console.log("[NewsGlobe] Mount/Render"), []);
@@ -2861,14 +2868,14 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
                                     <div className="flex items-center gap-2 flex-wrap">
                                         {cityInfo?.country_flag_url ? (
                                             <img
-                                                src={cityInfo.country_flag_url}
+                                                src={getFlagUrl(cityInfo.country_flag_url)}
                                                 alt="Country Flag"
                                                 className="h-5 w-auto object-contain rounded-sm shadow-sm"
                                             />
                                         ) : (
                                             cityInfo?.flag_url && (
                                                 <img
-                                                    src={cityInfo.flag_url}
+                                                    src={getFlagUrl(cityInfo.flag_url)}
                                                     alt="Flag"
                                                     className="h-5 w-auto object-contain rounded-sm"
                                                 />

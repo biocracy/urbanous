@@ -76,7 +76,8 @@ master_timeline.html
 
 # Generated Flags
 # Generated Flags
-backend/static/flags/
+# backend/static/flags/ (Commented out to allow sync)
+!backend/static/flags/
 
 # Allow static assets
 !backend/static/digest_images/*.png
