@@ -85,4 +85,6 @@ master_timeline.html
 !frontend/public/static/*.png
 
 # Security
-.env.backup
+
+# User Profiling Data
+ignore/

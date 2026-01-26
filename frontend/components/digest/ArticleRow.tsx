@@ -16,7 +16,7 @@ interface ArticleRowProps {
     showAdminControls?: boolean; // New prop to control visibility explicitly, or derive from onAssess
 }
 
-export function ArticleRow({ article, isTranslated, isSelected, onToggle, onAssess, onDebug, onReportSpam, isSpam = false, showAdminControls }: ArticleRowProps) {
+export function ArticleRowComponent({ article, isTranslated, isSelected, onToggle, onAssess, onDebug, onReportSpam, isSpam = false, showAdminControls }: ArticleRowProps) {
     // Derive admin visibility if not passed explicitly (fallback to existence of onAssess)
     const isAdmin = showAdminControls ?? !!onAssess;
     const s = article.scores || { topic: 0, date: 0, is_fresh: false };
@@ -185,3 +185,5 @@ export function ArticleRow({ article, isTranslated, isSelected, onToggle, onAsse
         </tr>
     );
 }
+
+export const ArticleRow = React.memo(ArticleRowComponent);
