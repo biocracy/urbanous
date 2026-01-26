@@ -148,3 +148,27 @@ async def manual_migration():
     """Manually trigger database schema migration and see logs."""
     logs = await run_migrations()
     return {"status": "completed", "logs": logs}
+
+@app.get("/debug/flags")
+def debug_flags():
+    """Check what flags are actually served."""
+    try:
+        flags_dir = os.path.join(static_dir, "flags")
+        if not os.path.exists(flags_dir):
+            return {"status": "error", "message": f"Flags dir not found at {flags_dir}", "root_static": os.listdir(static_dir) if os.path.exists(static_dir) else "No static root"}
+        
+        files = os.listdir(flags_dir)
+        # Check source map too
+        source_map_path = os.path.join(os.path.dirname(__file__), "static/flags/country_map.json")
+        has_source_map = os.path.exists(source_map_path)
+        
+        return {
+            "status": "ok", 
+            "served_dir": flags_dir,
+            "count": len(files),
+            "sample": files[:10],
+            "has_it_png": "it.png" in files,
+            "source_map_exists": has_source_map
+        }
+    except Exception as e:
+        return {"status": "error", "error": str(e)}

@@ -4,8 +4,17 @@ import hashlib
 import json
 from urllib.parse import urlparse
 
-STATIC_FLAGS_DIR = "backend/static/flags"
 STATIC_URL_PREFIX = "/static/flags"
+
+# Determine path dynamically to match main.py serving logic
+DATA_DIR = os.getenv("DATA_DIR")
+if not DATA_DIR:
+    if os.path.exists("/app/data"):
+        DATA_DIR = "/app/data"
+    else:
+        DATA_DIR = "." # Fallback to current directory (likely backend/..)
+        
+STATIC_FLAGS_DIR = os.path.join(DATA_DIR, "static", "flags")
 MAPPING_FILE = os.path.join(STATIC_FLAGS_DIR, "country_map.json")
 
 # Cache the mapping
