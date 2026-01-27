@@ -158,7 +158,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
     }
 
     // Use centralized version constant
-    const APP_VERSION = "v0.283";
+    const APP_VERSION = "v0.284";
 
     // Debugging State Reset
     // useEffect(() => console.log("[NewsGlobe] Mount/Render"), []);
@@ -1928,7 +1928,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
             lng: parseFloat(d.lng || d.lon || d.longitude || '0')
         })
         */
-        api.get(`/ outlets / discover_city_debug ? city = ${encodeURIComponent(d.name)}& country=${encodeURIComponent(countryName)}& lat=${parseFloat(d.lat || 0)}& lng=${parseFloat(d.lng || d.lon || 0)}& force_refresh=${forceRefresh} `)
+        api.get(`/outlets/discover_city_debug?city=${encodeURIComponent(d.name)}&country=${encodeURIComponent(countryName)}&lat=${parseFloat(d.lat || '0')}&lng=${parseFloat(d.lng || d.lon || '0')}&force_refresh=${forceRefresh}`)
             .then(res => {
                 const data = res.data;
                 if (Array.isArray(data)) {
@@ -1949,7 +1949,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
 
         // Get City Info
         setCityInfo(null);
-        api.get(`/ outlets / city_info ? city = ${d.name}& country=${countryName} `)
+        api.get(`/outlets/city_info?city=${encodeURIComponent(d.name)}&country=${encodeURIComponent(countryName)}`)
             .then(res => setCityInfo(res.data))
             .catch(err => console.error("City Info failed", err));
     }, [discoveredCities]);
@@ -2030,7 +2030,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
     const handleDeleteOutlet = (e: any, outletId: number) => {
         e.stopPropagation();
         if (!confirm('Are you sure you want to delete this outlet?')) return;
-        api.delete(`/ outlets / ${outletId} `)
+        api.delete(`/outlets/${outletId}`)
             .then(() => {
                 setSelectedCityOutlets(prev => prev.filter(o => o.id !== outletId));
             })
@@ -2039,7 +2039,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
 
     const handleUpdateOutlet = (outletId: number) => {
         if (!editUrl) return;
-        api.put(`/ outlets / ${outletId} `, { url: editUrl })
+        api.put(`/outlets/${outletId}`, { url: editUrl })
             .then(res => {
                 setSelectedCityOutlets(prev => prev.map(o => o.id === outletId ? { ...o, url: res.data.url } : o));
                 setEditingOutletId(null);
@@ -2397,7 +2397,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
         if (spamUrls.has(url)) {
             // UNFLAG (Undo)
             try {
-                await api.delete(`/ feedback / spam ? url = ${encodeURIComponent(url)} `);
+                await api.delete(`/feedback/spam?url=${encodeURIComponent(url)}`);
                 setSpamUrls(prev => {
                     const newSpam = new Set(prev);
                     newSpam.delete(url);
