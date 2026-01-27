@@ -1743,6 +1743,7 @@ async def _summarize_internal_logic(req: SummarizeRequest, current_user: User):
     # Model Fallback Strategy (Updated aliases)
     # Model Fallback Strategy (Updated aliases)
     MODELS_TO_TRY = ["gemini-1.5-flash", "gemini-1.5-pro"]
+    user_lang = current_user.preferred_language or "English"
     
     # 1. GENERATE SOURCE INDEX PROGRAMMATICALLY
     # This ensures 100% accuracy and perfectly formatted links (no LLM hallucination).
