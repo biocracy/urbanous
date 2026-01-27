@@ -1728,7 +1728,10 @@ async def summarize_selected_articles(req: SummarizeRequest, current_user: User 
     Generates a contrasted summary of *selected* articles using Gemini.
     Uses Chunked Processing for large sets to ensure full coverage.
     """
+    """
+    print(f"DEBUG: summarize_selected_articles START. User: {current_user.id}")
     if not req.articles:
+        print("DEBUG: No articles provided.")
         return {"summary": "No articles selected."}
 
     print(f"DEBUG: Summarize Request received for {len(req.articles)} articles.")
@@ -1766,11 +1769,14 @@ async def summarize_selected_articles(req: SummarizeRequest, current_user: User 
 
     # 2. CHUNKED PROCESSING
     BATCH_SIZE = 200 # Increased to 200 to maximize Context Window (1M) and reduce API Call Count
+    print(f"DEBUG: Chunking {len(req.articles)} articles with batch size {BATCH_SIZE}")
     chunks = [req.articles[i:i + BATCH_SIZE] for i in range(0, len(req.articles), BATCH_SIZE)]
+    print(f"DEBUG: Created {len(chunks)} chunks.")
     
     partial_reports = []
     
     async def process_chunk(chunk_idx, chunk_articles):
+        print(f"DEBUG: Processing chunk {chunk_idx}/{len(chunks)} ({len(chunk_articles)} arts)")
         start_idx = chunk_idx * BATCH_SIZE + 1
         end_idx = start_idx + len(chunk_articles) - 1
         
@@ -1810,7 +1816,7 @@ async def summarize_selected_articles(req: SummarizeRequest, current_user: User 
         last_error = None
         for model_name in MODELS_TO_TRY:
             try:
-                # print(f"DEBUG: Summarizing chunk {chunk_idx} with {model_name}...")
+                print(f"DEBUG: [Chunk {chunk_idx}] Trying model {model_name}...")
                 model = genai.GenerativeModel(model_name)
                 response = await model.generate_content_async(prompt)
                 
@@ -1831,8 +1837,10 @@ async def summarize_selected_articles(req: SummarizeRequest, current_user: User 
         return f"\n### Analysis of Sources {start_idx}-{end_idx}\n(Quota Exceeded on all models: {str(last_error)})"
 
     # Run chunks in parallel
+    print("DEBUG: Launching parallel chunks...")
     tasks = [process_chunk(i, c) for i, c in enumerate(chunks)]
     chunk_results = await asyncio.gather(*tasks)
+    print("DEBUG: All chunks finished.")
     
     # 3. SYNTHESIS / CONSOLIDATION
     # If we have multiple chunks, we must unify them to avoid "Batch 1... Batch 2..." fragmentation.
@@ -1886,6 +1894,7 @@ async def summarize_selected_articles(req: SummarizeRequest, current_user: User 
         
         Write the final consolidated report in Markdown.
         """
+        print("DEBUG: Starting Synthesis Phase...")
         reply = None
         for model_name in MODELS_TO_TRY:
             try:
@@ -1919,6 +1928,7 @@ async def summarize_selected_articles(req: SummarizeRequest, current_user: User 
     # Combine Body + Index
     final_markdown = full_body + source_index_md
     
+    print("DEBUG: Returning final summary.")
     return {"summary": final_markdown}
 
 class AnalyticsRequest(BaseModel):
