@@ -1742,7 +1742,12 @@ async def _summarize_internal_logic(req: SummarizeRequest, current_user: User):
     genai.configure(api_key=api_key)
     # Model Fallback Strategy (Updated aliases)
     # Model Fallback Strategy (Updated aliases)
-    MODELS_TO_TRY = ["gemini-1.5-flash", "gemini-1.5-pro"]
+    MODELS_TO_TRY = [
+        "gemini-2.0-flash", 
+        "gemini-2.0-flash-lite-preview-02-05", # Fallback for exp
+        "gemini-1.5-flash", 
+        "gemini-1.5-pro"
+    ]
     user_lang = current_user.preferred_language or "English"
     
     # 1. GENERATE SOURCE INDEX PROGRAMMATICALLY
