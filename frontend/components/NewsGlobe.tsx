@@ -158,7 +158,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
     }
 
     // Use centralized version constant
-    const APP_VERSION = "v0.296";
+    const APP_VERSION = "v0.297";
 
     // Debugging State Reset
     // useEffect(() => console.log("[NewsGlobe] Mount/Render"), []);
@@ -427,7 +427,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
                 timeout: 120000 // 2 Minutes Timeout for long summarization
             });
 
-            setDigestData((prev: any) => prev ? ({ ...prev, articles: selectedArts, excluded_articles: excludedArts }) : null);
+            let reportTitle = digestData?.title || "Report";
 
             let summaryText = res.data.summary;
             // Extract Title from Markdown (if first line is # ...), and update local state
@@ -437,7 +437,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
                 console.log("DIGEST_DEBUG: Extracted Title:", newTitle);
 
                 // Update Digest Data Title
-                setDigestData((prev: any) => prev ? ({ ...prev, title: newTitle }) : null);
+                reportTitle = newTitle;
 
                 // Option: Remove the redundant title from the body so it doesn't show twice
                 // summaryText = summaryText.replace(/^#\s+.*(\r?\n)+/, ''); 
@@ -447,6 +447,14 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
                 // I will REMOVE it from the body text displayed.
                 summaryText = summaryText.substring(titleMatch[0].length).trim();
             }
+
+            // CRITICAL: Single Atomic Update to prevent race conditions or partial renders
+            setDigestData((prev: any) => ({
+                ...prev,
+                articles: selectedArts,
+                excluded_articles: excludedArts,
+                title: reportTitle
+            }));
 
             setDigestSummary(summaryText);
 
