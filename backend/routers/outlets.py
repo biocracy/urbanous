@@ -1821,7 +1821,7 @@ async def _summarize_internal_logic(req: SummarizeRequest, current_user: User):
             
         user_lang = current_user.preferred_language or "English"
         
-        prompt = f"You are writing a report for {req.city}. Context: {context}"
+        prompt = f"Analyze these news sources for {req.city}. Summarize key events, trends, and conflicts. Cite sources as [N]. Context: {context}"
         
         last_error = None
         for model_name in MODELS_TO_TRY:
@@ -1887,13 +1887,14 @@ async def _summarize_internal_logic(req: SummarizeRequest, current_user: User):
         synthesis_prompt = (
             f"You are the Chief Editor. UNIFY these drafts into one report for {req.city}. "
             f"DRAFTS:\n{combined_raw_analysis}\n"
-            f"MANDATES: 1. UNIFY. 2. PRESERVE DETAILS. 3. CITATION LIMIT: Max 3 refs per bracket (e.g. [12, 45, 99]). "
-            f"4. HIGHLIGHT CONFLICTS. 5. HEADLINE START (# ...). "
-            f"6. TRANSLATE to {user_lang}. Output Markdown.\n"
+            f"MANDATES: 1. UNIFY. 2. PRESERVE DETAILS. 3. CITATION LIMIT: STRICTLY Max 3 refs per bracket (e.g. [1, 2, 3]). If multiple sources apply, SPLIT information to differentiate (e.g. 'Sources [1, 2] state X, while [3, 4] note Y'). "
+            f"4. COVERAGE: Incorporate as many UNIQUE sources as possible into the narrative. "
+            f"5. HIGHLIGHT CONFLICTS. 6. HEADLINE START (# ...). "
+            f"7. TRANSLATE to {user_lang}. Output Markdown.\n"
             f"IMPORTANT STYLE RULES:\n"
-            f"- NO CONVERSATIONAL FILLERS (e.g. 'Okay, here is...', 'This report summarizes...'). Start directly with the content.\n"
-            f"- TITLE: Must be a Journalistic Thematic Headline (e.g. '{req.city} Grapples with...'). NO DATES in title. NO GENERIC TITLES like '{req.city} Report'.\n"
-            f"- CONCLUSION: Must provide synthesize insights or future outlook. Do NOT just summarize the report again.\n"
+            f"- NO CONVERSATIONAL FILLERS. Start directly.\n"
+            f"- TITLE: Journalistic Thematic Headline (e.g. '{req.city} Grapples with...'). NO DATES.\n"
+            f"- CONCLUSION: Synthesize insights/outlook.\n"
             f"- FORMAT: Use Justified Text where possible (standard markdown).\n"
         )
         print("DEBUG: Starting Synthesis Phase...")
@@ -1927,30 +1928,7 @@ async def _summarize_internal_logic(req: SummarizeRequest, current_user: User):
         else:
              full_body = f"{report_title}\n\n" + reply
 
-    # 4. UNCITED SOURCES APPENDIX
-    # Ensure every selected article is acknowledged in the report body.
-    try:
-        cited_ids = set()
-        # Find all [n] citations in the text
-        matches = re.findall(r'\[(\d+)\]', full_body)
-        for m in matches:
-            cited_ids.add(int(m))
 
-        uncited_articles = []
-        for idx, art in enumerate(articles_to_process):
-            ref_id = idx + 1
-            if ref_id not in cited_ids:
-                uncited_articles.append((ref_id, art))
-        
-        if uncited_articles:
-             full_body += "\n\n## Additional Sources Consulted\n"
-             full_body += "The following selected articles were reviewed for this report:\n"
-             for ref_id, art in uncited_articles:
-                  title = art.get('title', 'Source').replace('[', '(').replace(']', ')')
-                  # We rely on the Global Source Index for the link, so we just reference [n]
-                  full_body += f"- [{ref_id}] {title}\n"
-    except Exception as e:
-        print(f"Appendix Error: {e}")
 
     # Combine Body + Index
     final_markdown = full_body + source_index_md

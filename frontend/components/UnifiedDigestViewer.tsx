@@ -710,8 +710,8 @@ export default function UnifiedDigestViewer({
                                                 }
                                                 return <div className="text-neutral-300 mb-4 leading-relaxed text-lg text-justify tracking-wide hyphens-auto">{children}</div>;
                                             },
-                                            ul: ({ children }) => <ul className="list-disc list-inside mb-4 space-y-2 text-neutral-300 pl-4">{children}</ul>,
-                                            ol: ({ children }) => <ol className="list-decimal list-inside mb-4 space-y-2 text-neutral-300 pl-4">{children}</ol>,
+                                            ul: ({ children }) => <ul className="list-disc list-inside mb-4 space-y-2 text-neutral-300 pl-4 text-justify">{children}</ul>,
+                                            ol: ({ children }) => <ol className="list-decimal list-inside mb-4 space-y-2 text-neutral-300 pl-4 text-justify">{children}</ol>,
                                             li: ({ children }) => <li className="pl-1 marker:text-neutral-500">{children}</li>,
                                             blockquote: ({ children }) => <blockquote className="border-l-4 border-blue-500 pl-4 italic my-6 text-neutral-400 bg-neutral-900/30 p-4 rounded-r">{children}</blockquote>,
                                             // Code
