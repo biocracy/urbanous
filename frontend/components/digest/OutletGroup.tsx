@@ -25,6 +25,7 @@ export function OutletGroup({ group, isTranslated, selectedUrls, onToggle, onAss
     const [isOpen, setIsOpen] = useState(true);
     const [isExcludedOpen, setIsExcludedOpen] = useState(!isAdmin); // Default open in Read-Only
     const [isSpamOpen, setIsSpamOpen] = useState(false);
+    const [displayCount, setDisplayCount] = useState(10); // PAGINATION START
 
     // Counts
     const selectedCount = group.articles.filter(a => selectedUrls.has(a.url)).length;
@@ -74,7 +75,7 @@ export function OutletGroup({ group, isTranslated, selectedUrls, onToggle, onAss
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-800/50">
-                            {group.articles.map((art, idx) => (
+                            {group.articles.slice(0, displayCount).map((art, idx) => (
                                 <ArticleRow
                                     key={'active-' + art.url}
                                     article={art}
@@ -86,6 +87,19 @@ export function OutletGroup({ group, isTranslated, selectedUrls, onToggle, onAss
                                     onReportSpam={onReportSpam}
                                 />
                             ))}
+                            {/* Load More Row */}
+                            {group.articles.length > displayCount && (
+                                <tr>
+                                    <td colSpan={isAdmin ? 5 : 2} className="p-2 text-center">
+                                        <button
+                                            onClick={() => setDisplayCount(prev => prev + 50)}
+                                            className="text-blue-400 hover:text-blue-300 text-xs font-bold uppercase tracking-wider px-4 py-2 hover:bg-slate-800/50 rounded transition-colors"
+                                        >
+                                            Show More ({group.articles.length - displayCount} remaining)
+                                        </button>
+                                    </td>
+                                </tr>
+                            )}
 
                             {/* Excluded Section */}
                             {excludedArticles.length > 0 && (
