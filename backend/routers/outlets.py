@@ -1773,6 +1773,7 @@ async def _summarize_internal_logic(req: SummarizeRequest, current_user: User):
     
     # 2. GENERATE SOURCE INDEX PROGRAMMATICALLY
     # This ensures 100% accuracy and perfectly formatted links (no LLM hallucination).
+    source_index_md = "\n\n## Global Source Index\n"
     # Index Valid Articles
     for idx, art in enumerate(articles_to_process):
         # Clean URL
