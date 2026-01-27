@@ -1749,11 +1749,32 @@ async def _summarize_internal_logic(req: SummarizeRequest, current_user: User):
         "gemini-1.5-pro"
     ]
     user_lang = current_user.preferred_language or "English"
+
+    # 1. FILTER LOW CONTENT ARTICLES to reduce noise and save tokens
+    # Articles with < 100 chars of summary are considered "Low Content"
+    valid_articles = []
+    low_content_articles = []
     
-    # 1. GENERATE SOURCE INDEX PROGRAMMATICALLY
+    for art in req.articles:
+        summary_len = len(art.get('content_summary', ''))
+        # If title is long enough, we might keep it, but generally we rely on summary
+        if summary_len < 100:
+             low_content_articles.append(art)
+        else:
+             valid_articles.append(art)
+             
+    # If we filtered everything, fallback to using everything
+    if not valid_articles and low_content_articles:
+        valid_articles = low_content_articles
+        low_content_articles = []
+    
+    # Re-assign valid articles for processing
+    articles_to_process = valid_articles
+    
+    # 2. GENERATE SOURCE INDEX PROGRAMMATICALLY
     # This ensures 100% accuracy and perfectly formatted links (no LLM hallucination).
-    source_index_md = "\n\n## Global Source Index\n"
-    for idx, art in enumerate(req.articles):
+    # Index Valid Articles
+    for idx, art in enumerate(articles_to_process):
         # Clean URL
         url = art.get('url', '#')
         if url and not url.startswith('http'):
@@ -1765,10 +1786,20 @@ async def _summarize_internal_logic(req: SummarizeRequest, current_user: User):
         # Format: - [1] [Title](url) (Source)
         source_index_md += f"- [{idx+1}] [{title}]({url}) *({src})*\n"
 
-    # 2. CHUNKED PROCESSING
+    # Append Low Content Index if any
+    if low_content_articles:
+        source_index_md += "\n### Unreachable / Low Content Sources\n"
+        base_idx = len(articles_to_process) + 1
+        for idx, art in enumerate(low_content_articles):
+             url = art.get('url', '#')
+             title = art.get('title', 'Source').replace('[', '(').replace(']', ')')
+             src = art.get('source', 'Unknown')
+             source_index_md += f"- [{base_idx + idx}] [{title}]({url}) *({src})* (Insufficient Content)\n"
+
+    # 3. CHUNKED PROCESSING
     BATCH_SIZE = 200 # Increased to 200 to maximize Context Window (1M) and reduce API Call Count
-    print(f"DEBUG: Chunking {len(req.articles)} articles with batch size {BATCH_SIZE}")
-    chunks = [req.articles[i:i + BATCH_SIZE] for i in range(0, len(req.articles), BATCH_SIZE)]
+    print(f"DEBUG: Chunking {len(articles_to_process)} articles with batch size {BATCH_SIZE}")
+    chunks = [articles_to_process[i:i + BATCH_SIZE] for i in range(0, len(articles_to_process), BATCH_SIZE)]
     print(f"DEBUG: Created {len(chunks)} chunks.")
     
     partial_reports = []
@@ -1857,7 +1888,12 @@ async def _summarize_internal_logic(req: SummarizeRequest, current_user: User):
             f"DRAFTS:\n{combined_raw_analysis}\n"
             f"MANDATES: 1. UNIFY. 2. PRESERVE DETAILS. 3. CITATION LIMIT: Max 3 refs per bracket (e.g. [12, 45, 99]). "
             f"4. HIGHLIGHT CONFLICTS. 5. HEADLINE START (# ...). "
-            f"6. TRANSLATE to {user_lang}. Output Markdown."
+            f"6. TRANSLATE to {user_lang}. Output Markdown.\n"
+            f"IMPORTANT STYLE RULES:\n"
+            f"- NO CONVERSATIONAL FILLERS (e.g. 'Okay, here is...', 'This report summarizes...'). Start directly with the content.\n"
+            f"- TITLE: Must be a Journalistic Thematic Headline (e.g. '{req.city} Grapples with...'). NO DATES in title. NO GENERIC TITLES like '{req.city} Report'.\n"
+            f"- CONCLUSION: Must provide synthesize insights or future outlook. Do NOT just summarize the report again.\n"
+            f"- FORMAT: Use Justified Text where possible (standard markdown).\n"
         )
         print("DEBUG: Starting Synthesis Phase...")
         reply = None

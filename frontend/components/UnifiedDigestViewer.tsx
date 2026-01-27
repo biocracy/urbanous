@@ -708,7 +708,7 @@ export default function UnifiedDigestViewer({
                                                         </div>
                                                     );
                                                 }
-                                                return <div className="text-neutral-300 mb-4 leading-relaxed text-lg text-justify tracking-wide">{children}</div>;
+                                                return <div className="text-neutral-300 mb-4 leading-relaxed text-lg text-justify tracking-wide hyphens-auto">{children}</div>;
                                             },
                                             ul: ({ children }) => <ul className="list-disc list-inside mb-4 space-y-2 text-neutral-300 pl-4">{children}</ul>,
                                             ol: ({ children }) => <ol className="list-decimal list-inside mb-4 space-y-2 text-neutral-300 pl-4">{children}</ol>,
