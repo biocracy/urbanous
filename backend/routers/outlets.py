@@ -1886,20 +1886,26 @@ async def summarize_selected_articles(req: SummarizeRequest, current_user: User 
         
         Write the final consolidated report in Markdown.
         """
-        try:
-            consolidation_response = await model.generate_content_async(synthesis_prompt)
-            # Ensure we don't double up titles if the model ignores instruction, strip leading H1 if matches ours
-            reply = consolidation_response.text.strip()
-            
+        reply = None
+        for model_name in MODELS_TO_TRY:
+            try:
+                model = genai.GenerativeModel(model_name)
+                consolidation_response = await model.generate_content_async(synthesis_prompt)
+                reply = consolidation_response.text.strip()
+                break
+            except Exception as e:
+                print(f"[{model_name}] Synthesis Failed: {e}")
+                continue
+        
+        if not reply:
+             full_body = f"{report_title}\n(Synthesis failed, showing raw batched reports)\n" + combined_raw_analysis
+        else:
             # TITLE LOGIC: Use AI-Generated Title if present (starts with # ), otherwise fallback to default
             if reply.startswith("# "):
                  full_body = reply # Use AI's structure entirely
             else:
                  full_body = f"{report_title}\n\n" + reply # Fallback to default header
-                 
-        except Exception as e:
-            print(f"Synthesis error: {e}")
-            full_body = f"{report_title}\n(Synthesis failed, showing raw batched reports)\n" + combined_raw_analysis
+
     else:
         # Single batch processing
         reply = chunk_results[0].replace(f"### Analysis of Sources 1-{len(req.articles)}", "").strip()
