@@ -726,7 +726,7 @@ async def batch_verify_titles_debug(titles_map: Dict[int, str], definition: str,
         print("DEBUG: missing API key for batch_verify_titles_debug")
         return {}, "Missing API Key", ""
     
-    print(f"DEBUG: Using API Key: {api_key[:4]}...{api_key[-4:]} | Target Lang: {target_language}")
+    # print(f"DEBUG: Batch verifying {len(titles_map)} titles. Target: {target_language}")
     genai.configure(api_key=api_key)
     
     items_str = "\n".join([f"{idx}. {title}" for idx, title in titles_map.items()])
@@ -738,7 +738,7 @@ async def batch_verify_titles_debug(titles_map: Dict[int, str], definition: str,
     Classify the following article titles as "POLITICS" (True) or "NOT POLITICS" (False) based on the provided Operational Definition.
     
     TASK 2: Translate
-    Translate the title into **{target_language}**.
+    If the language is NOT {target_language}, translate the title into **{target_language}**. If it is already {target_language}, return it as is.
     
     DEFINITION:
     {definition}
@@ -756,110 +756,85 @@ async def batch_verify_titles_debug(titles_map: Dict[int, str], definition: str,
         ...
     }}
     
-    STRICTLY RETURN JSON ONLY.
+    STRICTLY RETURN JSON ONLY. NO MARKDOWN.
     """
     
-    try:
-        # Try multiple models in order of preference to ensure compatibility
-        # Based on Debug Logs (Lib 0.8.6), these are the available models:
-        candidate_models = [
-            "gemini-2.0-flash", 
-            "gemini-flash-latest",
-            "gemini-2.0-flash-lite-preview-02-05", 
-            "gemini-pro-latest",
-            "gemini-1.5-flash-latest" # Keep as backup
-        ]
-        
-        # Log Library Version
-        try:
-             import importlib.metadata
-             ver = importlib.metadata.version("google-generativeai")
-             print(f"DEBUG: google-generativeai version: {ver}")
-        except:
-             print("DEBUG: Could not determine google-generativeai version")
+    candidate_models = [
+        "gemini-2.0-flash", 
+        "gemini-flash-latest",
+        "gemini-2.0-flash-lite-preview-02-05", 
+        "gemini-pro-latest",
+        "gemini-1.5-flash-latest"
+    ]
 
-        response = None
-        used_model = None
-        last_error = None
-        
+    last_error = None
+    used_model = None
+    
+    # Retry Logic: Try the whole batch process up to 2 times if total failure occurs
+    max_retries = 2
+    for attempt in range(max_retries):
         for m_name in candidate_models:
             try:
                 model = genai.GenerativeModel(m_name)
+                # print(f"DEBUG: Attempt {attempt+1} with {m_name}")
                 response = await model.generate_content_async(prompt)
                 used_model = m_name
-                break # Success
+                
+                text = response.text
+                # Cleanup markdown common with Gems
+                clean_text = text.replace("```json", "").replace("```", "").strip()
+                
+                result_map = None
+                try:
+                    result_map = json.loads(clean_text)
+                except json.JSONDecodeError:
+                    # Robust Fallback: Regex extraction
+                    import re
+                    match = re.search(r'\{.*\}', clean_text, re.DOTALL)
+                    if match:
+                        try:
+                            result_map = json.loads(match.group(0))
+                        except:
+                            pass
+                
+                if not result_map:
+                    raise ValueError(f"Could not extract JSON from {m_name}. Raw len: {len(text)}")
+
+                # Normalization
+                final_map = {}
+                for k, v in result_map.items():
+                    str_k = str(k)
+                    if isinstance(v, bool):
+                        final_map[str_k] = {"verdict": v, "translated": None}
+                    elif isinstance(v, dict):
+                        final_map[str_k] = {
+                            "verdict": v.get("verdict", False),
+                            "translated": v.get("translated")
+                        }
+                    else:
+                        final_map[str_k] = {"verdict": False, "translated": None}
+                
+                # Check for empty map (partial hallucination)
+                if not final_map and titles_map:
+                     raise ValueError("Empty result map returned")
+                
+                return final_map, "", used_model
+
             except Exception as e:
-                print(f"DEBUG: Model {m_name} failed: {e}")
+                # print(f"DEBUG: Model {m_name} failed: {e}")
                 last_error = e
+                # Smart backoff for rate limits
+                if "429" in str(e) or "ResourceExhausted" in str(e):
+                    await asyncio.sleep(2)
                 continue
         
-        if not response:
-             error_str = str(last_error) if last_error else "No models available"
-             
-             # Emergency: List available models to find out what IS supported
-             try:
-                available = []
-                for m in genai.list_models():
-                    if 'generateContent' in m.supported_generation_methods:
-                        available.append(m.name)
-                available_str = ", ".join(available)
-                err_msg = f"All models failed. Lib Ver: {ver}. Available: {available_str}. Last Error: {error_str}"
-             except Exception as e2:
-                err_msg = f"All models failed. Last error: {error_str}. (Also failed to list models: {e2})"
-                
-             return {}, err_msg, ""
+        # If we exhausted all models in this attempt, wait before retry
+        await asyncio.sleep(2)
 
-        text = response.text.replace("```json", "").replace("```", "").strip()
-        
-        with open("debug_ai.log", "a") as f:
-             f.write(f"\n--- BATCH ({used_model}) ---\nResponse: {text[:200]}...\n")
-
-        # Robust Parsing
-        try:
-            result_map = json.loads(text)
-        except json.JSONDecodeError:
-            # Fallback: Try regex to find JSON-like structure
-            import re
-            match = re.search(r'\{.*\}', text, re.DOTALL)
-            if match:
-                result_map = json.loads(match.group(0))
-            else:
-                raise ValueError(f"Could not extract JSON from {used_model}. Raw: {text[:100]}")
-
-        # Convert all keys to strings for consistent comparison
-        # And ensure value structure
-        final_map = {}
-        for k, v in result_map.items():
-            str_k = str(k)
-            # Handle Legacy Boolean Response (Just in case AI hallucinates or old prompt cached?)
-            if isinstance(v, bool):
-                final_map[str_k] = {"verdict": v, "translated": None}
-            elif isinstance(v, dict):
-                final_map[str_k] = {
-                    "verdict": v.get("verdict", False),
-                    "translated": v.get("translated")
-                }
-            else:
-                 final_map[str_k] = {"verdict": False, "translated": None} # Fallback
-
-        input_keys = [str(k) for k in titles_map.keys()]
-        
-        # Mismatch Check & Fallback
-        # If complete mismatch but count matches, blindly assign in order
-        if not any(k in final_map for k in input_keys) and len(final_map) == len(input_keys):
-            with open("debug_ai.log", "a") as f:
-                f.write("Mismatch detected. Applying fallback mapping.\n")
-            result_values = list(final_map.values())
-            final_map = {input_keys[i]: result_values[i] for i in range(len(input_keys))}
-            
-        with open("debug_ai.log", "a") as f:
-             f.write(f"Mapped Keys: {list(final_map.keys())}\n")
-             
-        return final_map, None, text
-    except Exception as e:
-        with open("debug_ai.log", "a") as f:
-             f.write(f"ERROR: {e}\n")
-        return {}, str(e), ""
+    # Final Failure
+    err_msg = f"Batch failed after {max_retries} attempts. Last error: {last_error}"
+    print(f"DEBUG: {err_msg}")
+    return {}, err_msg, ""
 
 class DigestSaveRequest(BaseModel):
     title: str
