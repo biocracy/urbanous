@@ -1728,7 +1728,7 @@ async def summarize_selected_articles(req: SummarizeRequest, current_user: User 
     Generates a contrasted summary of *selected* articles using Gemini.
     Uses Chunked Processing for large sets to ensure full coverage.
     """
-    """
+
     print(f"DEBUG: summarize_selected_articles START. User: {current_user.id}")
     if not req.articles:
         print("DEBUG: No articles provided.")
@@ -1791,27 +1791,7 @@ async def summarize_selected_articles(req: SummarizeRequest, current_user: User 
             
         user_lang = current_user.preferred_language or "English"
         
-        prompt = f"""
-        You are writing a section of a MASSIVELY DETAILED INTELLIGENCE REPORT for {req.city}.
-        This section covers Sources [{start_idx}] to [{end_idx}].
-        Your target audience speaks {user_lang}.
-        
-        SOURCE DATA:
-        {context}
-        
-        MANDATES:
-        1. **CITATION STRICTNESS**: Use ONLY the `[n]` format provided in the source headers.
-        2. **NO HALLUCINATION**: Do not cite sources outside the range [{start_idx}-{end_idx}].
-        3. **DEEP DIVE**: Write a detailed analysis of the themes found in strictly THESE sources.
-        5. **ANTI-CLUMPING**: Discuss details. Do not just list citations.
-        6. **PROPAGANDA ANALYSIS**: Explicitly compare how different sources portray the SAME event. Highlight specific contradictions, omitted facts, or tonal bias between outlets (e.g., "While [Source A] verifies X, [Source B] frames it as Y").
-        7. **FORMAT**: Use Markdown. Do NOT include a "Source Index" at the end (it is handled externally).
-        8. **HEADLINE**: The very first line of your output MUST be a newspaper-style H1 Headline illustrating the major stories (e.g. # Mayor announces new budget).
-        9. **TRANSLATION**: If quoting text in a language other than {user_lang}, you MUST provide a translation in {user_lang} immediately following it. 
-           Format: "Original Non-English Quote" ({user_lang} Translation).
-        
-        Analyze the conflict, nuances, and details within this batch.
-        """
+        prompt = f"You are writing a report for {req.city}. Context: {context}"
         
         last_error = None
         for model_name in MODELS_TO_TRY:
@@ -1874,26 +1854,13 @@ async def summarize_selected_articles(req: SummarizeRequest, current_user: User 
     report_title = f"# {req.city}: {req.category} Report ({req.timeframe_label or date_range_str})"
 
     if len(chunks) > 1:
-        synthesis_prompt = f"""
-        You are the Chief Editor of a high-level Intelligence Report.
-        You have received detailed section drafts from field agents.
-        
-        DRAFTS:
-        {combined_raw_analysis}
-        
-        MISSION:
-        1. **UNIFY**: Merge these drafts into ONE seamless, cohesive narrative history.
-        2. **PRESERVE DETAILS**: Do not Summarize away the specifics. Keep the verified facts.
-        3. **PRESERVE CITATIONS**: You MUST retain the `[n]` citations exactly as they appear.
-           - CRITICAL: Do NOT re-number citations. If a fact has `[55]`, keep `[55]`.
-        4. **COMPARATIVE LENS**: Highlight conflicting narratives. If Source A and Source B disagree on a key fact, note it explicitly.
-        5. **STRUCTURE**: Start directly with the first section header (e.g. ## Executive Summary or ## Key Developments).
-        6. **NO CHAT**: Do NOT output conversational filler. The output must start with the Headline.
-        7. **HEADLINE**: The very first line of your output MUST be a newspaper-style H1 Headline illustrating the key theme of the entire report (e.g. # Infrastructure Crisis Deepens in Kyiv).
-        8. **TRANSLATION**: Ensure all quotes are understandable to a {user_lang} speaker. If a quote is in a foreign language, append the translation in parentheses: "Original Quote" ({user_lang} Translation).
-        
-        Write the final consolidated report in Markdown.
-        """
+        synthesis_prompt = (
+            f"You are the Chief Editor. UNIFY these drafts into one report for {req.city}. "
+            f"DRAFTS:\n{combined_raw_analysis}\n"
+            f"MANDATES: 1. UNIFY. 2. PRESERVE DETAILS. 3. KEEP CITATIONS [n]. "
+            f"4. HIGHLIGHT CONFLICTS. 5. HEADLINE START (# ...). "
+            f"6. TRANSLATE to {user_lang}. Output Markdown."
+        )
         print("DEBUG: Starting Synthesis Phase...")
         reply = None
         for model_name in MODELS_TO_TRY:
@@ -1969,39 +1936,11 @@ async def generate_analytics(req: AnalyticsRequest, current_user: User = Depends
             src = art.get('source', 'Unknown')
             context += f"SOURCE_ID_{global_idx}: {src} - {txt}\n"
 
-        prompt = f"""
-        Analyze these articles regarding '{req.city}' and category '{req.category}'.
-        
-        DATA:
-        {context}
-        
-        TASK:
-        Extract AT LEAST 200 (TWO HUNDRED) distinct keywords/entities/topics from this batch.
-        Aim for 5-7 meaningful keywords for EACH article.
-        
-        STRATEGY:
-        - Include MAJOR THEMES (to capture dominant trends).
-        - Include SPECIFIC DETAILS (names, places, unique IDs) to ensure count diversity after deduplication.
-        
-        Focus on specific:
-        - People (Politicians, CEOs, Activists)
-        - Organizations (Companies, Parties, Groups)
-        - Locations (Cities, Specific Buildings)
-        - Events (Protests, Laws, Meetings, Scandals)
-        
-        Filter out generic media terms (e.g. "News", "Report", "Update", "Article", "Journal").
-        
-        For each keyword:
-        1. Score importance (0-100).
-        2. Determine sentiment: Positive, Negative, or Neutral.
-        3. Provide English 'translation' (or same word).
-        4. List source IDs (e.g. SOURCE_ID_5) where this keyword appears.
-        
-        OUTPUT JSON:
-        [
-          {{ "word": "Term", "translation": "Term", "importance": 90, "sentiment": "Neutral", "source_ids": ["SOURCE_ID_X"] }}
-        ]
-        """
+        prompt = (
+            f"Analyze articles for '{req.city}'/'{req.category}'. DATA:\n{context}\n"
+            f"TASK: Extract 200+ keywords (Themes, People, Events). "
+            f"FORMAT: JSON list of objects {{word, translation, importance, sentiment, source_ids}}."
+        )
         try:
             print(f"Analytics Batch {batch_idx}: Sending prompt to LLM (Primary)...")
             try:
@@ -2113,9 +2052,7 @@ async def generate_analytics(req: AnalyticsRequest, current_user: User = Depends
 
 @router.post("/outlets/digest/stream")
 async def generate_digest_stream(req: DigestRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    """
-    Streams log updates and final result as NDJSON.
-    """
+    # Streams log updates and final result as NDJSON.
     
     async def process_stream():
         # Queue for cross-task communication
@@ -2827,7 +2764,7 @@ async def generate_digest_stream(req: DigestRequest, current_user: User = Depend
                         topic_display = f"{s.get('topic', 0)}"
                         date_color = "#4ade80" if s.get('is_fresh') else "#7f1d1d"
                         date_display = f"<span style='color: {date_color}; font-weight: bold;'>{art.date_str}</span>" if art.date_str else f"<span style='color: #94a3b8;'>N/A</span>"
-                        date_display += f"""<span class="scraper-debug-trigger" data-url="{art.url}" style="cursor: pointer; margin-left: 6px; font-size: 0.8em; opacity: 0.6;" title="Debug Date Extraction">🔧</span>"""
+                        date_display += f'<span class="scraper-debug-trigger" data-url="{art.url}" style="cursor: pointer; margin-left: 6px; font-size: 0.8em; opacity: 0.6;" title="Debug Date Extraction">[Debug]</span>'
 
                         # Score Styling
                         if art.relevance_score > 80:
@@ -2846,59 +2783,48 @@ async def generate_digest_stream(req: DigestRequest, current_user: User = Depend
                             title_html += f'<span class="title-translated" style="display: none; color: #fbbf24; font-style: italic;">{safe_trans}</span>' # Yellow styling for translation
 
                         # Manual Assess Button
-                        score_badge = f"""
-                        <button class="politics-assess-trigger" data-url="{safe_url}" data-title="{safe_title}"
-                                style="display: inline-flex; align-items: center; gap: 4px; background-color: #1e293b; color: #94a3b8; border: 1px solid #334155; padding: 4px 8px; border-radius: 6px; font-weight: bold; font-size: 0.7rem; cursor: pointer; transition: all 0.2s;"
-                                onmouseover="this.style.backgroundColor='#334155'; this.style.color='white';"
-                                onmouseout="this.style.backgroundColor='#1e293b'; this.style.color='#94a3b8';">
-                            🤖 Assess
-                        </button>
-                        """
+                        score_badge = f'<button class="politics-assess-trigger" data-url="{safe_url}" data-title="{safe_title}" style="display: inline-flex; align-items: center; gap: 4px; background-color: #1e293b; color: #94a3b8; border: 1px solid #334155; padding: 4px 8px; border-radius: 6px; font-weight: bold; font-size: 0.7rem; cursor: pointer;" title="Assess Politics">[Assess]</button>'
                         
                         # AI Status Column Logic
-                        verdict_icon = "❓"
+                        # AI Status Column Logic
+                        verdict_icon = "[?]"
                         if hasattr(art, 'ai_verdict'):
-                            if art.ai_verdict == "VERIFIED": verdict_icon = "✅"
-                            elif art.ai_verdict == "REJECTED": verdict_icon = "❌"
-                            elif art.ai_verdict == "UNKNOWN": verdict_icon = "❓"
+                            if art.ai_verdict == "VERIFIED": verdict_icon = "[OK]"
+                            elif art.ai_verdict == "REJECTED": verdict_icon = "[X]"
+                            elif art.ai_verdict == "UNKNOWN": verdict_icon = "[?]"
                         
-                        rows += f"""
-                        <tr style="border-bottom: 1px solid #1e293b; transition: background-color 0.2s;">
-                            <td style="padding: 12px 16px; border-bottom: 1px solid #1e293b;">{score_badge}</td>
-                            <td style="padding: 12px 16px; text-align: center; border-bottom: 1px solid #1e293b;">{verdict_icon}</td>
-                            <td style="padding: 12px 16px; text-align: center; border-bottom: 1px solid #1e293b; white-space: nowrap;">{date_display}</td>
-                            <td style="padding: 12px 16px; text-align: center; border-bottom: 1px solid #1e293b;">{topic_display}</td>
-                            <td style="padding: 12px 16px; border-bottom: 1px solid #1e293b;">
-                                <a href="{safe_url}" target="_blank" style="color: #e2e8f0; text-decoration: none; font-weight: 500; display: block; margin-bottom: 4px;">{title_html}</a>
-                            </td>
-                        </tr>
-                        """
+                        rows += (
+                            f"<tr style='border-bottom: 1px solid #1e293b; transition: background-color 0.2s;'>"
+                            f"<td style='padding: 12px 16px; border-bottom: 1px solid #1e293b;'>{score_badge}</td>"
+                            f"<td style='padding: 12px 16px; text-align: center; border-bottom: 1px solid #1e293b;'>{verdict_icon}</td>"
+                            f"<td style='padding: 12px 16px; text-align: center; border-bottom: 1px solid #1e293b; white-space: nowrap;'>{date_display}</td>"
+                            f"<td style='padding: 12px 16px; text-align: center; border-bottom: 1px solid #1e293b;'>{topic_display}</td>"
+                            f"<td style='padding: 12px 16px; border-bottom: 1px solid #1e293b;'>"
+                            f"<a href='{safe_url}' target='_blank' style='color: #e2e8f0; text-decoration: none; font-weight: 500; display: block; margin-bottom: 4px;'>{title_html}</a>"
+                            f"</td></tr>"
+                        )
                     return rows
 
-                table_html += f"""
-                <div style="margin-top: 32px; margin-bottom: 16px; border-bottom: 1px solid #334155; padding-bottom: 8px;">
-                    <h3 style="margin: 0; font-size: 1.4rem; color: #f8fafc;">
-                        <a href="{outlet.url}" target="_blank" style="color: #60a5fa; text-decoration: none; font-weight: bold;">{outlet.name}</a>
-                        <span style="color: #94a3b8; font-size: 1rem; font-weight: normal; margin-left: 10px;">({outlet.city})</span>
-                        <span class="scraper-debug-trigger" data-url="{outlet.url}" style="cursor: pointer; font-size: 0.8em; margin-left: 8px; vertical-align: middle; opacity: 0.5;" title="Debug Scraper Rules">🔧</span>
-                    </h3>
-                </div>
-                """
+                table_html += (
+                    f"<div style='margin-top: 32px; margin-bottom: 16px; border-bottom: 1px solid #334155; padding-bottom: 8px;'>"
+                    f"<h3 style='margin: 0; font-size: 1.4rem; color: #f8fafc;'>"
+                    f"<a href='{outlet.url}' target='_blank' style='color: #60a5fa; text-decoration: none; font-weight: bold;'>{outlet.name}</a>"
+                    f"<span style='color: #94a3b8; font-size: 1rem; font-weight: normal; margin-left: 10px;'>({outlet.city})</span>"
+                    f"<span class='scraper-debug-trigger' data-url='{outlet.url}' style='cursor: pointer; font-size: 0.8em; margin-left: 8px; vertical-align: middle; opacity: 0.5;' title='Debug Scraper Rules'>[Rules]</span>"
+                    f"</h3></div>"
+                )
                     
                 # Table Header
-                table_html += """
-                <table style="width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.95rem; margin-bottom: 24px; border: 1px solid #334155; border-radius: 6px; overflow: hidden;">
-                    <thead style="background-color: #1e293b; color: #e2e8f0;">
-                        <tr>
-                            <th style="padding: 12px 16px; text-align: left; font-weight: 600; border-bottom: 1px solid #334155;">Assess</th>
-                            <th style="padding: 12px 16px; text-align: center; font-weight: 600; border-bottom: 1px solid #334155;">AI Check</th>
-                            <th style="padding: 12px 16px; text-align: center; font-weight: 600; border-bottom: 1px solid #334155;">Date</th>
-                            <th style="padding: 12px 16px; text-align: center; font-weight: 600; border-bottom: 1px solid #334155;">Topic</th>
-                            <th style="padding: 12px 16px; text-align: left; font-weight: 600; border-bottom: 1px solid #334155;">Article</th>
-                        </tr>
-                    </thead>
-                    <tbody style="background-color: #0f172a;">
-                """
+                table_html += (
+                    "<table style='width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.95rem; margin-bottom: 24px; border: 1px solid #334155; border-radius: 6px; overflow: hidden;'>"
+                    "<thead style='background-color: #1e293b; color: #e2e8f0;'><tr>"
+                    "<th style='padding: 12px 16px; text-align: left; font-weight: 600; border-bottom: 1px solid #334155;'>Assess</th>"
+                    "<th style='padding: 12px 16px; text-align: center; font-weight: 600; border-bottom: 1px solid #334155;'>AI Check</th>"
+                    "<th style='padding: 12px 16px; text-align: center; font-weight: 600; border-bottom: 1px solid #334155;'>Date</th>"
+                    "<th style='padding: 12px 16px; text-align: center; font-weight: 600; border-bottom: 1px solid #334155;'>Topic</th>"
+                    "<th style='padding: 12px 16px; text-align: left; font-weight: 600; border-bottom: 1px solid #334155;'>Article</th>"
+                    "</tr></thead><tbody style='background-color: #0f172a;'>"
+                )
 
                 # 1. Render Fresh Articles (Main Body)
                 table_html += render_article_rows(fresh_articles)
@@ -2906,22 +2832,14 @@ async def generate_digest_stream(req: DigestRequest, current_user: User = Depend
 
                 # 2. Render Stale Articles (Collapsible)
                 if stale_articles:
-                    table_html += f"""
-                    <tbody style="border-top: 2px solid #334155;">
-                        <tr>
-                            <td colspan="5" style="padding: 0;">
-                                <details style="background-color: #0f172a;">
-                                    <summary style="padding: 12px 16px; cursor: pointer; color: #94a3b8; font-size: 0.85rem; font-weight: 600; user-select: none; background-color: #1e293b; border-bottom: 1px solid #334155;">
-                                        🔻 Show {len(stale_articles)} Older / Undated Articles
-                                    </summary>
-                                    <table style="width: 100%; border-collapse: separate; border-spacing: 0;">
-                                        {render_article_rows(stale_articles)}
-                                    </table>
-                                </details>
-                            </td>
-                        </tr>
-                    </tbody>
-                    """
+                    table_html += (
+                        f"<tbody style='border-top: 2px solid #334155;'><tr><td colspan='5' style='padding: 0;'>"
+                        f"<details style='background-color: #0f172a;'>"
+                        f"<summary style='padding: 12px 16px; cursor: pointer; color: #94a3b8; font-size: 0.85rem; font-weight: 600; user-select: none; background-color: #1e293b; border-bottom: 1px solid #334155;'>"
+                        f"[History] Show {len(stale_articles)} Older / Undated Articles</summary>"
+                        f"<table style='width: 100%; border-collapse: separate; border-spacing: 0;'>"
+                        f"{render_article_rows(stale_articles)}</table></details></td></tr></tbody>"
+                    )
                 
                 table_html += "</table>"
                     
@@ -3002,9 +2920,7 @@ async def generate_digest_stream(req: DigestRequest, current_user: User = Depend
 # Existing Endpoint (unchanged for backward compat)
 @router.post("/outlets/digest", response_model=DigestResponse)
 async def generate_digest(req: DigestRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    """
-    (Legacy/Simple) Aggregates news.
-    """
+    # (Legacy/Simple) Aggregates news.
     # 1. Fetch Outlets
     stmt = select(NewsOutlet).where(NewsOutlet.id.in_(req.outlet_ids))
     result = await db.execute(stmt)
@@ -3338,15 +3254,9 @@ async def generate_digest(req: DigestRequest, current_user: User = Depends(get_c
             async def translate_chunk(i, chunk):
                 titles_p = [art.title for art in chunk]
                 
-                tr_prompt = f"""
-                Translate the following news headlines to English. 
-                Return a JSON List of Objects with keys "src" (original) and "dst" (translated).
-                Input:
-                {json.dumps(titles_p, ensure_ascii=False)}
-                
-                Response Format:
-                [{{"src": "Original Title", "dst": "Translated Title"}}, ...]
-                """
+                tr_prompt = (
+                    f"Translate headlines to English. JSON List {{src, dst}}. Input: {json.dumps(titles_p, ensure_ascii=False)}"
+                )
                 
                 try:
                     tr_resp = await model_tr.generate_content_async(tr_prompt)
@@ -3409,34 +3319,32 @@ async def generate_digest(req: DigestRequest, current_user: User = Depends(get_c
         articles.sort(key=lambda x: x.relevance_score, reverse=True)
         
         # Outlet Header
-        table_html += f"""
-        <div style="margin-top: 32px; margin-bottom: 16px; border-bottom: 1px solid #334155; padding-bottom: 8px;">
-            <h3 style="margin: 0; font-size: 1.4rem; color: #f8fafc;">
-                <a href="{outlet.url}" target="_blank" style="color: #60a5fa; text-decoration: none; font-weight: bold;">{outlet.name}</a>
-                <span style="color: #94a3b8; font-size: 1rem; font-weight: normal; margin-left: 10px;">({outlet.city})</span>
-            </h3>
-        </div>
-        """
+        table_html += (
+            f"<div style='margin-top: 32px; margin-bottom: 16px; border-bottom: 1px solid #334155; padding-bottom: 8px;'>"
+            f"<h3 style='margin: 0; font-size: 1.4rem; color: #f8fafc;'>"
+            f"<a href='{outlet.url}' target='_blank' style='color: #60a5fa; text-decoration: none; font-weight: bold;'>{outlet.name}</a>"
+            f"<span style='color: #94a3b8; font-size: 1rem; font-weight: normal; margin-left: 10px;'>({outlet.city})</span>"
+            f"</h3></div>"
+        )
             
         # Table Header (NO LOC)
-        table_html += """
-        <table style="width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.95rem; margin-bottom: 24px; border: 1px solid #334155; border-radius: 6px; overflow: hidden;">
-            <thead style="background-color: #1e293b; color: #e2e8f0;">
-                <tr>
-                    <th style="padding: 12px 16px; text-align: left; font-weight: 600; border-bottom: 1px solid #334155;">Score</th>
-                    <th style="padding: 12px 16px; text-align: center; font-weight: 600; border-bottom: 1px solid #334155;">Date</th>
-                    <th style="padding: 12px 16px; text-align: center; font-weight: 600; border-bottom: 1px solid #334155;">Topic</th>
-                    <th style="padding: 12px 16px; text-align: left; font-weight: 600; border-bottom: 1px solid #334155;">Article</th>
-                </tr>
-            </thead>
-            <tbody style="background-color: #0f172a;">
-        """
+        table_html += (
+            "<table style='width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.95rem; margin-bottom: 24px; border: 1px solid #334155; border-radius: 6px; overflow: hidden;'>"
+            "<thead style='background-color: #1e293b; color: #e2e8f0;'>"
+            "<tr>"
+            "<th style='padding: 12px 16px; text-align: left; font-weight: 600; border-bottom: 1px solid #334155;'>Score</th>"
+            "<th style='padding: 12px 16px; text-align: center; font-weight: 600; border-bottom: 1px solid #334155;'>Date</th>"
+            "<th style='padding: 12px 16px; text-align: center; font-weight: 600; border-bottom: 1px solid #334155;'>Topic</th>"
+            "<th style='padding: 12px 16px; text-align: left; font-weight: 600; border-bottom: 1px solid #334155;'>Article</th>"
+            "</tr></thead><tbody style='background-color: #0f172a;'>"
+        )
         
         for art in articles:
             s = art.scores
             
             # Icons & Text
-            date_icon = "✅" if s['date'] >= 30 and art.relevance_score > 0 else "⚠️"
+            # Icons & Text
+            date_icon = "[OK]" if s['date'] >= 30 and art.relevance_score > 0 else "[!]"
             
             date_color = "#4ade80" if art.relevance_score > 0 else "#7f1d1d" # Green vs Bordeaux Red
             date_display = f"<span style='color: {date_color}; font-weight: bold;'>{art.date_str}</span>" if art.date_str else f"<span style='color: #7f1d1d;'>N/A</span>"
@@ -3466,27 +3374,20 @@ async def generate_digest(req: DigestRequest, current_user: User = Depends(get_c
                 score_text = "#f87171" 
                 score_border = "#b91c1c"
             
-            score_badge = f"""
-            <span style="display: inline-block; background-color: {score_bg}; color: {score_text}; border: 1px solid {score_border}; padding: 4px 8px; border-radius: 6px; font-weight: bold; min-width: 40px; text-align: center;">
-                {art.relevance_score}
-            </span>
-            """
+            score_badge = f'<span style="display: inline-block; background-color: {score_bg}; color: {score_text}; border: 1px solid {score_border}; padding: 4px 8px; border-radius: 6px; font-weight: bold; min-width: 40px; text-align: center;">{art.relevance_score}</span>'
             
             title_color = "#f1f5f9"
             
-            table_html += f"""
-                <tr style="border-bottom: 1px solid #1e293b;">
-                    <td style="padding: 10px 16px; border-bottom: 1px solid #1e293b;">{score_badge}</td>
-                    <td style="padding: 10px 16px; text-align: center; border-bottom: 1px solid #1e293b; font-size: 0.9rem; color: #cbd5e1;">{date_display}</td>
-                    <td style="padding: 10px 16px; text-align: center; border-bottom: 1px solid #1e293b; font-size: 0.9rem; color: #cbd5e1;">{topic_display}</td>
-                    <td style="padding: 10px 16px; border-bottom: 1px solid #1e293b;">
-                        <a href="{art.url}" target="_blank" style="display: block; color: {title_color}; text-decoration: none; font-size: 1rem; font-weight: 500; line-height: 1.4; transition: color 0.2s;">
-                           <span style="border-bottom: 1px dotted #94a3b8;">{art.title}</span> <span style="font-size: 0.8em; text-decoration: none;">🔗</span>
-                        </a>
-                        <div style="font-size: 0.75rem; color: #64748b; margin-top: 4px; font-family: monospace;">{art.url[:80]}{'...' if len(art.url) > 80 else ''}</div>
-                    </td>
-                </tr>
-            """
+            table_html += (
+                f"<tr style='border-bottom: 1px solid #1e293b;'>"
+                f"<td style='padding: 10px 16px; border-bottom: 1px solid #1e293b;'>{score_badge}</td>"
+                f"<td style='padding: 10px 16px; text-align: center; border-bottom: 1px solid #1e293b; font-size: 0.9rem; color: #cbd5e1;'>{date_display}</td>"
+                f"<td style='padding: 10px 16px; text-align: center; border-bottom: 1px solid #1e293b; font-size: 0.9rem; color: #cbd5e1;'>{topic_display}</td>"
+                f"<td style='padding: 10px 16px; border-bottom: 1px solid #1e293b;'>"
+                f"<a href='{art.url}' target='_blank' style='display: block; color: {title_color}; text-decoration: none; font-size: 1rem; font-weight: 500; line-height: 1.4; transition: color 0.2s;'>"
+                f"<span style='border-bottom: 1px dotted #94a3b8;'>{art.title}</span> <span style='font-size: 0.8em; text-decoration: none;'>[Link]</span></a>"
+                f"<div style='font-size: 0.75rem; color: #64748b; margin-top: 4px; font-family: monospace;'>{art.url[:80]}{'...' if len(art.url) > 80 else ''}</div></td></tr>"
+            )
         
         table_html += "</tbody></table>"
 
@@ -3508,8 +3409,6 @@ class AnalysisRequest(BaseModel):
 
 @router.post("/outlets/analyze", response_model=List[KeywordData])
 async def analyze_digest_text(req: AnalysisRequest, current_user: User = Depends(get_current_user)):
-    """
-    Direct analysis endpoint (fallback/manual).
-    """
+    # Direct analysis endpoint (fallback/manual).
     return await analyze_text_with_gemini(req.text, api_key=current_user.gemini_api_key)
 
