@@ -39,6 +39,14 @@ from schemas.outlets import (
 from prompts.politics import POLITICS_OPERATIONAL_DEFINITION
 from services.discovery import gemini_discover_city_outlets, gemini_scrape_outlets
 
+ROBUST_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Referer": "https://www.google.com/",
+    "Upgrade-Insecure-Requests": "1"
+}
+
 from google.api_core.exceptions import ResourceExhausted
 
 router = APIRouter()
