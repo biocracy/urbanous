@@ -1927,6 +1927,31 @@ async def _summarize_internal_logic(req: SummarizeRequest, current_user: User):
         else:
              full_body = f"{report_title}\n\n" + reply
 
+    # 4. UNCITED SOURCES APPENDIX
+    # Ensure every selected article is acknowledged in the report body.
+    try:
+        cited_ids = set()
+        # Find all [n] citations in the text
+        matches = re.findall(r'\[(\d+)\]', full_body)
+        for m in matches:
+            cited_ids.add(int(m))
+
+        uncited_articles = []
+        for idx, art in enumerate(articles_to_process):
+            ref_id = idx + 1
+            if ref_id not in cited_ids:
+                uncited_articles.append((ref_id, art))
+        
+        if uncited_articles:
+             full_body += "\n\n## Additional Sources Consulted\n"
+             full_body += "The following selected articles were reviewed for this report:\n"
+             for ref_id, art in uncited_articles:
+                  title = art.get('title', 'Source').replace('[', '(').replace(']', ')')
+                  # We rely on the Global Source Index for the link, so we just reference [n]
+                  full_body += f"- [{ref_id}] {title}\n"
+    except Exception as e:
+        print(f"Appendix Error: {e}")
+
     # Combine Body + Index
     final_markdown = full_body + source_index_md
     

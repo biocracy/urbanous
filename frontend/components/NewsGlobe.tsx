@@ -158,7 +158,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
     }
 
     // Use centralized version constant
-    const APP_VERSION = "v0.298";
+    const APP_VERSION = "v0.299";
 
     // Debugging State Reset
     // useEffect(() => console.log("[NewsGlobe] Mount/Render"), []);
@@ -431,7 +431,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
 
             let summaryText = res.data.summary;
             // Extract Title from Markdown (if first line is # ...), and update local state
-            const titleMatch = summaryText.match(/^#\s+(.*?)(\r?\n|$)/);
+            const titleMatch = summaryText.trim().match(/^#\s+(.*?)(\r?\n|$)/);
             if (titleMatch) {
                 const newTitle = titleMatch[1].trim();
                 console.log("DIGEST_DEBUG: Extracted Title:", newTitle);
