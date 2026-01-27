@@ -158,7 +158,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
     }
 
     // Use centralized version constant
-    const APP_VERSION = "v0.281";
+    const APP_VERSION = "v0.282";
 
     // Debugging State Reset
     // useEffect(() => console.log("[NewsGlobe] Mount/Render"), []);
@@ -409,11 +409,22 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
             const selectedArts = uniquePool.filter((a: any) => selectedArticleUrls.has(a.url));
             const excludedArts = uniquePool.filter((a: any) => !selectedArticleUrls.has(a.url));
 
+            // Payload Optimization: Only send necessary fields to backend to prevent 413/Timeout
+            const leanSelectedArts = selectedArts.map((a: any) => ({
+                title: a.title,
+                url: a.url,
+                source: a.source,
+                date_str: a.date_str || a.date,
+                content_summary: a.content_summary // Only summary needed, not full HTML
+            }));
+
             const res = await api.post('/outlets/digest/summarize', {
-                articles: selectedArts,
+                articles: leanSelectedArts,
                 category: selectedCategory,
                 city: digestData.city || selectedCityName || "Global",
                 timeframe_label: periodLabel
+            }, {
+                timeout: 120000 // 2 Minutes Timeout for long summarization
             });
 
             // CRITICAL: Update the local digest Data to reflect selected vs excluded
