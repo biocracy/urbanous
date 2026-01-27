@@ -158,7 +158,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
     }
 
     // Use centralized version constant
-    const APP_VERSION = "v0.284";
+    const APP_VERSION = "v0.285";
 
     // Debugging State Reset
     // useEffect(() => console.log("[NewsGlobe] Mount/Render"), []);
@@ -2671,7 +2671,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
     return (
 
         <div
-            className={`relative w - full h - full bg - slate - 950 transition - cursor ${(isAtTop && !isMetaPressed) ? 'cursor-move' : 'cursor-default'} ${isMobile ? 'touch-pan-y' : ''} `}
+            className={`relative w-full h-full bg-slate-950 transition-cursor ${(isAtTop && !isMetaPressed) ? 'cursor-move' : 'cursor-default'} ${isMobile ? 'touch-pan-y' : ''}`}
             onTouchStart={(e) => {
                 if (isMobile && e.touches.length === 2) {
                     const t1 = e.touches[0];
@@ -2805,10 +2805,10 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
                                     <button
                                         key={style.name}
                                         onClick={() => setMapStyle(style.url)}
-                                        className={`px - 2 py - 1 rounded text - xs transition - colors border ${mapStyle === style.url
+                                        className={`px-2 py-1 rounded text-xs transition-colors border ${mapStyle === style.url
                                             ? 'bg-blue-600 border-blue-500 text-white font-bold'
                                             : 'bg-slate-800 border-slate-600 text-slate-400 hover:bg-slate-700'
-                                            } `}
+                                            }`}
                                     >
                                         {style.name}
                                     </button>
@@ -2972,7 +2972,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
                                     <button
                                         key={cat}
                                         onClick={() => setSelectedCategory(cat)}
-                                        className={`px - 2 py - 1 text - xs rounded border ${selectedCategory === cat ? 'bg-blue-600 border-blue-500 text-white' : 'border-slate-700 text-gray-400'} `}
+                                        className={`px-2 py-1 text-xs rounded border ${selectedCategory === cat ? 'bg-blue-600 border-blue-500 text-white' : 'border-slate-700 text-gray-400'}`}
                                     >
                                         {cat}
                                     </button>
@@ -2989,10 +2989,10 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
                                     <button
                                         key={tf.value}
                                         onClick={() => setSelectedTimeframe(tf.value)}
-                                        className={`flex - 1 py - 1 text - [10px] uppercase font - bold rounded text - center transition - all ${selectedTimeframe === tf.value
+                                        className={`flex-1 py-1 text-[10px] uppercase font-bold rounded text-center transition-all ${selectedTimeframe === tf.value
                                             ? 'bg-blue-600/20 text-blue-400 border border-blue-500/50 shadow-[0_0_10px_rgba(59,130,246,0.2)]'
                                             : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800'
-                                            } `}
+                                            }`}
                                     >
                                         {tf.label}
                                     </button>
@@ -3003,7 +3003,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
                                 <button
                                     onClick={handleGenerateDigest}
                                     disabled={!isGeneratingDigest && selectedOutletIds.length === 0}
-                                    className={`w - full font - medium py - 3 rounded - lg shadow - lg transition - all text - base flex justify - center items - center gap - 2 h - 14 min - w - [300px]
+                                    className={`w-full font-medium py-3 rounded-lg shadow-lg transition-all text-base flex justify-center items-center gap-2 h-14 min-w-[300px]
                                         ${isGeneratingDigest
                                             ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-900/40 border border-blue-500/30'
                                             : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-900/40 border border-blue-500/30'
@@ -3055,13 +3055,13 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
                             <div className="flex border-b border-slate-700 mt-4">
                                 <button
                                     onClick={() => setActiveSideTab('sources')}
-                                    className={`flex - 1 pb - 2 text - sm font - bold transition - colors ${activeSideTab === 'sources' ? 'text-blue-400 border-b-2 border-blue-400' : 'text-slate-500 hover:text-slate-300'} `}
+                                    className={`flex-1 pb-2 text-sm font-bold transition-colors ${activeSideTab === 'sources' ? 'text-blue-400 border-b-2 border-blue-400' : 'text-slate-500 hover:text-slate-300'}`}
                                 >
                                     Sources
                                 </button>
                                 <button
                                     onClick={() => setActiveSideTab('digests')}
-                                    className={`flex - 1 pb - 2 text - sm font - bold transition - colors ${activeSideTab === 'digests' ? 'text-blue-400 border-b-2 border-blue-400' : 'text-slate-500 hover:text-slate-300'} `}
+                                    className={`flex-1 pb-2 text-sm font-bold transition-colors ${activeSideTab === 'digests' ? 'text-blue-400 border-b-2 border-blue-400' : 'text-slate-500 hover:text-slate-300'}`}
                                 >
                                     Saved Digests
                                 </button>
@@ -3116,7 +3116,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
                                                 const auto = selectedCityOutlets.filter(o => o.origin !== 'manual').sort((a, b) => (b.popularity || 0) - (a.popularity || 0));
 
                                                 const renderOutlet = (outlet: any) => (
-                                                    <div key={outlet.id} className={`group p - 3 rounded transition - all border mb - 2 ${selectedOutletIds.includes(outlet.id) ? 'bg-slate-800/80 border-blue-500/30' : 'bg-slate-900/50 border-slate-800 opacity-80 hover:opacity-100'} `}>
+                                                    <div key={outlet.id} className={`group p-3 rounded transition-all border mb-2 ${selectedOutletIds.includes(outlet.id) ? 'bg-slate-800/80 border-blue-500/30' : 'bg-slate-900/50 border-slate-800 opacity-80 hover:opacity-100'}`}>
                                                         <div className="flex justify-between items-start">
                                                             <div className="flex items-center gap-2">
                                                                 <input
@@ -3127,7 +3127,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
                                                                 />
                                                                 <div className="flex flex-col">
                                                                     <div className="flex items-center gap-2">
-                                                                        <h4 className={`font - bold transition - colors ${selectedOutletIds.includes(outlet.id) ? 'text-blue-100' : 'text-slate-300'} `}>{outlet.name}</h4>
+                                                                        <h4 className={`font-bold transition-colors ${selectedOutletIds.includes(outlet.id) ? 'text-blue-100' : 'text-slate-300'}`}>{outlet.name}</h4>
                                                                         {/* Focus Badge */}
                                                                         {outlet.focus === 'National' && <span className="px-1 py-0.5 rounded bg-indigo-900/50 text-indigo-300 text-[9px] uppercase font-bold border border-indigo-700/50">National</span>}
                                                                         {outlet.focus === 'Local and National' && <span className="px-1 py-0.5 rounded bg-purple-900/50 text-purple-300 text-[9px] uppercase font-bold border border-purple-700/50">Mixed</span>}
