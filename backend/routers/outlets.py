@@ -1722,8 +1722,7 @@ class SummarizeRequest(BaseModel):
     city: str
     timeframe_label: Optional[str] = None
 
-@router.post("/outlets/digest/summarize")
-async def summarize_selected_articles(req: SummarizeRequest, current_user: User = Depends(get_current_user)):
+async def _summarize_internal_logic(req: SummarizeRequest, current_user: User):
     """
     Generates a contrasted summary of *selected* articles using Gemini.
     Uses Chunked Processing for large sets to ensure full coverage.
@@ -1743,14 +1742,7 @@ async def summarize_selected_articles(req: SummarizeRequest, current_user: User 
     genai.configure(api_key=api_key)
     # Model Fallback Strategy (Updated aliases)
     # Model Fallback Strategy (Updated aliases)
-    MODELS_TO_TRY = [
-        "gemini-2.5-flash",
-        "gemini-2.0-flash",
-        "gemini-2.0-flash-lite-preview-02-05", 
-        "gemini-1.5-flash", 
-        "gemini-1.5-pro",
-        "gemini-pro"
-    ]
+    MODELS_TO_TRY = ["gemini-1.5-flash", "gemini-1.5-pro"]
     
     # 1. GENERATE SOURCE INDEX PROGRAMMATICALLY
     # This ensures 100% accuracy and perfectly formatted links (no LLM hallucination).
@@ -1897,6 +1889,16 @@ async def summarize_selected_articles(req: SummarizeRequest, current_user: User 
     
     print("DEBUG: Returning final summary.")
     return {"summary": final_markdown}
+
+@router.post("/outlets/digest/summarize")
+async def summarize_selected_articles(req: SummarizeRequest, current_user: User = Depends(get_current_user)):
+    try:
+        return await _summarize_internal_logic(req, current_user)
+    except Exception as e:
+        print(f"CRITICAL_SUMMARIZE_FAIL: {e}")
+        trace = traceback.format_exc()
+        error_md = f"# System Error\n\n**Backend Crash**: {e}\n\n```\n{trace}\n```"
+        return {"summary": error_md}
 
 class AnalyticsRequest(BaseModel):
     articles: List[dict]
