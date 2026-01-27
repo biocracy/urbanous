@@ -158,7 +158,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
     }
 
     // Use centralized version constant
-    const APP_VERSION = "v0.285";
+    const APP_VERSION = "v0.286";
 
     // Debugging State Reset
     // useEffect(() => console.log("[NewsGlobe] Mount/Render"), []);
@@ -928,11 +928,11 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
             abortControllerRef.current = new AbortController();
 
             console.log("DIGEST_DEBUG: Initiating fetch to /outlets/digest/stream");
-            const response = await fetch(`${api.defaults.baseURL} /outlets/digest / stream`, {
+            const response = await fetch(`${api.defaults.baseURL}/outlets/digest/stream`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token} `
+                    'Authorization': `Bearer ${token}`
                 },
                 body: JSON.stringify({
                     outlet_ids: selectedOutletIds,
