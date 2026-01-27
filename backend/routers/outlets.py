@@ -2098,7 +2098,6 @@ async def summarize_selected_articles(req: SummarizeRequest, current_user: User 
         raise HTTPException(status_code=400, detail="Missing Gemini API Key. Please set it in Settings.")
         
     genai.configure(api_key=api_key)
-    genai.configure(api_key=api_key)
     # Model Fallback Strategy (Updated aliases)
     # Model Fallback Strategy (Updated aliases)
     MODELS_TO_TRY = [
