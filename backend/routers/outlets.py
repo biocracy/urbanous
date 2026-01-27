@@ -2090,6 +2090,8 @@ async def summarize_selected_articles(req: SummarizeRequest, current_user: User 
     """
     if not req.articles:
         return {"summary": "No articles selected."}
+
+    print(f"DEBUG: Summarize Request received for {len(req.articles)} articles.")
         
     api_key = current_user.gemini_api_key or os.getenv("GEMINI_API_KEY")
     if not api_key:

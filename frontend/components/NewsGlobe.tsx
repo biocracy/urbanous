@@ -158,7 +158,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
     }
 
     // Use centralized version constant
-    const APP_VERSION = "v0.279";
+    const APP_VERSION = "v0.280";
 
     // Debugging State Reset
     // useEffect(() => console.log("[NewsGlobe] Mount/Render"), []);
@@ -425,9 +425,10 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
             // or keep them selected visually? Keeping them is fine, but the indices now align 1:1.
 
             setActiveModalTab('digest');
-        } catch (e) {
+        } catch (e: any) {
             console.error("Summarization failed", e);
-            alert("Failed to generate summary");
+            const msg = e.response?.data?.detail || e.message || "Unknown Error";
+            alert(`Failed to generate summary: ${msg}`);
         } finally {
             setIsSummarizing(false);
         }
