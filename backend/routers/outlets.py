@@ -1855,7 +1855,7 @@ async def _summarize_internal_logic(req: SummarizeRequest, current_user: User):
         synthesis_prompt = (
             f"You are the Chief Editor. UNIFY these drafts into one report for {req.city}. "
             f"DRAFTS:\n{combined_raw_analysis}\n"
-            f"MANDATES: 1. UNIFY. 2. PRESERVE DETAILS. 3. KEEP CITATIONS [n]. "
+            f"MANDATES: 1. UNIFY. 2. PRESERVE DETAILS. 3. CITATION LIMIT: Max 3 refs per bracket (e.g. [12, 45, 99]). "
             f"4. HIGHLIGHT CONFLICTS. 5. HEADLINE START (# ...). "
             f"6. TRANSLATE to {user_lang}. Output Markdown."
         )

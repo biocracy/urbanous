@@ -158,7 +158,7 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
     }
 
     // Use centralized version constant
-    const APP_VERSION = "v0.294";
+    const APP_VERSION = "v0.295";
 
     // Debugging State Reset
     // useEffect(() => console.log("[NewsGlobe] Mount/Render"), []);
@@ -427,12 +427,30 @@ export default function NewsGlobe({ onCountrySelect, disableScrollZoom = false, 
                 timeout: 120000 // 2 Minutes Timeout for long summarization
             });
 
-            // CRITICAL: Update the local digest Data to reflect selected vs excluded
             setDigestData((prev: any) => prev ? ({ ...prev, articles: selectedArts, excluded_articles: excludedArts }) : null);
 
-            setDigestSummary(res.data.summary);
+            let summaryText = res.data.summary;
+            // Extract Title from Markdown (if first line is # ...), and update local state
+            const titleMatch = summaryText.match(/^#\s+(.*?)(\r?\n|$)/);
+            if (titleMatch) {
+                const newTitle = titleMatch[1].trim();
+                console.log("DIGEST_DEBUG: Extracted Title:", newTitle);
 
-            // Also clear selection since the new list is effectively "all selected" contextually,
+                // Update Digest Data Title
+                setDigestData((prev: any) => prev ? ({ ...prev, title: newTitle }) : null);
+
+                // Option: Remove the redundant title from the body so it doesn't show twice
+                // summaryText = summaryText.replace(/^#\s+.*(\r?\n)+/, ''); 
+                // Actually, let's keep it in the text for "Copy to Markdown" completeness, 
+                // OR remove it if the user explicitely said "redundant". 
+                // User said: "no!!!! this is redundant... the title should immediately update...".
+                // I will REMOVE it from the body text displayed.
+                summaryText = summaryText.substring(titleMatch[0].length).trim();
+            }
+
+            setDigestSummary(summaryText);
+
+            // Also clear selection since the new list is effectively "all selected" contextually
             // or keep them selected visually? Keeping them is fine, but the indices now align 1:1.
 
             setActiveModalTab('digest');
