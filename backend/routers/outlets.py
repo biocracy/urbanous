@@ -9,316 +9,43 @@ from bs4 import BeautifulSoup
 import html # For escaping content in f-strings
 import traceback # Debugging
 import asyncio # Added for digest parallel requests
-from fastapi import APIRouter, Depends, HTTPException, Body
+
+from fastapi import APIRouter, Depends, HTTPException, Body, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import select, distinct
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
 from database import AsyncSessionLocal
-from models import NewsOutlet, User, Country, CityMetadata, ScraperRule, NewsDigest, SpamFeedback
-from dependencies import get_current_user, get_db
-import scraper_engine # New Import
+from models import NewsOutlet, User, Country, CityMetadata, NewsDigest
+from dependencies import get_current_user, get_db, get_current_user_optional
+import scraper_engine 
+import google.generativeai as genai
+import httpx
+from bs4 import BeautifulSoup
+import json
+import os
+from datetime import datetime
 
-from datetime import datetime, timedelta
-import re
-import secrets
-import string
+# --- New Imports ---
+from schemas.outlets import (
+    OutletCreate, OutletRead, GeocodeRequest, GeocodeResponse,
+    CityDiscoveryRequest, ImportUrlRequest, CityInfoResponse,
+    PoliticsAssessmentRequest, PoliticsAssessmentResponse,
+    OutletUpdate, KeywordData, ArticleMetadata, DigestResponse,
+    DigestSaveRequest, DigestRead, DigestDetail, DigestRequest,
+    DigestCreate, DigestSavedResponse
+)
 
-
-# Common Headers to bypass simple bot protections
-ROBUST_HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-    "Accept-Language": "en-US,en;q=0.9,uk;q=0.8",
-    "Referer": "https://www.google.com/",
-    "Upgrade-Insecure-Requests": "1",
-    "Sec-Fetch-Dest": "document",
-    "Sec-Fetch-Mode": "navigate",
-    "Sec-Fetch-Site": "cross-site",
-}
-
-router = APIRouter()
-
-# --- Pydantic Schemas ---
-class OutletCreate(BaseModel):
-    name: str
-    country_code: str
-    city: str
-    lat: Optional[float] = 0.0
-    lng: Optional[float] = 0.0
-    url: Optional[str] = None
-    type: Optional[str] = "Unknown" # Print, Online, TV, Radio
-    popularity: Optional[int] = 5
-    focus: Optional[str] = "Local"
-
-class OutletRead(BaseModel):
-    id: int
-    name: str
-    country_code: str
-    city: str
-    lat: float
-    lng: float
-    url: Optional[str] = None
-    type: Optional[str] = "Unknown"
-    url: Optional[str] = None
-    type: Optional[str] = "Unknown"
-    origin: Optional[str] = "auto"
-    popularity: Optional[int] = 5
-    focus: Optional[str] = "Local"
-    
-    class Config:
-        from_attributes = True
-
-class GeocodeRequest(BaseModel):
-    city: str
-    country: str
-
-class GeocodeResponse(BaseModel):
-    lat: float
-    lng: float
+from prompts.politics import POLITICS_OPERATIONAL_DEFINITION
+from services.discovery import gemini_discover_city_outlets, gemini_scrape_outlets
 
 from google.api_core.exceptions import ResourceExhausted
 
-class CityDiscoveryRequest(BaseModel):
-    city: str
-    country: str
-    lat: Optional[float] = 0.0
-    lng: Optional[float] = 0.0
-    force_refresh: bool = False
-
-class ImportUrlRequest(BaseModel):
-    url: str
-    city: str
-    country: str
-    lat: Optional[float] = 0.0
-
-class CityInfoResponse(BaseModel):
-    population: str
-    description: str
-    ruling_party: str
-    flag_url: Optional[str] = None
-    lng: Optional[float] = 0.0
-    lung: Optional[float] = 0.0
-    instructions: Optional[str] = None
-
-# --- Constants ---
-
-POLITICS_OPERATIONAL_DEFINITION = """
-Politics label spec (operational)
-Label name: POLITICS
-
-Core criterion:
-Assign POLITICS if the primary focus of the article is power, governance, or collective decision-making carried out by political institutions/actors, or the processes that select/control them.
-“Primary focus” = the main story would still be the same if you removed all non-political details; politics is not just a cameo.
-
-Include if ANY of these is the main subject:
-A) Government & institutions (domestic)
-- Executive actions: cabinet decisions, ministries, agencies, regulators acting in official capacity
-- Legislature: bills, votes, committees, parliamentary negotiations
-- Public administration: government programs, budgets, procurement policy (not company-specific business news)
-- Local government: mayors, councils, regional authorities, public service governance
-
-B) Elections & party politics
-- Elections, campaigns, polling, debates, candidate selection, coalition talks
-- Party leadership, internal party conflicts when politically consequential
-- Political strategy, messaging, endorsements
-
-C) Public policy (substance + debate)
-- Policy proposals, reforms, regulation, taxation, welfare, healthcare policy, education policy, climate policy, etc.
-- **Implementation of new legislation** (National or EU Directives) impacting society or business sectors.
-- Political conflict over policy (who supports/opposes; parliamentary dynamics; veto threats)
-
-D) Political accountability & legitimacy
-- Resignations, impeachments, no-confidence votes
-- Ethics, corruption, conflicts of interest when tied to governance (not just criminal detail)
-- Constitutional crises, institutional clashes, rule-of-law disputes
-
-E) International politics & diplomacy
-- Treaties, summits, sanctions, foreign policy statements
-- Diplomatic incidents, recognition disputes, geopolitical negotiations
-
-F) Civil liberties & rights as political contestation
-- Protests, civil society actions, strikes when framed around policy/government power
-- Major court rulings when they reshape governance or political rights (elections, constitutional issues)
-
-Exclude (unless politics is clearly primary):
-1) Crime / courts: If it’s mainly “who did what, evidence, trial details,” label CRIME/LAW, not POLITICS. Exception: if the case directly affects governance.
-2) Business / economy: Market moves, company earnings, mergers → BUSINESS. Exception: sanctions, antitrust, budgets, or **new regulations/laws** being implemented → POLITICS.
-3) Disasters / weather / accidents: If the focus is the event itself → DISASTER. Exception: political accountability/policy response dominates.
-4) Culture / celebrity: Politicians as celebrities (personal life) → ENTERTAINMENT unless tied to office, campaign, or legitimacy.
-5) Sports: Sports story with a politician quote is still SPORTS unless it becomes policy.
-
-Decision rules:
-Rule P1 — Actor × Action (strong signal): If article contains political actors/institutions AND governance actions, assign POLITICS.
-Rule P2 — Elections/party process (strong signal): If the main content concerns elections, campaigns, polling, coalitions, party leadership, assign POLITICS.
-Rule P3 — Policy conflict frame (medium signal): If the article is structured as policy debate, assign POLITICS.
-Rule P4 — International statecraft (strong signal): If it involves states/IGOs and diplomatic/military/economic coercion instruments, assign POLITICS.
-Rule P5 — “Mention-only” veto: If political entity is mentioned but not central, do NOT assign POLITICS.
-"""
-
-class PoliticsAssessmentRequest(BaseModel):
-    url: str
-    title: str
-    content: Optional[str] = None # Optional, if frontend already has it or we re-fetch
-
-class PoliticsAssessmentResponse(BaseModel):
-    is_politics: bool
-    confidence: int # 0-100
-    reasoning: str
-    labels: List[str] # e.g. ["POLITICS", "HEALTH"]
+router = APIRouter()
 
 # --- Helpers (Moved to scraper_engine) ---
 # parse_romanian_date and extract_date_from_url removed from here
 
-
-async def get_db():
-    async with AsyncSessionLocal() as session:
-        yield session
-
-async def gemini_discover_city_outlets(city: str, country: str, lat: float, lng: float, api_key: str) -> List[OutletCreate]:
-    if not api_key: return []
-    genai.configure(api_key=api_key)
-
-    prompt = f"""
-    You are a news outlet discovery expert. 
-    TASK: List the top 15-20 most relevant news outlets (Newspapers, TV Stations, Radio, Online Portals) based in or covering: {city}, {country}.
-    
-    1. PRIORITIZE local outlets dedicated to {city}.
-    2. INCLUDE national outlets if they are headquartered in {city} or have a major local bureau.
-    3. You may check the {city} townhall website for a media list if available, but do not stop if not found.
-    4. Focus on finding and validating live Website URLs. 
-    5. Assign a popularity score (1-10) based on reputation.
-    6. DETERMINTE the 2-letter Country Code (ISO 3166-1 alpha-2) for {country}.
-
-    Return a strictly valid JSON list. Example:
-    [
-        {{ "name": "Monitorul de Cluj", "url": "https://www.monitorulcj.ro", "country_code": "RO", "type": "Online", "popularity": 10, "focus": "Local" }},
-        {{ "name": "Sydney Morning Herald", "url": "https://www.smh.com.au", "country_code": "AU", "type": "Online", "popularity": 10, "focus": "Local" }}
-    ]
-    Do not include any markdown formatting or explanation, just the JSON string.
-    """
-    
-    print(f"DEBUG: Starting Gemini Discovery for {city}, {country}")
-    # Multi-Model Fallback Strategy
-    # PROBE RESULT (2025-01-17): Prod has Gemini 2.0/2.5 available!
-    models_to_try = [
-        'gemini-2.0-flash',        # Stable fast 2.0
-        'gemini-2.0-flash-exp',    # Experimental 2.0
-        'gemini-2.5-flash',        # Bleeding edge
-        'gemini-1.5-flash',        # Fallbacks
-        'gemini-1.5-pro'
-    ]
-    last_error = None
-    text = None
-
-    for model_name in models_to_try:
-        try:
-            print(f"DEBUG: Trying model {model_name}...")
-            # recreate model instance for each try
-            model = genai.GenerativeModel(model_name)
-            response = await model.generate_content_async(prompt, generation_config={"max_output_tokens": 4000})
-            text = response.text.strip()
-            if text: break
-        except Exception as e:
-            print(f"DEBUG: Model {model_name} failed: {e}")
-            last_error = e
-            continue
-            
-    if not text:
-        # PROBE: List available models to find out what IS there
-        available_models = []
-        try:
-            for m in genai.list_models():
-                if 'generateContent' in m.supported_generation_methods:
-                    available_models.append(m.name)
-        except Exception as probe_e:
-            available_models.append(f"Probe Failed: {probe_e}")
-            
-        # If all failed, raise the last error with the PROBE info
-        raise ValueError(f"All models failed. Last Error: {last_error}. Available Models: {', '.join(available_models[:5])}")
-    
-    # Robust JSON finding using Regex
-    import re
-    match = re.search(r'\[.*\]', text, re.DOTALL)
-    if match:
-        text = match.group(0)
-    else:
-        # If no JSON found, this IS an error worth seeing in trace
-        raise ValueError(f"No JSON block found in Gemini response. Text: {text[:100]}...")
-    
-    try:
-        data = json.loads(text)
-    except json.JSONDecodeError as e:
-         # Propagate this too
-         raise ValueError(f"JSON Decode Error: {e} | Text: {text[:50]}...")
-    
-    def safe_int(val):
-        try: return int(val)
-        except: return 5
-
-    outlets = [OutletCreate(
-        name=d['name'], 
-        city=city, 
-        country_code=d.get('country_code', 'XX'),
-        url=d.get('url'),
-        type=d.get('type', 'Online'),
-        popularity=safe_int(d.get('popularity', 5)),
-        focus=d.get('focus', 'Local'),
-        lat=lat,
-        lng=lng
-    ) for d in data]
-    
-    return outlets
-
-async def gemini_scrape_outlets(html_content: str, city: str, country: str, lat: float, lng: float, api_key: str, instructions: str = None) -> List[OutletCreate]:
-    if not api_key: return []
-    genai.configure(api_key=api_key)
-
-    # Truncate HTML to avoid token limits (approx 30k chars is usually enough for structure)
-    html_sample = html_content[:50000]
-
-    prompt = f"""
-    Analyze this HTML content from a website ({instructions or "General Analysis"}).
-    
-    Goal: Identify the News Outlet(s) associated with this page.
-    
-    Scenario A (Single Outlet): The website ITSELF is a news outlet (newspaper, blog, TV station).
-    -> Return it as a single entry.
-    
-    Scenario B (Directory): The website contains a LIST of OTHER news outlets.
-    -> Return the list of extracted outlets.
-    
-    Context: We are looking for media related to {city}, {country}.
-    
-    Return a JSON list:
-    [
-        {{ "name": "Outlet Name", "url": "https://full.url.com", "type": "Online" }}
-    ]
-    """
-    
-    try:
-        model = genai.GenerativeModel('gemini-flash-latest')
-        response = await model.generate_content_async([prompt, html_sample])
-        text = response.text.replace("```json", "").replace("```", "").strip()
-        data = json.loads(text)
-        return [OutletCreate(
-            name=d['name'], 
-            city=city, 
-            country_code="RO" if "Romania" in country else "XX",
-            url=d.get('url'),
-            type=d.get('type', 'Online'),
-            lat=lat,
-            lng=lng
-        ) for d in data]
-    except ResourceExhausted:
-         raise # Re-raise 429
-    except Exception as e:
-        print(f"Gemini Scrape Error: {e}")
-        return []
-
-from dependencies import get_current_user, get_current_user_optional
-
-from fastapi import Request
 
 @router.get("/outlets/test_crash")
 async def test_crash():
@@ -535,9 +262,7 @@ async def discover_city_outlets(raw_req: Request, db: Session = Depends(get_db))
             )
         ]
 
-class OutletUpdate(BaseModel):
-    url: Optional[str] = None
-    name: Optional[str] = None
+
 
 @router.delete("/outlets/{outlet_id}")
 async def delete_outlet(outlet_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
@@ -632,30 +357,7 @@ async def list_cities_with_outlets(db: Session = Depends(get_db)):
 from bs4 import BeautifulSoup
 from models import NewsDigest
 
-class KeywordData(BaseModel):
-    word: str
-    importance: int # 1-100
-    type: str 
-    sentiment: str
-    source_urls: Optional[List[str]] = [] # New: Links to specific source articles
 
-class ArticleMetadata(BaseModel):
-    title: str
-    url: str
-    source: str
-    image_url: Optional[str] = None
-    date_str: Optional[str] = None
-    relevance_score: Optional[int] = 0
-    scores: Optional[Dict[str, Any]] = {}
-    ai_verdict: Optional[str] = None # New field for AI Title Check status
-    translated_title: Optional[str] = None # New field for Translation
-    is_spam: Optional[bool] = False # Soft block status
-    
-class DigestResponse(BaseModel):
-    digest: str
-    articles: List[ArticleMetadata]
-    analysis_source: Optional[List[KeywordData]] = []
-    analysis_digest: Optional[List[KeywordData]] = []
 
 @router.post("/outlets/assess_article", response_model=PoliticsAssessmentResponse)
 async def assess_article_politics(req: PoliticsAssessmentRequest, current_user: User = Depends(get_current_user)):
@@ -836,28 +538,7 @@ async def batch_verify_titles_debug(titles_map: Dict[int, str], definition: str,
     print(f"DEBUG: {err_msg}")
     return {}, err_msg, ""
 
-class DigestSaveRequest(BaseModel):
-    title: str
-    category: str
-    summary_markdown: str
-    articles: List[ArticleMetadata]
-    analysis_source: Optional[List[KeywordData]] = []
-    analysis_digest: Optional[List[KeywordData]] = []
 
-class DigestRead(BaseModel):
-    id: int
-    title: str
-    category: str
-    city: Optional[str] = None
-    
-    is_public: bool = False
-    public_slug: Optional[str] = None
-    
-    created_at: str
-    
-    owner_id: int
-    owner_username: Optional[str] = None
-    owner_is_visible: bool = True
 
 @router.get("/outlets/", response_model=List[dict])
 async def get_all_outlets(db: Session = Depends(get_db)):
@@ -890,22 +571,7 @@ async def get_saved_digests(db: Session = Depends(get_db)):
         for d, user in rows
     ]
 
-class DigestDetail(BaseModel):
-    id: int
-    title: str
-    category: str
-    timeframe: Optional[str] = "24h" # Added to support date calculation in frontend
-    city: Optional[str] = None
-    country: Optional[str] = None # Added for Metadata
-    image_url: Optional[str] = None # Added for Metadata Images
-    summary_markdown: str
-    articles: List[Dict[str, Any]]
-    analysis_source: Optional[List[Dict[str, Any]]] = []
-    analysis_digest: Optional[List[Dict[str, Any]]] = []
-    created_at: str
-    owner_id: int
-    owner_username: Optional[str] = None
-    owner_is_visible: bool = True
+
 
 @router.get("/outlets/digests/{id}", response_model=DigestDetail)
 async def get_digest_detail(id: int, db: Session = Depends(get_db)):
@@ -958,17 +624,7 @@ async def get_digest_detail(id: int, db: Session = Depends(get_db)):
 
 
 
-class CityInfoResponse(BaseModel):
-    population: str
-    description: str
-    ruling_party: str
-    flag_url: Optional[str] = None
-    city_native_name: Optional[str] = None
-    city_phonetic_name: Optional[str] = None
-    country_flag_url: Optional[str] = None
-    country_english: Optional[str] = None
-    country_native: Optional[str] = None
-    country_phonetic: Optional[str] = None
+
 
 @router.get("/outlets/city_info", response_model=CityInfoResponse)
 async def get_city_info(city: str, country: str, current_user: Optional[User] = Depends(get_current_user_optional), db: Session = Depends(get_db)):
@@ -1101,11 +757,7 @@ async def get_city_info(city: str, country: str, current_user: Optional[User] = 
         print(f"City Info Error: {e}")
         return CityInfoResponse(population="Unknown", description=f"Automated data unavailable: {str(e)}", ruling_party="Unknown")
 
-class DigestRequest(BaseModel):
-    outlet_ids: List[int]
-    category: str
-    timeframe: Optional[str] = "24h" # 24h, 3days, 1week
-    city: Optional[str] = None
+
 
 async def robust_fetch(client, url):
     try:
@@ -1516,31 +1168,11 @@ async def generate_keyword_analysis(text: str, category: str, current_user: User
         return []
 
 # --- Digest Management Models ---
-class DigestCreate(BaseModel):
-    title: str
-    category: str
-    city: Optional[str] = None
-    timeframe: Optional[str] = None
-    summary_markdown: str
-    articles: List[Dict[str, Any]] # Will be serialized to JSON
-    selected_article_urls: Optional[List[str]] = None
-    analysis_source: Optional[List[Dict[str, Any]]] = None # Will be serialized to JSON
-    analysis_digest: Optional[List[Dict[str, Any]]] = None
 
-class DigestRead(DigestCreate):
-    id: int
-    created_at: datetime
-    is_public: bool = False
-    public_slug: Optional[str] = None
-    owner_id: int
-    owner_username: Optional[str] = None
-    
-    class Config:
-        from_attributes = True
 
 # --- Digest Endpoints ---
 
-@router.post("/digests", response_model=DigestRead)
+@router.post("/digests", response_model=DigestSavedResponse)
 async def save_digest(
     digest: DigestCreate, 
     db: Session = Depends(get_db),
@@ -1598,7 +1230,7 @@ async def save_digest(
         await db.refresh(db_digest)
         
         # Clean return (deserialize for response)
-        return DigestRead(
+        return DigestSavedResponse(
             id=db_digest.id,
             title=db_digest.title,
             category=db_digest.category,
@@ -1621,7 +1253,7 @@ async def save_digest(
         # EXPOSE ERROR DETAILS TO FRONTEND
         raise HTTPException(status_code=500, detail=f"SAVE ERROR: {str(e)} Type: {type(e).__name__}")
 
-@router.put("/digests/{digest_id}", response_model=DigestRead)
+@router.put("/digests/{digest_id}", response_model=DigestSavedResponse)
 async def update_digest(
     digest_id: int,
     digest: DigestCreate,
@@ -1656,7 +1288,7 @@ async def update_digest(
     await db.commit()
     await db.refresh(db_digest)
     
-    return DigestRead(
+    return DigestSavedResponse(
         id=db_digest.id,
         title=db_digest.title,
         category=db_digest.category,
@@ -1673,7 +1305,7 @@ async def update_digest(
         owner_username=current_user.username
     )
 
-@router.get("/digests", response_model=List[DigestRead])
+@router.get("/digests", response_model=List[DigestSavedResponse])
 async def list_digests(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
@@ -1690,7 +1322,7 @@ async def list_digests(
     safe_digests = []
     for d in digests:
         try:
-             safe_digests.append(DigestRead(
+             safe_digests.append(DigestSavedResponse(
                 id=d.id,
                 title=d.title,
                 category=d.category,
@@ -1708,7 +1340,7 @@ async def list_digests(
             ))
         except Exception as e:
              # DEBUG: Return broken digest so we can see the error in frontend
-             safe_digests.append(DigestRead(
+             safe_digests.append(DigestSavedResponse(
                 id=d.id,
                 title=f"ERR: {type(e).__name__}",
                 category="Error",
